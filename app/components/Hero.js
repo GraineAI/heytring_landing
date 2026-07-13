@@ -1,4 +1,5 @@
 import StoreButtons from "./StoreButtons";
+import { Ring } from "./Mascot";
 import { Check, Globe, Wave, Shield, Phone } from "./Icons";
 
 export default function Hero() {
@@ -56,14 +57,12 @@ export default function Hero() {
                   {/* travelling dot: caller → Ring */}
                   <span className="flow__travel" />
 
-                  {/* Ring answering */}
+                  {/* Ring answering — the mascot */}
                   <div className="flow__ring">
                     <span className="halo" />
                     <span className="halo" />
                     <span className="halo" />
-                    <span className="flow__orb">
-                      <span /><span /><span /><span /><span />
-                    </span>
+                    <Ring size={80} state="talking" className="flow__orb" />
                   </div>
 
                   {/* crossfading status labels */}

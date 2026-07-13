@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Phone } from "./Icons";
+import Logo from "./Logo";
 import { PLAY_URL } from "./StoreButtons";
 
 export default function Nav() {
@@ -16,9 +16,7 @@ export default function Nav() {
     <nav className={`nav${scrolled ? " is-scrolled" : ""}`}>
       <div className="wrap nav__in">
         <a className="brand" href="#top" aria-label="Tring home">
-          <span className="brand__mark">
-            <Phone width={17} height={17} style={{ color: "#fff" }} />
-          </span>
+          <Logo size={34} className="brand__logo" />
           <span className="brand__name">Tring</span>
           <span className="brand__tag">transfer to Ring</span>
         </a>

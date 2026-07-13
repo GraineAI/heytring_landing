@@ -6,28 +6,28 @@
    ============================================================ */
 
 :root {
-  /* Surfaces (cool, near-white) */
-  --cream:      #F5F8FF;   /* page background */
-  --cream-hi:   #FFFFFF;   /* cards / raised */
-  --cream-2:    #EDF2FE;   /* subtle fill */
-  --sand:       #D6E1F5;   /* strong border */
-  --line:       #E7EDF8;   /* hairline border */
+  /* Surfaces (warm paper — from the Tring mark) */
+  --cream:      #FBF3EC;   /* page background */
+  --cream-hi:   #FFF8F3;   /* cards / raised */
+  --cream-2:    #F4E7DC;   /* subtle fill */
+  --sand:       #E7D6C7;   /* strong border */
+  --line:       #EADBCE;   /* hairline border */
 
-  /* Ink (cool navy-black, not warm) */
-  --ink:        #0B1524;
-  --ink-soft:   #101c31;
-  --ink-panel:  #0d1830;
-  --plum:       #0f1f4d;   /* deep-blue gradient stop */
+  /* Ink (warm near-black) */
+  --ink:        #17100E;
+  --ink-soft:   #241813;
+  --ink-panel:  #2C1D17;
+  --plum:       #2E1B2C;   /* deep warm gradient stop */
 
-  /* Accent — electric blue (kept var names so components inherit) */
-  --coral:      #2F6BFF;   /* primary */
-  --coral-hot:  #5A8BFF;   /* hover / bright */
-  --coral-deep: #1E4FD8;   /* accent text on light */
-  --peach:      #CFE0FF;   /* light-blue highlight */
+  /* Accent — Tring coral (sampled from the app icon) */
+  --coral:      #F0472A;   /* primary */
+  --coral-hot:  #FF5C39;   /* hover / bright */
+  --coral-deep: #C9351A;   /* accent text on light */
+  --peach:      #FBD5C4;   /* peach highlight (the call-waves) */
 
-  --muted:      #55647E;   /* body-muted */
-  --muted-2:    #8493AD;   /* faint */
-  --ok:         #17A46A;
+  --muted:      #6E5B51;   /* body-muted */
+  --muted-2:    #927C6F;   /* faint */
+  --ok:         #2E9E6B;
 
   --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
@@ -37,9 +37,9 @@
   --radius: 20px;
   --radius-lg: 30px;
 
-  --shadow-soft: 0 30px 70px -34px rgba(19, 51, 122, 0.45);
-  --shadow-card: 0 1px 0 rgba(255,255,255,0.9) inset, 0 20px 44px -30px rgba(19, 51, 122, 0.4);
-  --shadow-blue: 0 18px 40px -16px rgba(47, 107, 255, 0.55);
+  --shadow-soft: 0 30px 70px -34px rgba(60, 26, 14, 0.4);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.7) inset, 0 20px 44px -30px rgba(60, 26, 14, 0.42);
+  --shadow-blue: 0 18px 40px -16px rgba(240, 71, 42, 0.5);
 }
 
 * { box-sizing: border-box; }
@@ -181,12 +181,9 @@ p { margin: 0; }
 .nav__cta { display: flex; align-items: center; gap: 12px; }
 
 .brand { display: inline-flex; align-items: center; gap: 11px; }
-.brand__mark {
-  width: 34px; height: 34px; border-radius: 11px;
-  background: linear-gradient(150deg, var(--coral-hot), var(--coral));
-  display: grid; place-items: center;
-  box-shadow: 0 8px 18px -8px rgba(47,107,255,0.9);
-  position: relative;
+.brand__logo {
+  border-radius: 11px; flex: none;
+  box-shadow: 0 8px 18px -8px rgba(240,71,42,0.55);
 }
 .brand__name {
   font-family: var(--font-display);
@@ -210,7 +207,7 @@ p { margin: 0; }
   content: "";
   position: absolute; left: 50%; top: -180px; transform: translateX(-50%);
   width: 900px; height: 600px;
-  background: radial-gradient(closest-side, rgba(47,107,255,0.16), transparent 70%);
+  background: radial-gradient(closest-side, rgba(240,71,42,0.16), transparent 70%);
   pointer-events: none;
 }
 .hero__in { position: relative; display: flex; flex-direction: column; align-items: center; }
@@ -343,7 +340,7 @@ p { margin: 0; }
   position: absolute; top: 58px; left: 50%;
   width: 12px; height: 12px; border-radius: 50%;
   background: var(--coral);
-  box-shadow: 0 0 0 6px rgba(47,107,255,0.18);
+  box-shadow: 0 0 0 6px rgba(240,71,42,0.18);
   opacity: 0;
   animation: travel 7s ease-in-out infinite;
 }
@@ -372,22 +369,22 @@ p { margin: 0; }
   100% { opacity: 0; transform: scale(1.5); }
 }
 .flow__orb {
-  width: 78px; height: 78px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--coral-hot), var(--coral) 55%, var(--coral-deep));
-  box-shadow: 0 12px 30px -8px rgba(47,107,255,0.8);
-  display: flex; align-items: flex-end; justify-content: center; gap: 3px;
-  padding-bottom: 26px;
-  animation: breathe 3s ease-in-out infinite;
+  filter: drop-shadow(0 12px 26px rgba(240,71,42,0.55));
 }
-.flow__orb span {
-  width: 4px; border-radius: 3px; background: #fff;
-  height: 12px;
-  animation: eq 1s ease-in-out infinite;
-}
-.flow__orb span:nth-child(2){ animation-delay:.12s } .flow__orb span:nth-child(3){ animation-delay:.24s }
-.flow__orb span:nth-child(4){ animation-delay:.36s } .flow__orb span:nth-child(5){ animation-delay:.48s }
 @keyframes eq { 0%,100% { height: 10px; } 50% { height: 30px; } }
+
+/* ===== Ring mascot animations ===== */
+.ring-mascot { transform-box: fill-box; transform-origin: center; overflow: visible; }
+.ring-breathe { animation: breathe 3.2s ease-in-out infinite; }
+.ring-eyes { transform-box: fill-box; transform-origin: center; animation: ringBlink 4.6s infinite; }
+.ring-zzz { animation: zzz 2.6s ease-out infinite; }
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes ringBlink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.1); } }
+@keyframes zzz {
+  0% { transform: translate(0,0); opacity: 0; }
+  30% { opacity: .9; }
+  100% { transform: translate(9px,-15px); opacity: 0; }
+}
 
 .flow__labels .a1, .flow__labels .a2, .flow__labels .a3 { animation: labelCycle 7s ease-in-out infinite; }
 .flow__labels .a2 { animation-name: labelCycle2; }

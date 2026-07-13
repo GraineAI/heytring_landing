@@ -1,4 +1,4 @@
-import { Phone } from "./Icons";
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="footer__top">
           <div>
             <a className="brand" href="#top">
-              <span className="brand__mark"><Phone width={17} height={17} style={{ color: "#fff" }} /></span>
+              <Logo size={34} className="brand__logo" />
               <span className="brand__name">Tring</span>
             </a>
             <p className="footer__blurb">
