@@ -1,0 +1,17 @@
+{
+  "name": "tring-landing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Marketing landing page for Tring — a personal AI phone assistant (Ring). Built with Next.js.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
