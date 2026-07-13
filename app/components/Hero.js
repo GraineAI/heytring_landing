@@ -5,11 +5,6 @@ export default function Hero() {
   return (
     <header className="hero" id="top">
       <div className="wrap hero__in">
-        <span className="hero__badge">
-          <span className="stars">★★★★★</span>
-          <span>Trusted by <b>300K+ Indians</b> 🇮🇳</span>
-        </span>
-
         <h1>
           Don&rsquo;t pick up.<br />
           Don&rsquo;t dial. <span className="ring">Tring.</span>
