@@ -23,8 +23,9 @@ export default function Motion() {
     (async () => {
       const gsap = (await import("gsap")).default;
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+      const { SplitText } = await import("gsap/SplitText");   // free since GSAP 3.13 — the real thing
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger);
+      gsap.registerPlugin(ScrollTrigger, SplitText);
       ctx = gsap.context(() => {
         const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
@@ -32,29 +33,15 @@ export default function Motion() {
         const nav = document.querySelector("nav, header.nav, .nav");
         if (nav) tl.from(nav, { y: -24, opacity: 0, duration: 0.5, clearProps: "all" }, 0);
 
-        // Hero headline — split each line into word spans at runtime (SEO markup untouched
-        // until JS runs), then rise word by word.
+        // Hero headline — GSAP SplitText (the official plugin, npm package): word-by-word
+        // rise with a slight tilt. SEO/static markup is untouched until JS runs, and
+        // split.revert() in cleanup restores the original DOM exactly.
         const h1 = document.querySelector(".hero h1");
         if (h1) {
-          const split = (node) => {
-            [...node.childNodes].forEach((n) => {
-              if (n.nodeType === 3 && n.textContent.trim()) {
-                const frag = document.createDocumentFragment();
-                n.textContent.split(/(\s+)/).forEach((w) => {
-                  if (!w.trim()) { frag.appendChild(document.createTextNode(w)); return; }
-                  const s = document.createElement("span");
-                  s.textContent = w;
-                  s.style.display = "inline-block";
-                  s.dataset.w = "1";
-                  frag.appendChild(s);
-                });
-                node.replaceChild(frag, n);
-              } else if (n.nodeType === 1 && n.tagName !== "BR") split(n);
-            });
-          };
-          split(h1);
-          tl.from(h1.querySelectorAll('[data-w="1"]'), {
-            y: 34, opacity: 0, rotate: 2, duration: 0.7, stagger: 0.05, clearProps: "all",
+          const split = new SplitText(h1, { type: "words", wordsClass: "w" });
+          tl.from(split.words, {
+            y: 34, opacity: 0, rotate: 2, duration: 0.7, stagger: 0.05,
+            onComplete: () => split.revert(),   // hand the DOM back untouched
           }, 0.1);
         }
 
