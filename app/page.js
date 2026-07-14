@@ -2,6 +2,7 @@ import Nav from "./components/Nav";
 import Motion from "./components/Motion";
 import Hero from "./components/Hero";
 import Strip from "./components/Strip";
+import Journey from "./components/Journey";
 import VoiceClone from "./components/VoiceClone";
 import HowItWorks from "./components/HowItWorks";
 import AskRing from "./components/AskRing";
@@ -19,6 +20,7 @@ export default function Home() {
       <main>
         <Hero />
         <Strip />
+        <Journey />
         <VoiceClone />
         <HowItWorks />
         <AskRing />
