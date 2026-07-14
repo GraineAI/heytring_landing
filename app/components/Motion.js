@@ -1,14 +1,17 @@
 "use client";
 
 /**
- * Motion — the page's GSAP layer. One client component mounted once (in page.js);
- * everything else stays a server component.
+ * Motion — the landing's GSAP layer (gsap ^3.15 from node_modules, dynamically imported so
+ * SSR never sees it). One client component mounted from page.js; the page itself stays
+ * server-rendered.
  *
- *  • Hero: children rise in a calm stagger on load.
- *  • Every <section> (and anything tagged [data-reveal]): fade-rise once on scroll into view.
- *  • Honors prefers-reduced-motion and never hides content by default — if GSAP fails to
- *    load or JS is off, the page renders exactly as before (we only animate FROM offsets,
- *    with clearProps so the final state is the untouched CSS).
+ *  • Hero headline: WORD-BY-WORD rise (split at runtime; markup untouched for SEO).
+ *  • Hero sub/CTAs/trust: follow in a stagger; store buttons pop with back.out.
+ *  • Mascot/art: slow floating loop (y ±8) after entry.
+ *  • Every <section> + [data-reveal]: fade-rise once on scroll (ScrollTrigger).
+ *  • Nav: slides down on load.
+ *  • Honors prefers-reduced-motion; never hides content by default (animate FROM offsets,
+ *    clearProps back to the untouched CSS) — JS off / GSAP failing = the page as-is.
  */
 import { useEffect } from "react";
 
@@ -23,19 +26,56 @@ export default function Motion() {
       if (cancelled) return;
       gsap.registerPlugin(ScrollTrigger);
       ctx = gsap.context(() => {
-        // Hero intro — title, sub, CTAs, trust row rise together.
-        const hero = document.querySelector(".hero .wrap");
-        if (hero) {
-          gsap.from(hero.children, {
-            y: 28, opacity: 0, duration: 0.75, ease: "power2.out",
-            stagger: 0.11, clearProps: "all",
-          });
+        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+        // Nav drops in.
+        const nav = document.querySelector("nav, header.nav, .nav");
+        if (nav) tl.from(nav, { y: -24, opacity: 0, duration: 0.5, clearProps: "all" }, 0);
+
+        // Hero headline — split each line into word spans at runtime (SEO markup untouched
+        // until JS runs), then rise word by word.
+        const h1 = document.querySelector(".hero h1");
+        if (h1) {
+          const split = (node) => {
+            [...node.childNodes].forEach((n) => {
+              if (n.nodeType === 3 && n.textContent.trim()) {
+                const frag = document.createDocumentFragment();
+                n.textContent.split(/(\s+)/).forEach((w) => {
+                  if (!w.trim()) { frag.appendChild(document.createTextNode(w)); return; }
+                  const s = document.createElement("span");
+                  s.textContent = w;
+                  s.style.display = "inline-block";
+                  s.dataset.w = "1";
+                  frag.appendChild(s);
+                });
+                node.replaceChild(frag, n);
+              } else if (n.nodeType === 1 && n.tagName !== "BR") split(n);
+            });
+          };
+          split(h1);
+          tl.from(h1.querySelectorAll('[data-w="1"]'), {
+            y: 34, opacity: 0, rotate: 2, duration: 0.7, stagger: 0.05, clearProps: "all",
+          }, 0.1);
         }
-        // Scroll reveals — every main section after the hero, once each.
+
+        // Sub + trust row rise; store buttons POP.
+        tl.from(".hero .hero__sub", { y: 24, opacity: 0, duration: 0.6, clearProps: "all" }, 0.45);
+        tl.from(".hero .btn--store", {
+          y: 18, opacity: 0, scale: 0.92, duration: 0.55, stagger: 0.1,
+          ease: "back.out(1.7)", clearProps: "all",
+        }, 0.6);
+        tl.from(".hero .hero__trust", { y: 16, opacity: 0, duration: 0.5, clearProps: "all" }, 0.75);
+
+        // Mascot / hero art: gentle perpetual float (starts after entry; no clearProps — it loops).
+        document.querySelectorAll(".hero svg, .hero .mascot, .hero [class*='phone']").forEach((el, i) => {
+          gsap.to(el, { y: 8, duration: 2.6 + i * 0.3, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 1.2 });
+        });
+
+        // Scroll reveals — each section (and anything tagged) rises once into view.
         document.querySelectorAll("main section, [data-reveal]").forEach((el) => {
           gsap.from(el.children.length ? el.children : el, {
             scrollTrigger: { trigger: el, start: "top 82%", once: true },
-            y: 30, opacity: 0, duration: 0.65, ease: "power2.out",
+            y: 34, opacity: 0, duration: 0.7, ease: "power2.out",
             stagger: 0.08, clearProps: "all",
           });
         });
