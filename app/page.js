@@ -1,4 +1,5 @@
 import Nav from "./components/Nav";
+import Motion from "./components/Motion";
 import Hero from "./components/Hero";
 import Strip from "./components/Strip";
 import VoiceClone from "./components/VoiceClone";
@@ -13,6 +14,7 @@ import Footer from "./components/Footer";
 export default function Home() {
   return (
     <>
+      <Motion />
       <Nav />
       <main>
         <Hero />

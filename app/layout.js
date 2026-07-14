@@ -1,4 +1,6 @@
 import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 const display = Plus_Jakarta_Sans({
@@ -69,6 +71,14 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         {children}
+        {/* Traffic tracking, both rails:
+            • Vercel Analytics — zero-config pageviews + custom events the moment this deploys.
+            • GA4 — activates when NEXT_PUBLIC_GA_ID (G-XXXXXXXXXX) is set in Vercel env; until
+              then it renders nothing. Conversion events fire via components/analytics.js. */}
+        <Analytics />
+        {process.env.NEXT_PUBLIC_GA_ID ? (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        ) : null}
       </body>
     </html>
   );
