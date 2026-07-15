@@ -10,7 +10,7 @@ framework — just a hand-written design system in `app/globals.css`.
 npm install
 npm run dev        # http://localhost:3000
 ```
-
+buld it 
 Build for production:
 
 ```bash
