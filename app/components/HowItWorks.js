@@ -1,4 +1,5 @@
 import { Phone, Eye, Note } from "./Icons";
+import MorphSteps from "./MorphSteps";
 
 const steps = [
   {
@@ -33,6 +34,8 @@ export default function HowItWorks() {
             meeting, your movie, your life — and still know exactly what happened.
           </p>
         </div>
+
+        <MorphSteps />
 
         <div className="steps">
           {steps.map((s) => (
