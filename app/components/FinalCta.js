@@ -1,9 +1,11 @@
 import StoreButtons from "./StoreButtons";
+import FlairVortex from "./FlairVortex";
 
 export default function FinalCta() {
   return (
     <section className="section--tight" aria-label="Download Tring">
       <div className="final">
+        <FlairVortex />
         <h2>Let it ring.<br />Ring&rsquo;s got it.</h2>
         <p>
           Stop bracing for every unknown number. Download Tring, switch Ring on, and get
