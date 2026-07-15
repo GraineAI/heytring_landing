@@ -1,10 +1,12 @@
 import StoreButtons from "./StoreButtons";
+import Particles from "./Particles";
 import { Ring } from "./Mascot";
 import { Check, Globe, Wave, Shield, Phone } from "./Icons";
 
 export default function Hero() {
   return (
     <header className="hero" id="top">
+      <Particles />
       <div className="wrap hero__in">
         <h1>
           Don&rsquo;t pick up.<br />

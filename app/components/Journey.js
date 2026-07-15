@@ -31,7 +31,9 @@ export default function Journey() {
           scrollTrigger: { trigger: root.current, start: "top 75%", end: "bottom 45%", scrub: 0.6 },
           defaults: { ease: "none" },
         });
+        gsap.set(".j-wp", { scale: 0.001, transformOrigin: "50% 50%" });
         tl.to("#j-route", { drawSVG: "100%" }, 0)
+          .to(".j-wp", { scale: 1, stagger: 0.28, ease: "back.out(3)", duration: 0.12 }, 0.08)
           .to("#j-ring", {
             motionPath: { path: "#j-route", align: "#j-route", alignOrigin: [0.5, 0.5], autoRotate: false },
           }, 0)
@@ -62,6 +64,10 @@ export default function Journey() {
           {/* the route — drawn by DrawSVG */}
           <path id="j-route" d={PATH} fill="none" stroke="#F0472A" strokeWidth="4"
             strokeLinecap="round" strokeDasharray="1 14" opacity="0.9" />
+          {/* waypoints — the stops along the route (pulse as Ring passes) */}
+          {[[210,120],[460,110],[640,86]].map(([x,y],i)=>(
+            <circle key={i} className="j-wp" cx={x} cy={y} r="7" fill="#fff" stroke="#F0472A" strokeWidth="3" />
+          ))}
           {/* Ring rides the path (MotionPath) */}
           <g id="j-ring">
             <circle r="26" fill="#F0472A" />

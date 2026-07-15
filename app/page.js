@@ -4,6 +4,7 @@ import Hero from "./components/Hero";
 import Strip from "./components/Strip";
 import Journey from "./components/Journey";
 import RollingText from "./components/RollingText";
+import Slider from "./components/Slider";
 import VoiceClone from "./components/VoiceClone";
 import HowItWorks from "./components/HowItWorks";
 import AskRing from "./components/AskRing";
@@ -27,6 +28,7 @@ export default function Home() {
         <HowItWorks />
         <AskRing />
         <Handles />
+        <Slider />
         <Trust />
         <Faq />
         <FinalCta />
