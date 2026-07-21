@@ -3,6 +3,8 @@ import Logo from "./Logo";
 export default function Footer() {
   return (
     <footer className="footer">
+      {/* hand-drawn doodle strip (Swish's pre-footer flourish) */}
+      <div className="doodles" aria-hidden="true" />
       <div className="wrap">
         <div className="footer__top">
           <div>

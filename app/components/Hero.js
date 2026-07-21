@@ -66,8 +66,7 @@ export default function Hero() {
         </h1>
 
         <p className="hero__sub">
-          Ring is your personal AI that answers the calls you&rsquo;d rather skip —
-          spam, deliveries, vendors — and hands you a clean note.{" "}
+          Ring answers the calls you&rsquo;d rather skip.{" "}
           <b>In your own voice, if you want.</b>
         </p>
 

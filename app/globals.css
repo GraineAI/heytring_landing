@@ -50,8 +50,9 @@
 
 * { box-sizing: border-box; }
 
-/* no CSS smooth-scroll — GSAP ScrollSmoother owns scrolling */
-html { -webkit-text-size-adjust: 100%; }
+/* native scrolling, like justswish.in — browser smooth-scroll for
+   in-page anchors only, offset for the floating nav pill */
+html { scroll-behavior: smooth; scroll-padding-top: 104px; -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
@@ -201,12 +202,33 @@ p { margin: 0; }
 .btn--store .store-k span { font-size: 16px; font-weight: 700; font-family: var(--font-display); }
 .btn--store svg { flex: none; }
 
+/* Swish's funky flood-fill hover: a hidden white circle parked under the
+   pill rises and floods it; the label flips to coral. */
 .btn--coral {
-  background: var(--coral);
+  position: relative; overflow: hidden; z-index: 1;
+  background: transparent;
   color: #fff;
   box-shadow: var(--shadow-coral);
+  transition: transform .18s var(--ease-swish), box-shadow .18s ease, color .25s ease;
 }
-.btn--coral:hover { background: var(--coral-hot); transform: translateY(-2px); }
+.btn--coral::after {
+  content: ""; position: absolute; inset: 0; z-index: -2;
+  background: var(--coral); border-radius: inherit;
+}
+.btn--coral::before {
+  content: ""; position: absolute; z-index: -1;
+  left: 50%; top: 100%;
+  width: 220%; aspect-ratio: 1;
+  transform: translate(-50%, 0);   /* parked fully below, own-size relative */
+  border-radius: 50%; background: #fff;
+  transition: transform .5s var(--ease-swish);
+}
+.btn--coral:hover { transform: translateY(-2px); color: var(--coral-deep); }
+.btn--coral:hover::before { transform: translate(-50%, -68%); }
+
+/* press-nudge (Swish nudges the store icon on press) */
+.btn--store:active svg { transform: translateY(2px); }
+.btn--store svg { transition: transform .12s ease; }
 
 .btn--ghost {
   background: #fff;
@@ -681,7 +703,37 @@ p { margin: 0; }
 .final__tiny { margin-top: 20px; font-size: 12.5px; color: rgba(255,255,255,0.85); position: relative; }
 
 /* ---------- footer (ends on the giant wordmark — Swish) ---------- */
-.footer { background: var(--ink); color: #d8c6bc; padding: 66px 0 0; overflow: hidden; }
+.footer { background: var(--ink); color: #d8c6bc; padding: 0; overflow: hidden; }
+.footer > .wrap { padding-top: 62px; }
+
+/* the hand-drawn doodle strip before the footer (Swish's flourish) */
+.doodles {
+  height: 64px;
+  background-color: var(--peach);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='64'%3E%3Cg fill='none' stroke='%23F4532E' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 38 q8 -16 16 0 t16 0'/%3E%3Ccircle cx='86' cy='32' r='12'/%3E%3Ccircle cx='82' cy='30' r='1.7' fill='%23F4532E' stroke='none'/%3E%3Ccircle cx='90' cy='30' r='1.7' fill='%23F4532E' stroke='none'/%3E%3Cpath d='M82 37 q4 3 8 0'/%3E%3Cpath d='M130 24 v16 M122 32 h16'/%3E%3Cpath d='M168 26 a8 8 0 0 1 0 12 M174 20 a14 14 0 0 1 0 24'/%3E%3Cpath d='M206 38 l8 -12 8 12 8 -12'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+/* floating announcement pill (Swish's fixed bottom-center news pill) */
+.newspill {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  z-index: 85;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--coral);
+  backdrop-filter: blur(8px);
+  border-radius: 32px; padding: 9px 10px 9px 20px;
+  color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 14.5px;
+  white-space: nowrap;
+  box-shadow: 0 16px 38px -14px rgba(244,83,46,0.6);
+  transition: transform .18s var(--ease-swish);
+}
+.newspill:hover { transform: translateX(-50%) translateY(-2px); }
+.newspill .chip {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #A32D12; display: grid; place-items: center;
+  font-size: 15px; line-height: 1;
+}
 .footer__top { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px; }
 .footer .brand__name { color: #fff; }
 .footer .brand__tag { display: none; }
@@ -733,6 +785,8 @@ p { margin: 0; }
 }
 @media (max-width: 620px) {
   body { font-size: 16px; }
+  .newspill { font-size: 13px; bottom: 14px; padding: 8px 8px 8px 16px; }
+  .doodles { height: 52px; background-size: 208px 52px; }
   .section { padding: 76px 0; }
   .hero { padding: 150px 0 76px; }
   .voice, .final { border-radius: 26px; }

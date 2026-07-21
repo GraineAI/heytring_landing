@@ -90,9 +90,8 @@ export default function PhoneStory() {
           <span className="eyebrow">Tring = transfer to Ring</span>
           <h2>Ring answers your unknown calls.</h2>
           <p className="ps__sub">
-            A call you don&rsquo;t pick up reaches Ring. It talks to the caller{" "}
-            <b>in their language</b>, you steer it live with one tap, and all
-            you get is the note. Spam never rings twice.
+            It talks to the caller <b>in their language</b>, you steer it with
+            a tap, and all you get is the note.
           </p>
           <div className="ps__cta">
             <StoreButtons onDark placement="story" />

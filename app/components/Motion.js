@@ -1,20 +1,21 @@
 "use client";
 
 /**
- * Motion — the page's GSAP layer (gsap ^3.15, all plugins free since the
- * Webflow acquisition; patterns per the official greensock/gsap-skills
- * and the GSAP cheat sheet).
+ * Motion — the page's GSAP layer (gsap ^3.15, patterns per the official
+ * greensock/gsap-skills and the GSAP cheat sheet).
  *
- *  • ScrollSmoother — silky momentum scroll on #smooth-wrapper/#smooth-content
- *    (Preloader + Nav are position:fixed OUTSIDE the wrapper, per docs).
+ * Scrolling itself is NATIVE, exactly like justswish.in: no smoothing
+ * layer, no parallax, nothing scrubbed to scroll position. The page
+ * scrolls crisp and fast; elements simply appear once as they enter —
+ * fade + 20px rise on Swish's ease. In-page anchors use the browser's
+ * own smooth scroll (CSS scroll-behavior + scroll-padding-top).
+ *
  *  • Hero entrance — SplitText word-by-word rise, time-synced to the CSS
- *    loader curtain (which stays CSS-driven so it runs at first paint,
- *    before any JS — same choreography Swish builds in GSAP).
- *  • gsap.registerEffect("rise") — the page's one scroll vocabulary,
- *    registered once and reused for every .reveal.
+ *    loader curtain (which stays CSS-driven so it runs at first paint).
+ *  • gsap.registerEffect("rise") — the one scroll vocabulary, reused for
+ *    every .reveal (ScrollTrigger, once).
  *  • Section h2s — SplitText masked lines; eyebrows — ScrambleText.
- *  • gsap.matchMedia() — desktop + fine-pointer only: scrub parallax on
- *    the story phone and gsap.quickTo() magnetic CTAs.
+ *  • gsap.matchMedia() — fine pointers only: gsap.quickTo() magnetic CTAs.
  *  • Footer wordmark — SplitText chars rise letter by letter.
  *
  * Everything animates FROM offsets with clearProps/revert, so JS off or
@@ -25,16 +26,15 @@ import { useEffect } from "react";
 export default function Motion() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let ctx, mm, cancelled = false, onAnchorClick = null;
+    let ctx, mm, cancelled = false;
     (async () => {
       const gsap = (await import("gsap")).default;
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
-      const { ScrollSmoother } = await import("gsap/ScrollSmoother");
       const { SplitText } = await import("gsap/SplitText");
       const { CustomEase } = await import("gsap/CustomEase");
       const { ScrambleTextPlugin } = await import("gsap/ScrambleTextPlugin");
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText, CustomEase, ScrambleTextPlugin);
+      gsap.registerPlugin(ScrollTrigger, SplitText, CustomEase, ScrambleTextPlugin);
       if (!CustomEase.get("swish")) CustomEase.create("swish", "0.12, 0.23, 0.19, 1");
 
       // The reveal vocabulary as a reusable named effect (cheat-sheet pattern).
@@ -50,26 +50,6 @@ export default function Motion() {
       }
 
       ctx = gsap.context(() => {
-        const smoother = ScrollSmoother.create({
-          wrapper: "#smooth-wrapper",
-          content: "#smooth-content",
-          smooth: 0.9,
-          effects: false,
-        });
-
-        // In-page anchors must go through the smoother — a native hash jump
-        // fights the transformed wrapper and strands the viewport (GSAP docs).
-        onAnchorClick = (e) => {
-          const a = e.target.closest('a[href^="#"]');
-          if (!a) return;
-          const href = a.getAttribute("href");
-          const target = href === "#top" ? 0 : document.querySelector(href);
-          if (target === null) return;
-          e.preventDefault();
-          smoother.scrollTo(target, true, "top 96px");
-        };
-        document.addEventListener("click", onAnchorClick);
-
         // Hero entrance, synced to the loader: the curtain starts lifting at
         // 1.05s after first paint; words rise as the hero is unveiled. If JS
         // arrived late (loader already gone, content already seen), skip —
@@ -92,8 +72,12 @@ export default function Motion() {
           });
         }
 
-        // The one scroll vocabulary, via the registered effect.
-        gsap.utils.toArray(".reveal").forEach((el) => {
+        // The one scroll vocabulary — Swish's exact move (opacity 0 +
+        // translateY(20px) → 0 as each block enters the viewport, once) —
+        // applied to EVERY content block, like justswish.in does.
+        gsap.utils.toArray(
+          ".reveal, .ps__in > div, .voice__in > div, .qa, .newspill, .footer__top > div"
+        ).forEach((el) => {
           gsap.effects.rise(el, {
             scrollTrigger: { trigger: el, start: "top 88%", once: true },
           });
@@ -130,18 +114,9 @@ export default function Motion() {
           });
         }
 
-        // Desktop + fine pointer only (gsap.matchMedia, per the docs).
+        // Fine pointers only (gsap.matchMedia, per the docs).
         mm = gsap.matchMedia();
         mm.add("(min-width: 768px) and (pointer: fine)", () => {
-          // Story phone drifts against the coral section (scrub parallax).
-          gsap.fromTo(".ps-phone",
-            { y: 44 },
-            {
-              y: -44, ease: "none",
-              scrollTrigger: { trigger: ".ps", start: "top bottom", end: "bottom top", scrub: true },
-            }
-          );
-
           // Magnetic CTAs — gsap.quickTo (the cheat sheet's own example),
           // pills lean a few px toward the cursor and glide back on leave.
           const teardowns = [];
@@ -167,7 +142,6 @@ export default function Motion() {
     })();
     return () => {
       cancelled = true;
-      onAnchorClick && document.removeEventListener("click", onAnchorClick);
       mm && mm.revert();
       ctx && ctx.revert();
     };

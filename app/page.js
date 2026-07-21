@@ -13,24 +13,25 @@ import Footer from "./components/Footer";
 export default function Home() {
   return (
     <>
-      {/* fixed elements live outside the ScrollSmoother wrapper (GSAP docs) */}
       <Preloader />
       <Motion />
       <Nav />
-      <div id="smooth-wrapper">
-        <div id="smooth-content">
-          <main>
-            <Hero />
-            <PhoneStory />
-            <VideoSection />
-            <HowItWorks />
-            <VoiceClone />
-            <Faq />
-            <FinalCta />
-          </main>
-          <Footer />
-        </div>
-      </div>
+      <main>
+        <Hero />
+        <PhoneStory />
+        <VideoSection />
+        <HowItWorks />
+        <VoiceClone />
+        <Faq />
+        <FinalCta />
+      </main>
+      <Footer />
+
+      {/* floating announcement pill (Swish's fixed bottom-center news pill) */}
+      <a className="newspill" href="#voice">
+        <span>Ring can answer in your own voice</span>
+        <span className="chip">→</span>
+      </a>
     </>
   );
 }

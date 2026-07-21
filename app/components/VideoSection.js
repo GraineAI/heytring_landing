@@ -20,10 +20,7 @@ export default function VideoSection() {
         <div className="head head--center reveal">
           <span className="eyebrow">See it happen</span>
           <h2>Watch Ring take a call.</h2>
-          <p className="lead">
-            Fifteen seconds: an unknown number calls, Ring answers, screens it and
-            hands over the note — while the phone&rsquo;s owner never looks up.
-          </p>
+          <p className="lead">Fifteen seconds. One unknown number. Handled.</p>
         </div>
 
         <div className="vid reveal">
