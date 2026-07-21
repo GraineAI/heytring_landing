@@ -30,8 +30,9 @@
   --muted-2:    #927C6F;
   --ok:         #2E9E6B;
 
-  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  /* Swish's type system: Figtree everywhere, weight does the talking */
+  --font-display: var(--font-figtree), "Figtree", system-ui, sans-serif;
+  --font-body: var(--font-figtree), "Figtree", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --maxw: 1140px;
@@ -261,21 +262,42 @@ p { margin: 0; }
 }
 
 /* ============================================================
-   HERO — cream, centered, still. The curtain lifts onto this.
+   HERO — Swish's full-viewport ambient film with the headline
+   floated on top. The loader's curtain lifts onto this.
    ============================================================ */
 .hero {
   position: relative;
-  padding: 190px 0 100px;
+  min-height: 100svh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 150px 0 90px;
   text-align: center;
+  overflow: hidden;
 }
-.hero::before {
-  content: "";
-  position: absolute; left: 50%; top: -160px; transform: translateX(-50%);
-  width: 920px; height: 620px;
-  background: radial-gradient(closest-side, rgba(240,71,42,0.13), transparent 70%);
-  pointer-events: none;
+.hero__film { position: absolute; inset: 0; z-index: 0; }
+.hero__film video, .hero__film img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
 }
-.hero__in { position: relative; display: flex; flex-direction: column; align-items: center; }
+/* veil — keeps ink copy readable over the film, melts into the page */
+.hero__veil {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(251,243,236,0.88) 0%, rgba(251,243,236,0.42) 34%, rgba(251,243,236,0.12) 58%, var(--cream) 100%);
+}
+.hero__ctl {
+  position: absolute; right: 26px; bottom: 26px; z-index: 5;
+  background: rgba(255,255,255,0.34);
+  border: 1px solid rgba(255,255,255,0.6);
+  backdrop-filter: blur(8px) saturate(1.6);
+  -webkit-backdrop-filter: blur(8px) saturate(1.6);
+  border-radius: 999px; padding: 10px 18px;
+  font-family: var(--font-display); font-weight: 700; font-size: 13px;
+  color: var(--ink);
+  box-shadow: 0 10px 26px -14px rgba(60,26,14,0.4);
+  transition: transform .18s var(--ease-swish), background .18s ease;
+}
+.hero__ctl:hover { background: rgba(255,255,255,0.55); transform: translateY(-2px); }
+.hero__in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 .hero h1 {
   font-size: clamp(44px, 7vw, 86px);
   font-weight: 800;
@@ -467,14 +489,16 @@ p { margin: 0; }
   position: absolute; inset: 0; z-index: 2;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   width: 100%; border: 0; background: transparent; color: #fff;
+  padding: 0; cursor: pointer;
 }
-.vid__poster::before {
-  content: "Tring";
-  position: absolute; bottom: -0.32em; left: 50%; transform: translateX(-50%);
-  font-family: var(--font-display); font-weight: 800; letter-spacing: -0.04em;
-  font-size: clamp(120px, 24vw, 260px); line-height: 1;
-  color: rgba(255,255,255,0.045); pointer-events: none;
+.vid__frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vid__poster .vid__pill { position: relative; z-index: 2; }
+.vid__poster::after {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(23,16,14,0.18);
+  transition: background .25s ease;
 }
+.vid__poster:hover::after { background: rgba(23,16,14,0.06); }
 .vid__pill {
   display: inline-flex; align-items: center; gap: 10px;
   background: rgba(255,255,255,0.16);

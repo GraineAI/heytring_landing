@@ -85,6 +85,17 @@ export default function Motion() {
           });
         });
 
+        // Section headings: SplitText masked lines rising out of their own
+        // clip — the premium text move on gsap.com and its showcases.
+        gsap.utils.toArray(".head h2, .ps h2, .voice h2, .final h2").forEach((h) => {
+          const split = new SplitText(h, { type: "lines", mask: "lines" });
+          gsap.from(split.lines, {
+            scrollTrigger: { trigger: h, start: "top 86%", once: true },
+            yPercent: 115, duration: 0.85, stagger: 0.1, ease: "swish",
+            onComplete: () => split.revert(),
+          });
+        });
+
         // Story phone drifts against the coral section (scrub parallax).
         gsap.fromTo(".ps-phone",
           { y: 44 },

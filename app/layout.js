@@ -1,19 +1,14 @@
-import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import { Figtree, JetBrains_Mono } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
-const display = Plus_Jakarta_Sans({
+// Swish's typeface: Figtree carries the whole site — headings and body —
+// exactly as justswish.in does (one family, weight does the talking).
+const figtree = Figtree({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const body = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-figtree",
   display: "swap",
 });
 
@@ -68,8 +63,9 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    // font vars live on <html> so :root-level tokens can reference them
+    <html lang="en" className={`${figtree.variable} ${mono.variable}`}>
+      <body>
         {children}
         {/* Traffic tracking, both rails:
             • Vercel Analytics — zero-config pageviews + custom events the moment this deploys.
