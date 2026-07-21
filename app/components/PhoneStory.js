@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * PhoneStory — Equal AI's signature move rebuilt for Tring (DESIGN.md §3):
- * a full-bleed coral section where a phone plays a self-running ~8s story.
- * Like Equal's Lottie it plays once when the section enters the viewport
- * (then reruns after a rest) — it is NOT scroll-scrubbed:
+ * PhoneStory — Equal AI's signature move, played on the REAL app's screens
+ * (matched to the Tring app prototype): a full-bleed coral section where a
+ * phone plays a self-running ~9s story. Plays once when the section enters
+ * the viewport (then reruns after a rest) — it is NOT scroll-scrubbed:
  *   1. Incoming call — "Blinkit · Ramesh 🛵", phone buzzes
  *   2. Ring picks up — mascot + sonar rings, "answered in your voice"
- *   3. Live card rises — caller line + quick-reply chips, one taps itself
- *   4. Wrap-up note — "Left at the gate. Nothing needs you."
+ *   3. The app's dark live-call screen — live transcript, and a
+ *      tap-to-steer chip sends "Leave it with the security guard."
+ *   4. The home-feed wrap-up card — "Left with security · Done"
  * No JS / reduced motion: scenes 2 + 4 render as a finished still (CSS).
  */
 import { useEffect, useRef } from "react";
@@ -39,6 +40,7 @@ export default function PhoneStory() {
         tl.set(".ps-s2, .ps-s3, .ps-s4", { autoAlpha: 0 })
           .set(".ps-s1", { autoAlpha: 0 })
           .set(".ps-chip--tap", { clearProps: "all" })
+          .set(".ps-m--steer", { autoAlpha: 0 })
 
           // scene 1 — incoming call
           .fromTo(".ps-s1", { autoAlpha: 0, y: -14 }, { autoAlpha: 1, y: 0 }, 0.1)
@@ -52,23 +54,23 @@ export default function PhoneStory() {
           .fromTo(".ps-s2", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 2.25)
           .fromTo(".ps-s2 .ps-halo", { scale: 0.6 }, { scale: 1, ease: "back.out(1.8)" }, 2.25)
 
-          // scene 3 — live card + chips (rises over the mascot)
-          .fromTo(".ps-s3", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 3.7)
-          .fromTo(".ps-card", { y: 46 }, { y: 0 }, 3.7)
-          .fromTo(".ps-chips .ps-chip", { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.09, duration: 0.35 }, 4.1)
-          .to(".ps-chip--tap", { scale: 0.9, duration: 0.12, yoyo: true, repeat: 1 }, 5.0)
-          .to(".ps-chip--tap", {
-            backgroundColor: "#F0472A", borderColor: "#F0472A", color: "#fff", duration: 0.18,
-          }, 5.15)
-          .fromTo(".ps-bub--me", { autoAlpha: 0, y: 8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.6)" }, 5.5)
+          // scene 3 — the app's live-call screen slides up over it
+          .to(".ps-s2", { autoAlpha: 0, duration: 0.3 }, 3.7)
+          .fromTo(".ps-s3", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 3.85)
+          .fromTo(".ps-dark", { y: 60 }, { y: 0 }, 3.85)
+          .fromTo(".ps-m--ring, .ps-m--caller", { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.35, duration: 0.4 }, 4.2)
+          .fromTo(".ps-steer", { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, 5.1)
+          .to(".ps-chip--tap", { scale: 0.94, duration: 0.12, yoyo: true, repeat: 1 }, 5.9)
+          .to(".ps-chip--tap", { opacity: 0.4, duration: 0.2 }, 6.15)
+          .fromTo(".ps-m--steer", { autoAlpha: 0, y: 8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.6)" }, 6.3)
 
-          // scene 4 — the note
-          .to(".ps-s3, .ps-s2", { autoAlpha: 0, y: -8, duration: 0.35 }, 7.0)
-          .set(".ps-s3, .ps-s2", { y: 0 })
-          .fromTo(".ps-s4", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 7.35)
-          .fromTo(".ps-note", { scale: 0.92, y: 12 }, { scale: 1, y: 0, ease: "back.out(1.7)" }, 7.35)
-          .fromTo(".ps-s4 .saved", { autoAlpha: 0 }, { autoAlpha: 1 }, 7.7)
-          .to({}, { duration: 1.2 });   // hold the note before the rest
+          // scene 4 — the wrap-up card in the home feed
+          .to(".ps-s3", { autoAlpha: 0, y: -8, duration: 0.35 }, 7.9)
+          .set(".ps-s3", { y: 0 })
+          .fromTo(".ps-s4", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 8.25)
+          .fromTo(".ps-note", { scale: 0.92, y: 12 }, { scale: 1, y: 0, ease: "back.out(1.7)" }, 8.25)
+          .fromTo(".ps-s4 .saved", { autoAlpha: 0 }, { autoAlpha: 1 }, 8.6)
+          .to({}, { duration: 1.2 });   // hold the card before the rest
 
         ScrollTrigger.create({
           trigger: root.current,
@@ -89,13 +91,13 @@ export default function PhoneStory() {
           <h2>Ring answers your unknown calls.</h2>
           <p className="ps__sub">
             A call you don&rsquo;t pick up reaches Ring. It talks to the caller{" "}
-            <b>in their language</b>, sorts out what they need, and leaves you a
-            note. Spam never rings twice.
+            <b>in their language</b>, you steer it live with one tap, and all
+            you get is the note. Spam never rings twice.
           </p>
           <div className="ps__cta">
             <StoreButtons onDark placement="story" />
           </div>
-          <p className="ps__foot">Live transcript while it talks · one tap to take over</p>
+          <p className="ps__foot">Live transcript while it talks · take over anytime</p>
         </div>
 
         <div className="ps__stage" aria-hidden="true">
@@ -129,27 +131,43 @@ export default function PhoneStory() {
                 <small>in your voice, in Hindi</small>
               </div>
 
-              {/* scene 3 — live conversation with quick-reply chips */}
+              {/* scene 3 — the app's live-call screen with steer chips */}
               <div className="ps-scene ps-s3">
-                <div className="ps-card">
-                  <div className="ps-bub">&ldquo;Sir, flat kaunsa? Gate code?&rdquo;</div>
-                  <div className="ps-chips">
-                    <span className="ps-chip ps-chip--tap">Leave it at the gate</span>
-                    <span className="ps-chip">Give it to the watchman</span>
-                    <span className="ps-chip">I&rsquo;m coming down</span>
+                <div className="ps-dark">
+                  <div className="ps-dk-head"><span className="d" /><b>ON A CALL · 0:12</b></div>
+                  <div className="ps-msgs">
+                    <div className="ps-m ps-m--ring">
+                      <small>RING</small>
+                      <p>Namaste! Rishabh is busy right now — I&rsquo;m his assistant.</p>
+                    </div>
+                    <div className="ps-m ps-m--caller">
+                      <small>CALLER</small>
+                      <p>Where should I leave the parcel?</p>
+                    </div>
+                    <div className="ps-m ps-m--steer">
+                      <small>YOU TOLD RING</small>
+                      <p>Leave it with the security guard.</p>
+                    </div>
                   </div>
-                  <div className="ps-bub ps-bub--me">Gate 4321 — leave it at the gate, bhaiya.</div>
+                  <div className="ps-steer">
+                    <small>TELL RING WHAT TO SAY — TAP TO SEND</small>
+                    <div className="ps-chips">
+                      <span className="ps-chip ps-chip--tap"><span className="send">➤</span> Leave it with the security guard.</span>
+                      <span className="ps-chip"><span className="send">➤</span> I&rsquo;ll call you back in 5 minutes.</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* scene 4 — the wrap-up note */}
+              {/* scene 4 — the wrap-up card in the home feed */}
               <div className="ps-scene ps-s4">
                 <div className="ps-note">
-                  <span className="tick"><Check style={{ color: "#fff" }} /></span>
+                  <span className="tick"><Check /></span>
                   <span>
                     <b>Delivery · Blinkit</b>
-                    <small>Left at the gate. Nothing needs you.</small>
+                    <small>Left your parcel with security.</small>
                   </span>
+                  <span className="pill">Done</span>
                 </div>
                 <span className="saved">Saved to your call history</span>
               </div>

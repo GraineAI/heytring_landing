@@ -1,4 +1,5 @@
 import { Phone, Eye, Note } from "./Icons";
+import { Orbit } from "./Mascot";
 
 const steps = [
   {
@@ -50,6 +51,14 @@ export default function HowItWorks() {
           clinic, the plumber. It dials, sits through the hold music, and pings you
           when it&rsquo;s done.
         </p>
+
+        <div className="orbitline reveal">
+          <Orbit size={46} />
+          <p>
+            And meet <b>Orbit</b> — it quietly checks your setup on its own
+            (forwarding on, connected, test call works) so Ring just works.
+          </p>
+        </div>
       </div>
     </section>
   );
