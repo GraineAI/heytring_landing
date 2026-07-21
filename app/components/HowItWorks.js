@@ -1,5 +1,4 @@
 import { Phone, Eye, Note } from "./Icons";
-import MorphSteps from "./MorphSteps";
 
 const steps = [
   {
@@ -12,7 +11,7 @@ const steps = [
     n: "Step 2",
     icon: <Eye width={22} height={22} />,
     h: "You watch it live",
-    p: "Get a live transcript with rolling \u201cso far\u201d updates. Drop in a line, or tap Take over to jump into the call yourself at any moment.",
+    p: "Get a live transcript with rolling “so far” updates. Drop in a line, or tap Take over to jump into the call yourself at any moment.",
   },
   {
     n: "Step 3",
@@ -26,7 +25,7 @@ export default function HowItWorks() {
   return (
     <section className="section" id="how">
       <div className="wrap">
-        <div className="head">
+        <div className="head reveal">
           <span className="eyebrow">How it works</span>
           <h2>Answer nothing. Miss nothing.</h2>
           <p className="lead">
@@ -35,11 +34,9 @@ export default function HowItWorks() {
           </p>
         </div>
 
-        <MorphSteps />
-
         <div className="steps">
           {steps.map((s) => (
-            <article className="step" key={s.n}>
+            <article className="step reveal" key={s.n}>
               <span className="step__glyph">{s.icon}</span>
               <span className="step__n">{s.n}</span>
               <h3>{s.h}</h3>
@@ -47,6 +44,12 @@ export default function HowItWorks() {
             </article>
           ))}
         </div>
+
+        <p className="steps__foot reveal">
+          It works the other way too — <b>ask Ring to call</b> the restaurant, the
+          clinic, the plumber. It dials, sits through the hold music, and pings you
+          when it&rsquo;s done.
+        </p>
       </div>
     </section>
   );

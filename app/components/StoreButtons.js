@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Apple, Play } from "./Icons";
 import { track } from "./analytics";
 
@@ -7,26 +8,39 @@ import { track } from "./analytics";
 export const PLAY_URL = "https://play.google.com/store/apps/details?id=com.heytring.app";
 export const APP_STORE_URL = "https://apps.apple.com/app/tring/id000000000";
 
+/** OS-aware store buttons (Equal AI's pattern): phones see exactly one
+ *  button — their platform's; desktop (and SSR) shows both. */
 export default function StoreButtons({ onDark = false, placement = "page" }) {
+  const [os, setOs] = useState("desktop");
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    if (/android/i.test(ua)) setOs("android");
+    else if (/iphone|ipad|ipod/i.test(ua)) setOs("ios");
+  }, []);
+
   const cls = `btn btn--store${onDark ? " btn--onDark" : ""}`;
   return (
     <div className="cta-row">
-      <a className={cls} href={PLAY_URL} aria-label="Get Tring on Google Play"
-        onClick={() => track("store_click", { store: "google_play", placement })}>
-        <Play />
-        <span className="store-k">
-          <small>GET IT ON</small>
-          <span>Google Play</span>
-        </span>
-      </a>
-      <a className={cls} href={APP_STORE_URL} aria-label="Download Tring on the App Store"
-        onClick={() => track("store_click", { store: "app_store", placement })}>
-        <Apple />
-        <span className="store-k">
-          <small>DOWNLOAD ON THE</small>
-          <span>App Store</span>
-        </span>
-      </a>
+      {os !== "ios" && (
+        <a className={cls} href={PLAY_URL} aria-label="Get Tring on Google Play"
+          onClick={() => track("store_click", { store: "google_play", placement })}>
+          <Play />
+          <span className="store-k">
+            <small>GET IT ON</small>
+            <span>Google Play</span>
+          </span>
+        </a>
+      )}
+      {os !== "android" && (
+        <a className={cls} href={APP_STORE_URL} aria-label="Download Tring on the App Store"
+          onClick={() => track("store_click", { store: "app_store", placement })}>
+          <Apple />
+          <span className="store-k">
+            <small>DOWNLOAD ON THE</small>
+            <span>App Store</span>
+          </span>
+        </a>
+      )}
     </div>
   );
 }

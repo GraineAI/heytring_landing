@@ -23,10 +23,10 @@ export default function Footer() {
 
           <div className="footer__col">
             <h5>Product</h5>
+            <a href="#story">What Ring does</a>
+            <a href="#video">Watch it</a>
             <a href="#how">How it works</a>
             <a href="#voice">Your voice</a>
-            <a href="#ask">Ask Ring to call</a>
-            <a href="#handles">What Ring handles</a>
             <a href="#faq">FAQ</a>
           </div>
 
@@ -51,6 +51,9 @@ export default function Footer() {
           <span>Made in India 🇮🇳 · For users 18+</span>
         </div>
       </div>
+
+      {/* the sign-off — a giant cropped wordmark (Swish's closing move) */}
+      <div className="footer__giant" aria-hidden="true">Tring</div>
     </footer>
   );
 }

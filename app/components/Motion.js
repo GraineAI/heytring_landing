@@ -1,74 +1,115 @@
 "use client";
 
 /**
- * Motion — the landing's GSAP layer (gsap ^3.15 from node_modules, dynamically imported so
- * SSR never sees it). One client component mounted from page.js; the page itself stays
- * server-rendered.
+ * Motion — the page's GSAP layer (gsap ^3.15, all plugins free since the
+ * Webflow acquisition; patterns per the official greensock/gsap-skills).
  *
- *  • Hero headline: WORD-BY-WORD rise (split at runtime; markup untouched for SEO).
- *  • Hero sub/CTAs/trust: follow in a stagger; store buttons pop with back.out.
- *  • Mascot/art: slow floating loop (y ±8) after entry.
- *  • Every <section> + [data-reveal]: fade-rise once on scroll (ScrollTrigger).
- *  • Nav: slides down on load.
- *  • Honors prefers-reduced-motion; never hides content by default (animate FROM offsets,
- *    clearProps back to the untouched CSS) — JS off / GSAP failing = the page as-is.
+ *  • ScrollSmoother — silky momentum scroll on #smooth-wrapper/#smooth-content
+ *    (Preloader + Nav are position:fixed OUTSIDE the wrapper, per docs).
+ *  • Hero entrance — SplitText word-by-word rise, time-synced to the CSS
+ *    loader curtain (which stays CSS-driven so it runs at first paint,
+ *    before any JS — same choreography Swish builds in GSAP).
+ *  • .reveal elements — fade + 20px rise once on ScrollTrigger, on the
+ *    "swish" CustomEase — the page's one scroll vocabulary.
+ *  • Story phone — slow scrub parallax as the coral section passes.
+ *  • Footer wordmark — SplitText chars rise letter by letter.
+ *
+ * Everything animates FROM offsets with clearProps/revert, so JS off or
+ * GSAP failing = the page exactly as authored. Reduced motion = nothing runs.
  */
 import { useEffect } from "react";
 
 export default function Motion() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let ctx;
-    let cancelled = false;
+    let ctx, cancelled = false, onAnchorClick = null;
     (async () => {
       const gsap = (await import("gsap")).default;
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
-      const { SplitText } = await import("gsap/SplitText");   // free since GSAP 3.13 — the real thing
+      const { ScrollSmoother } = await import("gsap/ScrollSmoother");
+      const { SplitText } = await import("gsap/SplitText");
+      const { CustomEase } = await import("gsap/CustomEase");
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger, SplitText);
+      gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText, CustomEase);
+      if (!CustomEase.get("swish")) CustomEase.create("swish", "0.12, 0.23, 0.19, 1");
+
       ctx = gsap.context(() => {
-        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+        const smoother = ScrollSmoother.create({
+          wrapper: "#smooth-wrapper",
+          content: "#smooth-content",
+          smooth: 0.9,
+          effects: false,
+        });
 
-        // Nav drops in.
-        const nav = document.querySelector("nav, header.nav, .nav");
-        if (nav) tl.from(nav, { y: -24, opacity: 0, duration: 0.5, clearProps: "all" }, 0);
+        // In-page anchors must go through the smoother — a native hash jump
+        // fights the transformed wrapper and strands the viewport (GSAP docs).
+        onAnchorClick = (e) => {
+          const a = e.target.closest('a[href^="#"]');
+          if (!a) return;
+          const href = a.getAttribute("href");
+          const target = href === "#top" ? 0 : document.querySelector(href);
+          if (target === null) return;
+          e.preventDefault();
+          smoother.scrollTo(target, true, "top 96px");
+        };
+        document.addEventListener("click", onAnchorClick);
 
-        // Hero headline — GSAP SplitText (the official plugin, npm package): word-by-word
-        // rise with a slight tilt. SEO/static markup is untouched until JS runs, and
-        // split.revert() in cleanup restores the original DOM exactly.
-        const h1 = document.querySelector(".hero h1");
-        if (h1) {
-          const split = new SplitText(h1, { type: "words", wordsClass: "w" });
-          tl.from(split.words, {
-            y: 34, opacity: 0, rotate: 2, duration: 0.7, stagger: 0.05,
-            onComplete: () => split.revert(),   // hand the DOM back untouched
-          }, 0.1);
+        // Hero entrance, synced to the loader: the curtain starts lifting at
+        // 1.05s after first paint; words rise as the hero is unveiled. If JS
+        // arrived late (loader already gone, content already seen), skip —
+        // never hide what the visitor has read.
+        if (performance.now() < 1900) {
+          const curtain = Math.max(0, 1.15 - performance.now() / 1000);
+          const h1 = document.querySelector(".hero h1");
+          if (h1) {
+            const split = new SplitText(h1, { type: "words" });
+            gsap.from(split.words, {
+              y: 42, autoAlpha: 0, rotate: 2,
+              duration: 0.8, stagger: 0.06, ease: "swish",
+              delay: curtain,
+              onComplete: () => split.revert(),   // hand the DOM back untouched
+            });
+          }
+          gsap.from(".hero__sub, .hero__cta, .hero__trust", {
+            y: 24, autoAlpha: 0, duration: 0.6, stagger: 0.12,
+            ease: "swish", delay: curtain + 0.35, clearProps: "all",
+          });
         }
 
-        // Sub + trust row rise; store buttons POP.
-        tl.from(".hero .hero__sub", { y: 24, opacity: 0, duration: 0.6, clearProps: "all" }, 0.45);
-        tl.from(".hero .btn--store", {
-          y: 18, opacity: 0, scale: 0.92, duration: 0.55, stagger: 0.1,
-          ease: "back.out(1.7)", clearProps: "all",
-        }, 0.6);
-        tl.from(".hero .hero__trust", { y: 16, opacity: 0, duration: 0.5, clearProps: "all" }, 0.75);
-
-        // Mascot / hero art: gentle perpetual float (starts after entry; no clearProps — it loops).
-        document.querySelectorAll(".hero svg, .hero .mascot, .hero [class*='phone']").forEach((el, i) => {
-          gsap.to(el, { y: 8, duration: 2.6 + i * 0.3, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 1.2 });
-        });
-
-        // Scroll reveals — each section (and anything tagged) rises once into view.
-        document.querySelectorAll("main section, [data-reveal]").forEach((el) => {
-          gsap.from(el.children.length ? el.children : el, {
-            scrollTrigger: { trigger: el, start: "top 82%", once: true },
-            y: 34, opacity: 0, duration: 0.7, ease: "power2.out",
-            stagger: 0.08, clearProps: "all",
+        // The one scroll vocabulary: fade + 20px rise, once.
+        gsap.utils.toArray(".reveal").forEach((el) => {
+          gsap.from(el, {
+            scrollTrigger: { trigger: el, start: "top 88%", once: true },
+            y: 20, autoAlpha: 0, duration: 0.5, ease: "swish",
+            clearProps: "all",
           });
         });
+
+        // Story phone drifts against the coral section (scrub parallax).
+        gsap.fromTo(".ps-phone",
+          { y: 44 },
+          {
+            y: -44, ease: "none",
+            scrollTrigger: { trigger: ".ps", start: "top bottom", end: "bottom top", scrub: true },
+          }
+        );
+
+        // Footer sign-off: the giant "Tring" rises letter by letter.
+        const giant = document.querySelector(".footer__giant");
+        if (giant) {
+          const chars = new SplitText(giant, { type: "chars" });
+          gsap.from(chars.chars, {
+            scrollTrigger: { trigger: giant, start: "top 98%", once: true },
+            yPercent: 55, autoAlpha: 0, stagger: 0.06, duration: 0.7, ease: "swish",
+          });
+        }
       });
     })();
-    return () => { cancelled = true; ctx && ctx.revert(); };
+    return () => {
+      cancelled = true;
+      onAnchorClick && document.removeEventListener("click", onAnchorClick);
+      ctx && ctx.revert();
+    };
   }, []);
   return null;
 }

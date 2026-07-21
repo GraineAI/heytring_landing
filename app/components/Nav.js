@@ -1,31 +1,23 @@
-"use client";
-import { useEffect, useState } from "react";
 import Logo from "./Logo";
 import { PLAY_URL } from "./StoreButtons";
 
+/** Floating glass nav pill (Swish): fixed, blurred, radius 20 — no scroll
+ *  listeners needed; the pill reads premium at rest. */
 export default function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
-    <nav className={`nav${scrolled ? " is-scrolled" : ""}`}>
+    <nav className="nav">
       <div className="wrap nav__in">
         <a className="brand" href="#top" aria-label="Tring home">
-          <Logo size={34} className="brand__logo" />
+          <Logo size={32} className="brand__logo" />
           <span className="brand__name">Tring</span>
-          <span className="brand__tag">transfer to Ring</span>
         </a>
 
         <div className="nav__links">
+          <a href="#story">What Ring does</a>
+          <a href="#video">Watch it</a>
           <a href="#how">How it works</a>
           <a href="#voice">Your voice</a>
-          <a href="#handles">What Ring handles</a>
-          <a href="#privacy">Privacy</a>
+          <a href="#faq">FAQ</a>
         </div>
 
         <div className="nav__cta">
