@@ -16,16 +16,21 @@ export default function Home() {
       <Preloader />
       <Motion />
       <Nav />
-      <main>
-        <Hero />
-        <PhoneStory />
-        <VideoSection />
-        <HowItWorks />
-        <VoiceClone />
-        <Faq />
-        <FinalCta />
-      </main>
-      <Footer />
+      {/* fixed elements stay outside the ScrollSmoother wrapper (GSAP docs) */}
+      <div id="smooth-wrapper">
+        <div id="smooth-content">
+          <main>
+            <Hero />
+            <PhoneStory />
+            <VideoSection />
+            <HowItWorks />
+            <VoiceClone />
+            <Faq />
+            <FinalCta />
+          </main>
+          <Footer />
+        </div>
+      </div>
 
       {/* floating announcement pill (Swish's fixed bottom-center news pill) */}
       <a className="newspill" href="#voice">

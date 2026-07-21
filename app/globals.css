@@ -50,9 +50,9 @@
 
 * { box-sizing: border-box; }
 
-/* native scrolling, like justswish.in — browser smooth-scroll for
-   in-page anchors only, offset for the floating nav pill */
-html { scroll-behavior: smooth; scroll-padding-top: 104px; -webkit-text-size-adjust: 100%; }
+/* wheel scrolling glides via GSAP ScrollSmoother (touch/swipe stays
+   native, like Swish); anchors are routed through the smoother */
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;

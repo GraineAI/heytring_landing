@@ -4,11 +4,13 @@
  * Motion — the page's GSAP layer (gsap ^3.15, patterns per the official
  * greensock/gsap-skills and the GSAP cheat sheet).
  *
- * Scrolling itself is NATIVE, exactly like justswish.in: no smoothing
- * layer, no parallax, nothing scrubbed to scroll position. The page
- * scrolls crisp and fast; elements simply appear once as they enter —
- * fade + 20px rise on Swish's ease. In-page anchors use the browser's
- * own smooth scroll (CSS scroll-behavior + scroll-padding-top).
+ * Scrolling like justswish.in ACTUALLY feels (read from their appear
+ * payload): wheel scrolling glides (ScrollSmoother 0.7 — touch/swipe
+ * stays native, exactly like a Framer site), no parallax, no scrub, and
+ * blocks enter with Swish's own two moves:
+ *   visual blocks — a SPRING (their {type:spring, bounce:0.2}): rise
+ *     with a slight overshoot, then settle;
+ *   text blocks — their tween ease [0.12, 0.23, 0.19, 1].
  *
  *  • Hero entrance — SplitText word-by-word rise, time-synced to the CSS
  *    loader curtain (which stays CSS-driven so it runs at first paint).
@@ -26,16 +28,20 @@ import { useEffect } from "react";
 export default function Motion() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let ctx, mm, cancelled = false;
+    let ctx, mm, cancelled = false, teardownAnchor = null;
     (async () => {
       const gsap = (await import("gsap")).default;
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+      const { ScrollSmoother } = await import("gsap/ScrollSmoother");
       const { SplitText } = await import("gsap/SplitText");
       const { CustomEase } = await import("gsap/CustomEase");
       const { ScrambleTextPlugin } = await import("gsap/ScrambleTextPlugin");
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger, SplitText, CustomEase, ScrambleTextPlugin);
+      gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText, CustomEase, ScrambleTextPlugin);
       if (!CustomEase.get("swish")) CustomEase.create("swish", "0.12, 0.23, 0.19, 1");
+      // Swish's spring (bounce 0.2): fast rise, ~5% overshoot, settle.
+      if (!CustomEase.get("springy"))
+        CustomEase.create("springy", "M0,0 C0.16,0 0.24,1.05 0.42,1.05 0.6,1.05 0.7,1 1,1");
 
       // The reveal vocabulary as a reusable named effect (cheat-sheet pattern).
       if (!gsap.effects.rise) {
@@ -50,6 +56,27 @@ export default function Motion() {
       }
 
       ctx = gsap.context(() => {
+        const smoother = ScrollSmoother.create({
+          wrapper: "#smooth-wrapper",
+          content: "#smooth-content",
+          smooth: 0.7,          // gentle glide on wheel; touch stays native
+          effects: false,
+        });
+
+        // In-page anchors must go through the smoother — a native hash jump
+        // fights the transformed wrapper and strands the viewport.
+        const onAnchorClick = (e) => {
+          const a = e.target.closest('a[href^="#"]');
+          if (!a) return;
+          const href = a.getAttribute("href");
+          const target = href === "#top" ? 0 : document.querySelector(href);
+          if (target === null) return;
+          e.preventDefault();
+          smoother.scrollTo(target, true, "top 96px");
+        };
+        document.addEventListener("click", onAnchorClick);
+        teardownAnchor = () => document.removeEventListener("click", onAnchorClick);
+
         // Hero entrance, synced to the loader: the curtain starts lifting at
         // 1.05s after first paint; words rise as the hero is unveiled. If JS
         // arrived late (loader already gone, content already seen), skip —
@@ -72,11 +99,19 @@ export default function Motion() {
           });
         }
 
-        // The one scroll vocabulary — Swish's exact move (opacity 0 +
-        // translateY(20px) → 0 as each block enters the viewport, once) —
-        // applied to EVERY content block, like justswish.in does.
+        // Swish's two appear moves, applied to every content block as it
+        // scrolls into view (once):
+        //   springs for visual blocks — rise with a slight overshoot;
+        //   their tween for text blocks.
+        const SPRING = ".vid, .orbitline, .rec, .final, .ps__stage, .newspill";
+        gsap.utils.toArray(SPRING).forEach((el) => {
+          gsap.effects.rise(el, {
+            y: 34, duration: 0.7, ease: "springy",
+            scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          });
+        });
         gsap.utils.toArray(
-          ".reveal, .ps__in > div, .voice__in > div, .qa, .newspill, .footer__top > div"
+          ".reveal:not(.vid):not(.orbitline):not(.final), .ps__in > div:first-child, .voice__in > div:first-child, .qa, .footer__top > div"
         ).forEach((el) => {
           gsap.effects.rise(el, {
             scrollTrigger: { trigger: el, start: "top 88%", once: true },
@@ -142,6 +177,7 @@ export default function Motion() {
     })();
     return () => {
       cancelled = true;
+      teardownAnchor && teardownAnchor();
       mm && mm.revert();
       ctx && ctx.revert();
     };
