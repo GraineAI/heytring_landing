@@ -1,16 +1,21 @@
+"use client";
+
 /**
- * Preloader — Swish's "Logo Reveal" in Tring coral (see DESIGN.md §1),
- * built from the actual brand asset: the app-icon artwork (tile, phone
- * glyph, call waves — exact paths from app/icon.svg) plus the wordmark,
- * in white on the coral gradient — just as Swish uses its white wordmark
- * SVG on the green gradient.
+ * Preloader — Swish's "Logo Reveal" with the real brand asset (tile,
+ * phone glyph, call waves + wordmark in white on the coral gradient).
  *
- * Server-rendered and pure CSS (globals.css) so it plays from first
- * paint, before hydration:
- *   ghost lockup at 20% → full copy fills left→right via clip-path (1s)
- *   → gradient fades (0.5s) while the mark slides up (1s) → hidden.
- * Homepage only. prefers-reduced-motion hides it entirely.
+ * Rendering strategy, bulletproof across Safari / Chrome / Brave / old
+ * WebViews:
+ *   1. The overlay is SERVER-rendered and animated by pure CSS keyframes
+ *      (globals.css) — branded first paint, works before hydration.
+ *   2. After hydration this component checks whether those CSS animations
+ *      actually started (some browsers/extensions/shields block them).
+ *      If not, it replays the identical choreography with GSAP.
+ *   3. A hard failsafe removes the overlay at 2.6s NO MATTER WHAT, so it
+ *      can neither be skipped silently nor get stuck covering the page.
+ * prefers-reduced-motion hides it immediately.
  */
+import { useEffect } from "react";
 
 function Lockup() {
   return (
@@ -34,6 +39,57 @@ function Lockup() {
 }
 
 export default function Preloader() {
+  useEffect(() => {
+    const el = document.querySelector(".loader");
+    if (!el) return;
+
+    let hidden = false;
+    const hide = () => {
+      if (hidden) return;
+      hidden = true;
+      el.style.display = "none";
+    };
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      hide();
+      return;
+    }
+
+    // Did the CSS keyframes actually start? (Brave shields, extensions and
+    // some builds block or drop them.) Checked one frame after hydration.
+    const raf = requestAnimationFrame(() => {
+      let cssRunning = false;
+      try {
+        cssRunning = el.getAnimations({ subtree: true }).length > 0;
+      } catch (_) {
+        /* getAnimations unsupported → assume not running, JS takes over */
+      }
+      if (!cssRunning && !hidden) {
+        (async () => {
+          try {
+            const gsap = (await import("gsap")).default;
+            if (hidden) return;
+            gsap.timeline({ onComplete: hide })
+              .to(".loader__fill", {
+                clipPath: "inset(0% 0% 0% 0%)",
+                webkitClipPath: "inset(0% 0% 0% 0%)",
+                duration: 1, ease: "power2.inOut",
+              }, 0.05)
+              .to(".loader__bg", { autoAlpha: 0, duration: 0.5 }, 1.05)
+              .to(".loader__inner", { y: "-120vh", duration: 1, ease: "power2.inOut" }, 1.05);
+          } catch (_) {
+            hide();   // even GSAP failed — just get out of the way
+          }
+        })();
+      }
+    });
+
+    // The failsafe: whatever happened above, the overlay is gone by 2.6s.
+    const t = setTimeout(hide, 2600);
+
+    return () => { clearTimeout(t); cancelAnimationFrame(raf); };
+  }, []);
+
   return (
     <div className="loader" role="status" aria-label="Tring is loading">
       <div className="loader__bg" />

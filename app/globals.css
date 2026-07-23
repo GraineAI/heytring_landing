@@ -138,14 +138,19 @@ p { margin: 0; }
    2) gradient fades (0.5s) WHILE the mark slides up (1s)
    3) overlay flips to visibility:hidden
    ============================================================ */
+/* NOTE: explicit top/right/bottom/left (not the `inset` shorthand) and
+   -webkit- prefixed clip-path so the overlay renders on older Chrome/
+   WebView builds, Brave, and pre-13.1 Safari alike. A JS driver in
+   Preloader.js replays the choreography if CSS animations are blocked. */
 .loader {
-  position: fixed; inset: 0; z-index: 200;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 200;
   display: grid; place-items: center;
   pointer-events: none;   /* purely visual — never swallows input */
   animation: loaderGone 0.01s linear 2.15s forwards;
 }
 .loader__bg {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: var(--coral);
   background: linear-gradient(135deg, var(--coral) 0%, var(--coral-hot) 100%);
   animation: loaderBgOut 0.5s ease 1.05s forwards;
 }
@@ -156,7 +161,8 @@ p { margin: 0; }
 .loader__mark { position: relative; }
 .loader__ghost { opacity: 0.2; }
 .loader__fill {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  -webkit-clip-path: inset(0% 100% 0% 0%);
   clip-path: inset(0% 100% 0% 0%);
   animation: loaderFill 1s var(--ease-loader) 0.05s forwards;
 }
@@ -169,7 +175,7 @@ p { margin: 0; }
 }
 .loader__wm svg { width: 0.98em; height: 0.98em; flex: none; }
 
-@keyframes loaderFill { to { clip-path: inset(0% 0% 0% 0%); } }
+@keyframes loaderFill { to { -webkit-clip-path: inset(0% 0% 0% 0%); clip-path: inset(0% 0% 0% 0%); } }
 @keyframes loaderBgOut { to { opacity: 0; } }
 @keyframes loaderUp { to { transform: translateY(-120vh); } }
 @keyframes loaderGone { to { visibility: hidden; } }
