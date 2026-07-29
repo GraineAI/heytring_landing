@@ -18,7 +18,8 @@ export async function GET(req) {
     // stats are derived client-side from these rows so the tiles always
     // agree with the table (scalar subqueries misbehaved on the pooled
     // production connection)
-    return NextResponse.json({ ok: true, waitlist, clicks });
+    const dbid = (process.env.DATABASE_URL || "").replace(/\/\/[^@]*@/, "//***@").slice(0, 90);
+    return NextResponse.json({ ok: true, waitlist, clicks, dbid });
   } catch (e) {
     console.error("admin data failed:", e?.message);
     return NextResponse.json({ ok: false, error: "db" }, { status: 500 });
