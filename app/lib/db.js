@@ -28,6 +28,7 @@ export function ensureSchema() {
           created_at timestamptz NOT NULL DEFAULT now()
         )`;
       await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS landing text`;
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS contacted boolean NOT NULL DEFAULT false`;
       // one row per (email, device): the same email may join for Android AND iPhone
       await q`DROP INDEX IF EXISTS waitlist_email_uq`;
       await q`CREATE UNIQUE INDEX IF NOT EXISTS waitlist_email_device_uq ON waitlist ((lower(email)), device)`;

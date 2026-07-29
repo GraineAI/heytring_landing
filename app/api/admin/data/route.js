@@ -9,21 +9,16 @@ export async function GET(req) {
   try {
     await ensureSchema();
     const q = sql();
-    const [waitlist, clicks, stats] = await Promise.all([
-      q`SELECT id, name, email, device, placement, source, utm, landing, user_agent, country, created_at
+    const [waitlist, clicks] = await Promise.all([
+      q`SELECT id, name, email, device, placement, source, utm, landing, user_agent, country, contacted, created_at
         FROM waitlist ORDER BY created_at DESC LIMIT 1000`,
       q`SELECT id, kind, placement, referrer, user_agent, country, created_at
         FROM clicks ORDER BY created_at DESC LIMIT 500`,
-      q`SELECT
-          (SELECT count(*)::int FROM waitlist)                                        AS total,
-          (SELECT count(*)::int FROM waitlist WHERE device = 'android')               AS android,
-          (SELECT count(*)::int FROM waitlist WHERE device = 'ios')                   AS ios,
-          (SELECT count(*)::int FROM waitlist WHERE created_at > now() - interval '1 day') AS today,
-          (SELECT count(*)::int FROM clicks WHERE kind = 'play')                      AS play_clicks,
-          (SELECT count(*)::int FROM clicks WHERE kind = 'ios')                       AS ios_clicks
-      `,
     ]);
-    return NextResponse.json({ ok: true, waitlist, clicks, stats: stats[0] });
+    // stats are derived client-side from these rows so the tiles always
+    // agree with the table (scalar subqueries misbehaved on the pooled
+    // production connection)
+    return NextResponse.json({ ok: true, waitlist, clicks });
   } catch (e) {
     console.error("admin data failed:", e?.message);
     return NextResponse.json({ ok: false, error: "db" }, { status: 500 });

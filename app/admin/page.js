@@ -94,7 +94,40 @@ export default function Admin() {
     );
   }
 
-  const { stats, waitlist, clicks } = data || {};
+  const { waitlist = [], clicks = [] } = data || {};
+  // stats derived from the rows themselves — the tiles always match the table
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const stats = {
+    total: waitlist.length,
+    android: waitlist.filter((r) => r.device === "android").length,
+    ios: waitlist.filter((r) => r.device === "ios").length,
+    today: waitlist.filter((r) => new Date(r.created_at).getTime() > dayAgo).length,
+    onboarded: waitlist.filter((r) => r.contacted).length,
+    play_clicks: clicks.filter((r) => r.kind === "play").length,
+    ios_clicks: clicks.filter((r) => r.kind === "ios").length,
+  };
+
+  const toggleContacted = async (row) => {
+    const next = !row.contacted;
+    // optimistic update
+    setData((d) => ({
+      ...d,
+      waitlist: d.waitlist.map((r) => (r.id === row.id ? { ...r, contacted: next } : r)),
+    }));
+    const res = await fetch("/api/admin/mark", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id, contacted: next }),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      // roll back on failure
+      setData((d) => ({
+        ...d,
+        waitlist: d.waitlist.map((r) => (r.id === row.id ? { ...r, contacted: !next } : r)),
+      }));
+    }
+  };
+
   return (
     <div style={S.page}>
       <div style={S.wrap}>
@@ -108,24 +141,41 @@ export default function Admin() {
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
-          <Tile k="Total signups" v={stats?.total ?? 0} />
-          <Tile k="Android" v={stats?.android ?? 0} />
-          <Tile k="iPhone" v={stats?.ios ?? 0} />
-          <Tile k="Last 24h" v={stats?.today ?? 0} />
-          <Tile k="Play clicks" v={stats?.play_clicks ?? 0} />
-          <Tile k="App Store clicks" v={stats?.ios_clicks ?? 0} />
+          <Tile k="Total signups" v={stats.total} />
+          <Tile k="Onboarded" v={`${stats.onboarded} / ${stats.total}`} />
+          <Tile k="Android" v={stats.android} />
+          <Tile k="iPhone" v={stats.ios} />
+          <Tile k="Last 24h" v={stats.today} />
+          <Tile k="Play clicks" v={stats.play_clicks} />
+          <Tile k="App Store clicks" v={stats.ios_clicks} />
         </div>
 
         <div style={{ ...S.card, marginTop: 20, overflowX: "auto", padding: 0 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
             <thead><tr>
+              <th style={S.th}>✓</th>
               <th style={S.th}>#</th><th style={S.th}>Name</th><th style={S.th}>Email</th>
               <th style={S.th}>Device</th><th style={S.th}>From</th><th style={S.th}>Placement</th>
               <th style={S.th}>Country</th><th style={S.th}>When</th>
             </tr></thead>
             <tbody>
-              {(waitlist || []).map((r) => (
-                <tr key={r.id}>
+              {waitlist.map((r) => (
+                <tr key={r.id} style={r.contacted ? { opacity: 0.55 } : undefined}>
+                  <td style={S.td}>
+                    <button
+                      onClick={() => toggleContacted(r)}
+                      title={r.contacted ? "Onboarded — click to untick" : "Mark as onboarded"}
+                      style={{
+                        width: 26, height: 26, borderRadius: 13, cursor: "pointer",
+                        border: r.contacted ? "0" : "2px solid rgba(255,255,255,.25)",
+                        background: r.contacted ? "#15A06A" : "transparent",
+                        color: "#fff", fontSize: 13, fontWeight: 800,
+                        display: "grid", placeItems: "center", lineHeight: 1,
+                      }}
+                    >
+                      {r.contacted ? "✓" : ""}
+                    </button>
+                  </td>
                   <td style={{ ...S.td, color: "#8C7C73" }}>{r.id}</td>
                   <td style={{ ...S.td, fontWeight: 700, color: "#fff" }}>{r.name}</td>
                   <td style={S.td}>{r.email}</td>
@@ -136,8 +186,8 @@ export default function Admin() {
                   <td style={{ ...S.td, whiteSpace: "nowrap", color: "#B7A79D" }}>{new Date(r.created_at).toLocaleString()}</td>
                 </tr>
               ))}
-              {!waitlist?.length && (
-                <tr><td style={{ ...S.td, color: "#8C7C73" }} colSpan={8}>No signups yet.</td></tr>
+              {!waitlist.length && (
+                <tr><td style={{ ...S.td, color: "#8C7C73" }} colSpan={9}>No signups yet.</td></tr>
               )}
             </tbody>
           </table>
