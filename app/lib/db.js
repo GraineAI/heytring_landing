@@ -5,7 +5,12 @@ let schemaReady = null;
 
 export function sql() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
-  if (!sqlInstance) sqlInstance = neon(process.env.DATABASE_URL);
+  if (!sqlInstance) {
+    // cache: "no-store" is CRITICAL on Vercel — Next.js's Data Cache
+    // otherwise caches the driver's fetch() calls, freezing query
+    // results (reads went stale in production until this was set).
+    sqlInstance = neon(process.env.DATABASE_URL, { fetchOptions: { cache: "no-store" } });
+  }
   return sqlInstance;
 }
 

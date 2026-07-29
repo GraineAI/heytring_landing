@@ -2,6 +2,7 @@ import { sql, ensureSchema } from "../../../lib/db";
 import { isAuthed } from "../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 function toCsv(rows, columns) {
   const esc = (v) => {

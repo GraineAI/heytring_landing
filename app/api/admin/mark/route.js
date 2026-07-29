@@ -3,6 +3,7 @@ import { sql, ensureSchema } from "../../../lib/db";
 import { isAuthed } from "../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 /** Tick / untick a signup as onboarded. */
 export async function POST(req) {

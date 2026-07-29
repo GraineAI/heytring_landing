@@ -3,6 +3,7 @@ import { sql, ensureSchema, requestMeta } from "../../lib/db";
 import { PLAY_URL, APP_STORE_URL } from "../../lib/links";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 /** Tracking links: /go/play and /go/ios log the click, then redirect to
  *  the real store listing. Logging never blocks the redirect. */

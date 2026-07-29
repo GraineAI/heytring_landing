@@ -3,6 +3,7 @@ import { sql, ensureSchema } from "../../../lib/db";
 import { isAuthed } from "../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export async function GET(req) {
   if (!isAuthed(req)) return NextResponse.json({ ok: false }, { status: 401 });
@@ -18,8 +19,7 @@ export async function GET(req) {
     // stats are derived client-side from these rows so the tiles always
     // agree with the table (scalar subqueries misbehaved on the pooled
     // production connection)
-    const dbid = (process.env.DATABASE_URL || "").replace(/\/\/[^@]*@/, "//***@").slice(0, 90);
-    return NextResponse.json({ ok: true, waitlist, clicks, dbid });
+    return NextResponse.json({ ok: true, waitlist, clicks });
   } catch (e) {
     console.error("admin data failed:", e?.message);
     return NextResponse.json({ ok: false, error: "db" }, { status: 500 });

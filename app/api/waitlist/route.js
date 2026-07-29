@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql, ensureSchema, requestMeta } from "../../lib/db";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
