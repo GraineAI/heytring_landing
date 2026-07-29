@@ -10,7 +10,7 @@ export async function GET(req) {
     await ensureSchema();
     const q = sql();
     const [waitlist, clicks, stats] = await Promise.all([
-      q`SELECT id, name, email, device, placement, source, utm, user_agent, country, created_at
+      q`SELECT id, name, email, device, placement, source, utm, landing, user_agent, country, created_at
         FROM waitlist ORDER BY created_at DESC LIMIT 1000`,
       q`SELECT id, kind, placement, referrer, user_agent, country, created_at
         FROM clicks ORDER BY created_at DESC LIMIT 500`,

@@ -25,17 +25,28 @@ export default function BetaModal() {
   const attrib = useRef({ source: "", utm: null });
 
   useEffect(() => {
-    // capture where this visitor came from, once
+    // First-touch attribution, persisted: captured on the very first visit
+    // and kept in localStorage so it survives reloads, in-app browsers that
+    // strip the referrer, and query params lost along the way.
     try {
       const p = new URLSearchParams(window.location.search);
       const utm = {};
-      for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "ref"]) {
+      for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"]) {
         if (p.get(k)) utm[k] = p.get(k).slice(0, 120);
       }
-      attrib.current = {
-        source: document.referrer.slice(0, 300),
+      const fresh = {
+        source: document.referrer.slice(0, 300) || null,
         utm: Object.keys(utm).length ? utm : null,
+        landing: window.location.href.slice(0, 400),
       };
+      let stored = null;
+      try { stored = JSON.parse(localStorage.getItem("tring_attrib") || "null"); } catch (_) {}
+      // first touch wins; later visits only fill gaps
+      const merged = stored
+        ? { ...fresh, ...stored, utm: stored.utm || fresh.utm, source: stored.source || fresh.source }
+        : fresh;
+      attrib.current = merged;
+      try { localStorage.setItem("tring_attrib", JSON.stringify(merged)); } catch (_) {}
     } catch (_) {}
 
     const onClick = (e) => {
@@ -69,11 +80,13 @@ export default function BetaModal() {
           name, email, device, placement,
           source: attrib.current.source,
           utm: attrib.current.utm,
+          landing: attrib.current.landing,
         }),
       });
       if (!res.ok) throw new Error("bad");
-      setPhase("done");
-      track("waitlist_submit", { device, placement });
+      const data = await res.json();
+      setPhase(data.already ? "exists" : "done");
+      if (!data.already) track("waitlist_submit", { device, placement });
     } catch (_) {
       setPhase("error");
     }
@@ -87,13 +100,14 @@ export default function BetaModal() {
       <div className="bmodal__card">
         <button className="bmodal__x" onClick={() => setOpen(false)} aria-label="Close">✕</button>
 
-        {phase === "done" ? (
+        {phase === "done" || phase === "exists" ? (
           <div className="bmodal__done">
             <Ring size={92} state="happy" />
-            <h3>You&rsquo;re on the list!</h3>
+            <h3>{phase === "exists" ? "You're already on the list!" : "You're on the list!"}</h3>
             <p>
-              We onboard new testers every week. Watch your inbox —
-              your invite (and your own Ring) is coming.
+              {phase === "exists"
+                ? "We have your details — we'll reach out to you soon to get you onboarded."
+                : "We onboard new testers every week. Watch your inbox — your invite (and your own Ring) is coming."}
             </p>
             <button className="btn btn--coral" onClick={() => setOpen(false)}>Done</button>
           </div>

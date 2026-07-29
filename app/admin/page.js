@@ -30,6 +30,12 @@ function Tile({ k, v }) {
 function sourceOf(row) {
   if (row.utm?.utm_source) return `utm: ${row.utm.utm_source}${row.utm.utm_campaign ? " / " + row.utm.utm_campaign : ""}`;
   if (row.source) { try { return new URL(row.source).hostname; } catch { return row.source.slice(0, 40); } }
+  if (row.landing) {
+    try {
+      const u = new URL(row.landing);
+      if (u.search) return `landed: ${u.search.slice(1, 50)}`;
+    } catch (_) {}
+  }
   return "direct";
 }
 

@@ -24,8 +24,8 @@ export async function GET(req) {
       rows = await q`SELECT id, kind, placement, referrer, user_agent, country, created_at FROM clicks ORDER BY created_at DESC`;
       columns = ["id", "kind", "placement", "referrer", "user_agent", "country", "created_at"];
     } else {
-      rows = await q`SELECT id, name, email, device, placement, source, utm, user_agent, country, created_at FROM waitlist ORDER BY created_at DESC`;
-      columns = ["id", "name", "email", "device", "placement", "source", "utm", "user_agent", "country", "created_at"];
+      rows = await q`SELECT id, name, email, device, placement, source, utm, landing, user_agent, country, created_at FROM waitlist ORDER BY created_at DESC`;
+      columns = ["id", "name", "email", "device", "placement", "source", "utm", "landing", "user_agent", "country", "created_at"];
     }
     const csv = toCsv(rows, columns);
     return new Response(csv, {

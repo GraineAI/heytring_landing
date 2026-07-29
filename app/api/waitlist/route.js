@@ -18,6 +18,7 @@ export async function POST(req) {
   const device = body.device === "ios" ? "ios" : "android";
   const placement = String(body.placement || "").slice(0, 60) || null;
   const source = String(body.source || "").slice(0, 400) || null;
+  const landing = String(body.landing || "").slice(0, 400) || null;
   const utm = body.utm && typeof body.utm === "object" ? body.utm : null;
 
   if (name.length < 2) return NextResponse.json({ ok: false, error: "name" }, { status: 400 });
@@ -27,13 +28,14 @@ export async function POST(req) {
 
   try {
     await ensureSchema();
-    await sql()`
-      INSERT INTO waitlist (name, email, device, placement, source, utm, user_agent, country)
-      VALUES (${name}, ${email}, ${device}, ${placement}, ${source}, ${utm ? JSON.stringify(utm) : null}, ${ua}, ${country})
-      ON CONFLICT ((lower(email)))
-      DO UPDATE SET name = EXCLUDED.name, device = EXCLUDED.device, placement = EXCLUDED.placement
+    const inserted = await sql()`
+      INSERT INTO waitlist (name, email, device, placement, source, utm, landing, user_agent, country)
+      VALUES (${name}, ${email}, ${device}, ${placement}, ${source}, ${utm ? JSON.stringify(utm) : null}, ${landing}, ${ua}, ${country})
+      ON CONFLICT ((lower(email)), device) DO NOTHING
+      RETURNING id
     `;
-    return NextResponse.json({ ok: true });
+    // already on the list for this device → tell them we'll reach out
+    return NextResponse.json({ ok: true, already: inserted.length === 0 });
   } catch (e) {
     console.error("waitlist insert failed:", e?.message);
     return NextResponse.json({ ok: false, error: "db" }, { status: 500 });
