@@ -29,13 +29,24 @@ function Tile({ k, v }) {
 
 function sourceOf(row) {
   if (row.utm?.utm_source) return `utm: ${row.utm.utm_source}${row.utm.utm_campaign ? " / " + row.utm.utm_campaign : ""}`;
-  if (row.source) { try { return new URL(row.source).hostname; } catch { return row.source.slice(0, 40); } }
+  if (row.source) {
+    if (row.source.startsWith("app:")) return `${row.source.slice(4)} (in-app)`;
+    try { return new URL(row.source).hostname; } catch { return row.source.slice(0, 40); }
+  }
   if (row.landing) {
     try {
       const u = new URL(row.landing);
       if (u.search) return `landed: ${u.search.slice(1, 50)}`;
     } catch (_) {}
   }
+  // last resort: in-app browsers sign the user agent even when they
+  // strip the referrer — recover the source from the stored UA
+  const ua = row.user_agent || "";
+  if (/LinkedInApp/i.test(ua)) return "linkedin (in-app)";
+  if (/Instagram/i.test(ua)) return "instagram (in-app)";
+  if (/FB_IAB|FBAV|FBAN/i.test(ua)) return "facebook (in-app)";
+  if (/Twitter/i.test(ua)) return "twitter (in-app)";
+  if (/Snapchat/i.test(ua)) return "snapchat (in-app)";
   return "direct";
 }
 

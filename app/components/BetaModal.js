@@ -34,8 +34,17 @@ export default function BetaModal() {
       for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"]) {
         if (p.get(k)) utm[k] = p.get(k).slice(0, 120);
       }
+      // in-app browsers strip the referrer but sign the user agent —
+      // detect the app so the source is still known automatically
+      const ua = navigator.userAgent;
+      const appSource =
+        /LinkedInApp/i.test(ua) ? "app:linkedin" :
+        /Instagram/i.test(ua) ? "app:instagram" :
+        /FB_IAB|FBAV|FBAN/i.test(ua) ? "app:facebook" :
+        /Twitter/i.test(ua) ? "app:twitter" :
+        /Snapchat/i.test(ua) ? "app:snapchat" : null;
       const fresh = {
-        source: document.referrer.slice(0, 300) || null,
+        source: document.referrer.slice(0, 300) || appSource,
         utm: Object.keys(utm).length ? utm : null,
         landing: window.location.href.slice(0, 400),
       };
