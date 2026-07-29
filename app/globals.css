@@ -912,3 +912,12 @@ p { margin: 0; }
 .bmodal__done h3 { font-size: 26px; color: #fff; }
 .bmodal__done p { font-size: 15px; color: var(--muted); line-height: 1.55; max-width: 30ch; }
 .bmodal__done .btn { margin-top: 14px; }
+
+/* proper-logo polish for the beta modal */
+.bmodal__tag .dot {
+  width: 7px; height: 7px; border-radius: 4px;
+  background: var(--coral-hot);
+  animation: blink 1.4s infinite;
+}
+.bm-dev { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.bm-dev svg { flex: none; }

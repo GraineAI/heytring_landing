@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef } from "react";
 import { Ring } from "./Mascot";
-import { Check, Phone } from "./Icons";
+import { Check, Phone, Wave } from "./Icons";
 
 const FEATS = [
   "Live transcript",
@@ -88,7 +88,9 @@ export default function PhoneStory() {
     <section className="ps" id="story" ref={root}>
       <div className="ps__in">
         <div>
-          <a className="ps-badge" href="#voice">🎙 Ring can answer in your own voice</a>
+          <a className="ps-badge" href="#voice">
+            <Wave width={15} height={15} /> Ring can answer in your own voice
+          </a>
           <h2>Ring answers your unknown calls.</h2>
           <p className="ps__sub">
             It talks to the caller <b>in their language</b>, you steer it with

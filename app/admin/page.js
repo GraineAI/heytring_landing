@@ -112,7 +112,7 @@ export default function Admin() {
                   <td style={{ ...S.td, color: "#8C7C73" }}>{r.id}</td>
                   <td style={{ ...S.td, fontWeight: 700, color: "#fff" }}>{r.name}</td>
                   <td style={S.td}>{r.email}</td>
-                  <td style={S.td}>{r.device === "ios" ? "🍎 iPhone" : "🤖 Android"}</td>
+                  <td style={S.td}>{r.device === "ios" ? "iPhone" : "Android"}</td>
                   <td style={S.td}>{sourceOf(r)}</td>
                   <td style={S.td}>{r.placement || "—"}</td>
                   <td style={S.td}>{r.country || "—"}</td>

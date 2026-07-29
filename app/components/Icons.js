@@ -136,3 +136,14 @@ export const Play = (p) => (
     <path d="m4 20.8 8.5-8 2 2.3-8.7 6.3c-.6.4-1.3.1-1.8-.6Z" opacity=".85" />
   </svg>
 );
+
+export const Android = (p) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" {...p}>
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M4 17a8 8 0 0 1 16 0ZM9 13.7a1.15 1.15 0 1 1 0-2.3 1.15 1.15 0 0 1 0 2.3Zm6 0a1.15 1.15 0 1 1 0-2.3 1.15 1.15 0 0 1 0 2.3Z"
+    />
+    <path stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" d="M8.6 9.4 7 6.5m8.4 2.9L17 6.5" fill="none" />
+  </svg>
+);

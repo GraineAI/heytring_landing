@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Ring } from "./Mascot";
+import { Android, Apple } from "./Icons";
 import { track } from "./analytics";
 
 export default function BetaModal() {
@@ -98,7 +99,7 @@ export default function BetaModal() {
           </div>
         ) : (
           <>
-            <span className="bmodal__tag">🚧 Closed beta</span>
+            <span className="bmodal__tag"><i className="dot" /> Closed beta</span>
             <h3>Get your Tring invite</h3>
             <p className="bmodal__sub">
               Tring is invite-only right now. Tell us where to reach you and
@@ -110,12 +111,12 @@ export default function BetaModal() {
                 <button type="button"
                   className={`bm-dev${device === "android" ? " is-on" : ""}`}
                   onClick={() => setDevice("android")}>
-                  🤖 Android
+                  <Android width={18} height={18} /> Android
                 </button>
                 <button type="button"
                   className={`bm-dev${device === "ios" ? " is-on" : ""}`}
                   onClick={() => setDevice("ios")}>
-                  🍎 iPhone
+                  <Apple width={18} height={18} /> iPhone
                 </button>
               </div>
 
