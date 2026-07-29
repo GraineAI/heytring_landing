@@ -99,11 +99,35 @@ export default function Motion() {
           });
         }
 
+        // Vibrating "Tring." — ring-ring bursts, like a phone going off.
+        gsap.timeline({ repeat: -1, repeatDelay: 2.4, delay: 2.2 })
+          .to(".hero h1 .ring", { rotation: 2.5, x: 1, duration: 0.05, repeat: 9, yoyo: true, ease: "none" })
+          .to(".hero h1 .ring", { rotation: 0, x: 0, duration: 0.08 });
+
+        // Floating handled-call cards: spring in, then drift forever.
+        gsap.from(".hcard", {
+          autoAlpha: 0, y: 30, scale: 0.9, stagger: 0.12,
+          duration: 0.6, ease: "springy", delay: 1.6,
+        });
+        gsap.utils.toArray(".hcard").forEach((c, i) => {
+          gsap.to(c, {
+            y: i % 2 ? 16 : -16, x: i % 3 ? 10 : -8,
+            duration: 3 + i * 0.45, yoyo: true, repeat: -1,
+            ease: "sine.inOut", delay: 2.2,
+          });
+        });
+
+        // The surfer bobs like it's riding a wave.
+        gsap.to(".surfer", {
+          y: -12, rotation: 3, duration: 1.8, yoyo: true, repeat: -1,
+          ease: "sine.inOut", transformOrigin: "50% 80%",
+        });
+
         // Swish's two appear moves, applied to every content block as it
         // scrolls into view (once):
         //   springs for visual blocks — rise with a slight overshoot;
         //   their tween for text blocks.
-        const SPRING = ".vid, .orbitline, .rec, .final, .ps__stage, .newspill";
+        const SPRING = ".vid, .orbitline, .rec, .final, .ps__stage";
         gsap.utils.toArray(SPRING).forEach((el) => {
           gsap.effects.rise(el, {
             y: 34, duration: 0.7, ease: "springy",

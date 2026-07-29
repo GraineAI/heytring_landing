@@ -1,14 +1,12 @@
 "use client";
 
 /**
- * VideoSection — Swish's lite-embed facade, with a real film behind it:
- * the poster frame renders instantly (just an <img>, radius 32), and the
- * <video> element only mounts when the visitor taps the glass play pill —
- * exactly how justswish.in defers its YouTube embed. The demo film lives
- * at public/demo.webm (swap in a final cut anytime, same filename).
+ * VideoSection — Swish's lite-embed facade: poster <img> first, the
+ * <video> mounts on tap. MP4 (H.264) first so Safari and every Chrome
+ * build can play it, WebM as fallback. Store buttons live only on the
+ * first and last sections now, so none here.
  */
 import { useState } from "react";
-import StoreButtons from "./StoreButtons";
 import { track } from "./analytics";
 
 export default function VideoSection() {
@@ -26,13 +24,15 @@ export default function VideoSection() {
         <div className="vid reveal">
           {mode === "playing" && (
             <video
-              src="/demo.webm"
               poster="/demo-poster.jpg"
               controls
               autoPlay
               playsInline
               onError={() => setMode("soon")}
-            />
+            >
+              <source src="/demo.mp4" type="video/mp4" />
+              <source src="/demo.webm" type="video/webm" />
+            </video>
           )}
 
           {mode === "poster" && (
@@ -49,13 +49,9 @@ export default function VideoSection() {
           {mode === "soon" && (
             <div className="vid__soon">
               <b>The film could not load.</b>
-              <span>The real thing is one download away — and it&rsquo;s free.</span>
+              <span>The real thing is one invite away — grab yours below.</span>
             </div>
           )}
-        </div>
-
-        <div className="vid__cta reveal">
-          <StoreButtons placement="video" />
         </div>
       </div>
     </section>

@@ -1,14 +1,77 @@
 "use client";
 
 /**
- * Hero — Swish's signature: a full-viewport ambient brand film behind the
- * headline. Like justswish.in it ships two cuts (16:9 desktop, 9:16
- * portrait, swapped at ≤767px portrait), a poster for instant paint,
- * `preload` kept light, and a glass pause/play pill (Equal AI's control)
- * so the visitor owns the motion. Reduced motion = poster only.
+ * Hero — dark ambient brand film behind the headline (16:9 + 9:16 cuts,
+ * poster first paint, glass pause pill). Videos ship as H.264 MP4 first
+ * (Safari/every browser) with WebM fallback, and `muted` is enforced via
+ * JS because React drops the attribute from SSR HTML — without it Chrome
+ * blocks autoplay. Plus, per the annotated review: prominent floating
+ * handled-call cards (GSAP-drifted), the vibrating "Tring.", and the
+ * mascot surfing on a board — phone in one hand, script in the other.
  */
 import { useEffect, useRef, useState } from "react";
 import StoreButtons from "./StoreButtons";
+
+const CARDS = [
+  { cls: "hcard--1", ic: "✓", ok: true, b: "Delivery · Blinkit", s: "left at the gate" },
+  { cls: "hcard--2", ic: "✓", ok: true, b: "Apollo Clinic", s: "appointment Friday, 6 pm" },
+  { cls: "hcard--3", ic: "✕", ok: false, b: "Loan offer · spam", s: "politely dismissed" },
+  { cls: "hcard--4", ic: "✓", ok: true, b: "Watchman", s: "visitor sent up" },
+  { cls: "hcard--5", ic: "✓", ok: true, b: "Maa", s: "always rings through" },
+];
+
+function IndiaFlag() {
+  return (
+    <svg className="flag" width="18" height="13" viewBox="0 0 18 13" aria-label="India">
+      <rect width="18" height="13" fill="#fff" />
+      <rect width="18" height="4.33" fill="#FF9933" />
+      <rect y="8.67" width="18" height="4.33" fill="#138808" />
+      <circle cx="9" cy="6.5" r="1.7" fill="none" stroke="#054187" strokeWidth="0.6" />
+      <circle cx="9" cy="6.5" r="0.35" fill="#054187" />
+    </svg>
+  );
+}
+
+function Surfer() {
+  return (
+    <svg className="surfer" width="230" height="164" viewBox="0 0 240 170" aria-hidden="true">
+      {/* motion streaks */}
+      <path d="M18 120 h34 M8 134 h26" stroke="rgba(244,83,46,.5)" strokeWidth="4" strokeLinecap="round" />
+      {/* the board */}
+      <g transform="rotate(-6 120 132)">
+        <rect x="38" y="122" width="164" height="17" rx="9" fill="#FB7A5C" />
+        <rect x="38" y="128" width="164" height="4" rx="2" fill="rgba(255,255,255,.4)" />
+      </g>
+      {/* splash */}
+      <circle cx="203" cy="148" r="4" fill="#F4532E" opacity=".8" />
+      <circle cx="213" cy="140" r="3" fill="#FB7A5C" opacity=".7" />
+      <circle cx="36" cy="150" r="3" fill="#FB7A5C" opacity=".6" />
+      {/* legs */}
+      <path d="M106 106 L100 122 M126 106 L132 122" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
+      {/* the script (left hand) */}
+      <g transform="rotate(-10 62 66)">
+        <rect x="48" y="48" width="28" height="36" rx="3" fill="#fff" />
+        <path d="M54 57 h16 M54 64 h16 M54 71 h16 M54 78 h10" stroke="#C9BBB2" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      {/* arms */}
+      <path d="M92 88 L72 70" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
+      <path d="M140 88 L160 72" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
+      {/* the phone (right hand) */}
+      <g transform="rotate(10 168 66)">
+        <rect x="158" y="50" width="19" height="32" rx="4" fill="#000" />
+        <rect x="161" y="54" width="13" height="22" rx="2" fill="#1F1712" />
+        <circle cx="167.5" cy="65" r="4" fill="#F4532E" />
+      </g>
+      {/* Ring */}
+      <circle cx="116" cy="80" r="30" fill="#F4532E" />
+      <circle cx="106" cy="78" r="5.5" fill="#fff" />
+      <circle cx="126" cy="78" r="5.5" fill="#fff" />
+      <circle cx="107.5" cy="79" r="2.6" fill="#1B1512" />
+      <circle cx="127.5" cy="79" r="2.6" fill="#1B1512" />
+      <ellipse cx="116" cy="93" rx="4.5" ry="5.5" fill="#fff" />
+    </svg>
+  );
+}
 
 export default function Hero() {
   const videoRef = useRef(null);
@@ -28,35 +91,57 @@ export default function Hero() {
     return () => window.removeEventListener("resize", pick);
   }, []);
 
+  // React drops `muted` from SSR markup → Chrome refuses to autoplay.
+  // Enforce it and kick playback ourselves, every time the source swaps.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || reduced) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }, [portrait, reduced]);
+
   const toggle = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPaused(false); }
+    if (v.paused) { v.play().catch(() => {}); setPaused(false); }
     else { v.pause(); setPaused(true); }
   };
 
-  const src = portrait ? "/hero-loop-portrait.webm" : "/hero-loop.webm";
+  const base = portrait ? "/hero-loop-portrait" : "/hero-loop";
   const poster = portrait ? "/hero-poster-portrait.jpg" : "/hero-poster.jpg";
 
   return (
     <header className="hero" id="top">
-      {/* the ambient film */}
       <div className="hero__film" aria-hidden="true">
         {reduced ? (
           <img src={poster} alt="" />
         ) : (
           <video
-            key={src}
+            key={base}
             ref={videoRef}
-            src={src}
             poster={poster}
             autoPlay
             muted
             loop
             playsInline
-          />
+          >
+            <source src={`${base}.mp4`} type="video/mp4" />
+            <source src={`${base}.webm`} type="video/webm" />
+          </video>
         )}
         <div className="hero__veil" />
+      </div>
+
+      {/* prominent floating handled-call cards */}
+      <div className="herocards" aria-hidden="true">
+        {CARDS.map((c) => (
+          <div className={`hcard ${c.cls}`} key={c.cls}>
+            <span className={`ic ${c.ok ? "ic--ok" : "ic--no"}`}>{c.ic}</span>
+            <span><b>{c.b}</b><small>{c.s}</small></span>
+          </div>
+        ))}
       </div>
 
       <div className="wrap hero__in">
@@ -74,10 +159,13 @@ export default function Hero() {
           <StoreButtons placement="hero" />
         </div>
 
-        <p className="hero__trust">Free · English + Hindi · Made for India 🇮🇳</p>
+        <p className="hero__trust">
+          Closed beta · Free · English + Hindi · Made for India <IndiaFlag />
+        </p>
+
+        <Surfer />
       </div>
 
-      {/* glass film control (Equal AI) */}
       {!reduced && (
         <button
           className="hero__ctl"

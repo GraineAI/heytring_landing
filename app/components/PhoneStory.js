@@ -1,21 +1,24 @@
 "use client";
 
 /**
- * PhoneStory — Equal AI's signature move, played on the REAL app's screens
- * (matched to the Tring app prototype): a full-bleed coral section where a
- * phone plays a self-running ~9s story. Plays once when the section enters
- * the viewport (then reruns after a rest) — it is NOT scroll-scrubbed:
- *   1. Incoming call — "Blinkit · Ramesh 🛵", phone buzzes
- *   2. Ring picks up — mascot + sonar rings, "answered in your voice"
- *   3. The app's dark live-call screen — live transcript, and a
- *      tap-to-steer chip sends "Leave it with the security guard."
- *   4. The home-feed wrap-up card — "Left with security · Done"
- * No JS / reduced motion: scenes 2 + 4 render as a finished still (CSS).
+ * PhoneStory — the product story on the app's REAL dark-mode screens,
+ * per the annotated review: "your own voice" badge on top, a smaller
+ * headline with the feature list, and a phone that is never static —
+ * the ~9s GSAP timeline loops with only a 1s rest, and every scene has
+ * live micro-motion (pulsing avatar, sonar halos, eq bars, blinking dots).
  */
 import { useEffect, useRef } from "react";
 import { Ring } from "./Mascot";
-import StoreButtons from "./StoreButtons";
 import { Check, Phone } from "./Icons";
+
+const FEATS = [
+  "Live transcript",
+  "Steer with a tap",
+  "Take over anytime",
+  "Spam blocked",
+  "Speaks their language",
+  "Wrap-up notes",
+];
 
 export default function PhoneStory() {
   const root = useRef(null);
@@ -32,45 +35,43 @@ export default function PhoneStory() {
         const tl = gsap.timeline({
           paused: true,
           repeat: -1,
-          repeatDelay: 5,
-          defaults: { ease: "power3.out", duration: 0.5 },
+          repeatDelay: 1,
+          defaults: { ease: "power3.out", duration: 0.45 },
         });
 
-        // reset every iteration
         tl.set(".ps-s2, .ps-s3, .ps-s4", { autoAlpha: 0 })
           .set(".ps-s1", { autoAlpha: 0 })
           .set(".ps-chip--tap", { clearProps: "all" })
           .set(".ps-m--steer", { autoAlpha: 0 })
 
-          // scene 1 — incoming call
+          // 1 — incoming call
           .fromTo(".ps-s1", { autoAlpha: 0, y: -14 }, { autoAlpha: 1, y: 0 }, 0.1)
           .fromTo(".ps-s1 .av", { scale: 0.7 }, { scale: 1, ease: "back.out(2)" }, 0.15)
-          .to(".ps-phone", { x: 2, duration: 0.06, repeat: 9, yoyo: true, ease: "none" }, 0.35)
+          .to(".ps-phone", { x: 2, duration: 0.06, repeat: 9, yoyo: true, ease: "none" }, 0.3)
           .set(".ps-phone", { x: 0 })
-          .to(".ps-btns .c--yes", { scale: 1.14, duration: 0.3, repeat: 3, yoyo: true }, 0.5)
 
-          // scene 2 — Ring picks up
-          .to(".ps-s1", { autoAlpha: 0, y: -10, duration: 0.35 }, 2.0)
-          .fromTo(".ps-s2", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 2.25)
-          .fromTo(".ps-s2 .ps-halo", { scale: 0.6 }, { scale: 1, ease: "back.out(1.8)" }, 2.25)
+          // 2 — Ring picks up
+          .to(".ps-s1", { autoAlpha: 0, y: -10, duration: 0.3 }, 1.7)
+          .fromTo(".ps-s2", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 1.9)
+          .fromTo(".ps-s2 .ps-halo", { scale: 0.6 }, { scale: 1, ease: "back.out(1.8)" }, 1.9)
 
-          // scene 3 — the app's live-call screen slides up over it
-          .to(".ps-s2", { autoAlpha: 0, duration: 0.3 }, 3.7)
-          .fromTo(".ps-s3", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 3.85)
-          .fromTo(".ps-dark", { y: 60 }, { y: 0 }, 3.85)
-          .fromTo(".ps-m--ring, .ps-m--caller", { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.35, duration: 0.4 }, 4.2)
-          .fromTo(".ps-steer", { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, 5.1)
-          .to(".ps-chip--tap", { scale: 0.94, duration: 0.12, yoyo: true, repeat: 1 }, 5.9)
-          .to(".ps-chip--tap", { opacity: 0.4, duration: 0.2 }, 6.15)
-          .fromTo(".ps-m--steer", { autoAlpha: 0, y: 8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.6)" }, 6.3)
+          // 3 — the live-call screen
+          .to(".ps-s2", { autoAlpha: 0, duration: 0.25 }, 3.2)
+          .fromTo(".ps-s3", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2 }, 3.35)
+          .fromTo(".ps-dark", { y: 60 }, { y: 0 }, 3.35)
+          .fromTo(".ps-m--ring, .ps-m--caller", { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.3, duration: 0.35 }, 3.6)
+          .fromTo(".ps-steer", { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, 4.35)
+          .to(".ps-chip--tap", { scale: 0.94, duration: 0.12, yoyo: true, repeat: 1 }, 5.0)
+          .to(".ps-chip--tap", { opacity: 0.4, duration: 0.2 }, 5.25)
+          .fromTo(".ps-m--steer", { autoAlpha: 0, y: 8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.6)" }, 5.4)
 
-          // scene 4 — the wrap-up card in the home feed
-          .to(".ps-s3", { autoAlpha: 0, y: -8, duration: 0.35 }, 7.9)
+          // 4 — the wrap-up card
+          .to(".ps-s3", { autoAlpha: 0, y: -8, duration: 0.3 }, 6.9)
           .set(".ps-s3", { y: 0 })
-          .fromTo(".ps-s4", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 8.25)
-          .fromTo(".ps-note", { scale: 0.92, y: 12 }, { scale: 1, y: 0, ease: "back.out(1.7)" }, 8.25)
-          .fromTo(".ps-s4 .saved", { autoAlpha: 0 }, { autoAlpha: 1 }, 8.6)
-          .to({}, { duration: 1.2 });   // hold the card before the rest
+          .fromTo(".ps-s4", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2 }, 7.15)
+          .fromTo(".ps-note", { scale: 0.92, y: 12 }, { scale: 1, y: 0, ease: "back.out(1.7)" }, 7.15)
+          .fromTo(".ps-s4 .saved", { autoAlpha: 0 }, { autoAlpha: 1 }, 7.5)
+          .to({}, { duration: 1 });
 
         ScrollTrigger.create({
           trigger: root.current,
@@ -87,16 +88,17 @@ export default function PhoneStory() {
     <section className="ps" id="story" ref={root}>
       <div className="ps__in">
         <div>
-          <span className="eyebrow">Tring = transfer to Ring</span>
+          <a className="ps-badge" href="#voice">🎙 Ring can answer in your own voice</a>
           <h2>Ring answers your unknown calls.</h2>
           <p className="ps__sub">
             It talks to the caller <b>in their language</b>, you steer it with
             a tap, and all you get is the note.
           </p>
-          <div className="ps__cta">
-            <StoreButtons onDark placement="story" />
-          </div>
-          <p className="ps__foot">Live transcript while it talks · take over anytime</p>
+          <ul className="ps-feats">
+            {FEATS.map((f) => (
+              <li key={f}><span className="t">✓</span>{f}</li>
+            ))}
+          </ul>
         </div>
 
         <div className="ps__stage" aria-hidden="true">
@@ -108,7 +110,7 @@ export default function PhoneStory() {
                 <span className="ps-live"><span className="d" /> LIVE</span>
               </div>
 
-              {/* scene 1 — incoming call */}
+              {/* 1 — incoming call */}
               <div className="ps-scene ps-s1">
                 <span className="av">🛵</span>
                 <b>Blinkit · Ramesh</b>
@@ -120,7 +122,7 @@ export default function PhoneStory() {
                 </div>
               </div>
 
-              {/* scene 2 — Ring picks up */}
+              {/* 2 — Ring picks up */}
               <div className="ps-scene ps-s2">
                 <span className="ps-halo">
                   <span className="h" /><span className="h" /><span className="h" />
@@ -128,9 +130,10 @@ export default function PhoneStory() {
                 </span>
                 <b>Ring answered</b>
                 <small>in your voice, in Hindi</small>
+                <span className="ps-eq"><span /><span /><span /><span /></span>
               </div>
 
-              {/* scene 3 — the app's live-call screen with steer chips */}
+              {/* 3 — the live-call screen with steer chips */}
               <div className="ps-scene ps-s3">
                 <div className="ps-dark">
                   <div className="ps-dk-head"><span className="d" /><b>ON A CALL · 0:12</b></div>
@@ -158,7 +161,7 @@ export default function PhoneStory() {
                 </div>
               </div>
 
-              {/* scene 4 — the wrap-up card in the home feed */}
+              {/* 4 — the wrap-up card */}
               <div className="ps-scene ps-s4">
                 <div className="ps-note">
                   <span className="tick"><Check /></span>

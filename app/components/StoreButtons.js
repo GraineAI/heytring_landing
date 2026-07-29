@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Apple, Play } from "./Icons";
-import { track } from "./analytics";
 
-// Replace these with your real store URLs once listings are live.
-export const PLAY_URL = "https://play.google.com/store/apps/details?id=com.heytring.app";
-export const APP_STORE_URL = "https://apps.apple.com/app/tring/id000000000";
-
-/** OS-aware store buttons (Equal AI's pattern): phones see exactly one
- *  button — their platform's; desktop (and SSR) shows both. */
+/** Beta-invite buttons (closed testing): they open the BetaModal with the
+ *  right device preselected. OS-aware — phones see only their platform.
+ *  Real store listings live behind the /go/* tracking links, offered in
+ *  the modal for people who already hold an invite. */
 export default function StoreButtons({ onDark = false, placement = "page" }) {
   const [os, setOs] = useState("desktop");
   useEffect(() => {
@@ -22,24 +19,24 @@ export default function StoreButtons({ onDark = false, placement = "page" }) {
   return (
     <div className="cta-row">
       {os !== "ios" && (
-        <a className={cls} href={PLAY_URL} aria-label="Get Tring on Google Play"
-          onClick={() => track("store_click", { store: "google_play", placement })}>
+        <button className={cls} data-beta="android" data-beta-placement={placement}
+          aria-label="Get a Tring beta invite for Android">
           <Play />
           <span className="store-k">
-            <small>GET IT ON</small>
-            <span>Google Play</span>
+            <small>CLOSED BETA</small>
+            <span>Android invite</span>
           </span>
-        </a>
+        </button>
       )}
       {os !== "android" && (
-        <a className={cls} href={APP_STORE_URL} aria-label="Download Tring on the App Store"
-          onClick={() => track("store_click", { store: "app_store", placement })}>
+        <button className={cls} data-beta="ios" data-beta-placement={placement}
+          aria-label="Get a Tring beta invite for iPhone">
           <Apple />
           <span className="store-k">
-            <small>DOWNLOAD ON THE</small>
-            <span>App Store</span>
+            <small>CLOSED BETA</small>
+            <span>iPhone invite</span>
           </span>
-        </a>
+        </button>
       )}
     </div>
   );

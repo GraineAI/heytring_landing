@@ -1,5 +1,4 @@
 import { Check, Wave } from "./Icons";
-import { PLAY_URL } from "./StoreButtons";
 
 // varied bar heights for the equaliser
 const bars = [16, 30, 46, 24, 38, 52, 20, 34, 44, 26, 40, 18, 48, 28, 36];
@@ -20,7 +19,7 @@ export default function VoiceClone() {
               in their language — even when you never picked up.
             </p>
 
-            <a className="btn btn--onDark" href={PLAY_URL} style={{ marginTop: 26 }}>
+            <a className="btn btn--onDark" href="#" data-beta="android" data-beta-placement="voice" style={{ marginTop: 26 }}>
               <Wave width={18} height={18} style={{ color: "var(--coral)" }} />
               Unlock your voice — free with an invite
             </a>
