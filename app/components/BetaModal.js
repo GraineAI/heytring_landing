@@ -62,11 +62,32 @@ export default function BetaModal() {
       const t = e.target.closest("[data-beta]");
       if (!t) return;
       e.preventDefault();
-      setDevice(t.getAttribute("data-beta") === "ios" ? "ios" : "android");
-      setPlacement(t.getAttribute("data-beta-placement") || "page");
-      setPhase("form");
-      setOpen(true);
-      track("beta_open", { placement: t.getAttribute("data-beta-placement") || "page" });
+      const dev = t.getAttribute("data-beta") === "ios" ? "ios" : "android";
+      const plc = t.getAttribute("data-beta-placement") || "page";
+      setPlacement(plc);
+      // returning visitor? check their live status instead of re-asking
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem("tring_signup") || "null"); } catch (_) {}
+      if (saved && saved.email) {
+        setDevice(saved.device || dev);
+        setEmail(saved.email);
+        setName(saved.name || "");
+        setPhase("checking");
+        setOpen(true);
+        fetch("/api/waitlist/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: saved.email, device: saved.device || dev }),
+        })
+          .then((r) => r.json())
+          .then((d) => setPhase(d.found ? (d.approved ? "approved" : "pending") : "form"))
+          .catch(() => setPhase("form"));
+      } else {
+        setDevice(dev);
+        setPhase("form");
+        setOpen(true);
+      }
+      track("beta_open", { placement: plc });
     };
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("click", onClick);
@@ -76,6 +97,25 @@ export default function BetaModal() {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
+
+  const resetSignup = () => {
+    try { localStorage.removeItem("tring_signup"); } catch (_) {}
+    setName("");
+    setEmail("");
+    setPhase("form");
+  };
+
+  const recheck = () => {
+    setPhase("checking");
+    fetch("/api/waitlist/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, device }),
+    })
+      .then((r) => r.json())
+      .then((d) => setPhase(d.found ? (d.approved ? "approved" : "pending") : "form"))
+      .catch(() => setPhase("pending"));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -94,6 +134,8 @@ export default function BetaModal() {
       });
       if (!res.ok) throw new Error("bad");
       const data = await res.json();
+      // remember this signup so return visits show live status
+      try { localStorage.setItem("tring_signup", JSON.stringify({ name, email, device })); } catch (_) {}
       setPhase(data.already ? "exists" : "done");
       if (!data.already) track("waitlist_submit", { device, placement });
     } catch (_) {
@@ -109,7 +151,60 @@ export default function BetaModal() {
       <div className="bmodal__card">
         <button className="bmodal__x" onClick={() => setOpen(false)} aria-label="Close">✕</button>
 
-        {phase === "done" || phase === "exists" ? (
+        {phase === "checking" ? (
+          <div className="bmodal__done">
+            <Ring size={92} state="idle" />
+            <h3>One second…</h3>
+            <p>Checking your invite status.</p>
+          </div>
+        ) : phase === "approved" ? (
+          <div className="bmodal__done">
+            <Ring size={92} state="happy" />
+            <h3>You&rsquo;re approved! 🎉</h3>
+            {device === "ios" ? (
+              <>
+                <p>Your TestFlight invite is live — install Tring now:</p>
+                <a className="btn btn--coral" href="/go/ios?p=approved" target="_blank" rel="noreferrer">
+                  Join the TestFlight beta
+                </a>
+                <p className="bm-note">Install the TestFlight app first if you don&rsquo;t have it.</p>
+              </>
+            ) : (
+              <>
+                <p>
+                  <b>{email}</b> is on the Google Play tester list — install Tring now:
+                </p>
+                <a className="btn btn--coral" href="/go/play?p=approved" target="_blank" rel="noreferrer">
+                  Open the Play beta
+                </a>
+                <p className="bm-note">Use the same Google account as this email on your phone.</p>
+              </>
+            )}
+            <button className="bm-close2" onClick={resetSignup}>Not you? Use a different email</button>
+          </div>
+        ) : phase === "pending" ? (
+          <div className="bmodal__done">
+            <Ring size={92} state="idle" />
+            <h3>You&rsquo;re on the list</h3>
+            {device === "ios" ? (
+              <>
+                <p>No waiting needed on iPhone — your TestFlight invite works right away:</p>
+                <a className="btn btn--coral" href="/go/ios?p=pending" target="_blank" rel="noreferrer">
+                  Join the TestFlight beta
+                </a>
+              </>
+            ) : (
+              <>
+                <p>
+                  We&rsquo;re approving <b>{email}</b> for the Play beta — usually
+                  within a day. Check back here, we&rsquo;ll unlock your link.
+                </p>
+                <button className="btn btn--coral" onClick={recheck}>Check again</button>
+              </>
+            )}
+            <button className="bm-close2" onClick={resetSignup}>Not you? Use a different email</button>
+          </div>
+        ) : phase === "done" || phase === "exists" ? (
           <div className="bmodal__done">
             <Ring size={92} state="happy" />
             <h3>{phase === "exists" ? "You're already on the list!" : "You're on the list!"}</h3>
