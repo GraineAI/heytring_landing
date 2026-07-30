@@ -31,8 +31,8 @@ export function Ring({ size = 100, state = "idle", animated = true, style, class
           <g className={animated ? "ring-eyes" : ""}>
             <circle cx="40" cy="56" r="5.5" fill="#fff" />
             <circle cx="60" cy="56" r="5.5" fill="#fff" />
-            <circle cx="41.5" cy="57" r="2.6" fill="#1B1512" />
-            <circle cx="61.5" cy="57" r="2.6" fill="#1B1512" />
+            <circle className="pupil" cx="41.5" cy="57" r="2.6" fill="#1B1512" />
+            <circle className="pupil" cx="61.5" cy="57" r="2.6" fill="#1B1512" />
           </g>
           {state === "talking" ? (
             <ellipse cx="50" cy="71" rx="4.5" ry="5.5" fill="#fff" />

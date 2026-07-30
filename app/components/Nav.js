@@ -13,6 +13,7 @@ export default function Nav() {
         <div className="nav__links">
           <a href="#story">What Ring Does</a>
           <a href="#app">The App</a>
+          <a href="#play">Play</a>
           <a href="#video">Watch It</a>
           <a href="#voice">Your Voice</a>
           <a href="#faq">FAQ</a>

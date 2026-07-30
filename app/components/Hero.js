@@ -66,8 +66,8 @@ function Surfer() {
       <circle cx="116" cy="80" r="30" fill="#F4532E" />
       <circle cx="106" cy="78" r="5.5" fill="#fff" />
       <circle cx="126" cy="78" r="5.5" fill="#fff" />
-      <circle cx="107.5" cy="79" r="2.6" fill="#1B1512" />
-      <circle cx="127.5" cy="79" r="2.6" fill="#1B1512" />
+      <circle className="pupil" cx="107.5" cy="79" r="2.6" fill="#1B1512" />
+      <circle className="pupil" cx="127.5" cy="79" r="2.6" fill="#1B1512" />
       <ellipse cx="116" cy="93" rx="4.5" ry="5.5" fill="#fff" />
     </svg>
   );

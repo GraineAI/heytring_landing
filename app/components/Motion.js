@@ -176,9 +176,38 @@ export default function Motion() {
         // Fine pointers only (gsap.matchMedia, per the docs).
         mm = gsap.matchMedia();
         mm.add("(min-width: 768px) and (pointer: fine)", () => {
+          const teardowns = [];
+
+          // Ring's eyes follow the cursor — every mascot on the page.
+          const eyes = [];
+          document.querySelectorAll(".ring-mascot, .surfer").forEach((svg) => {
+            svg.querySelectorAll(".pupil").forEach((pu) => {
+              eyes.push({
+                svg,
+                x: gsap.quickTo(pu, "x", { duration: 0.3, ease: "power2.out" }),
+                y: gsap.quickTo(pu, "y", { duration: 0.3, ease: "power2.out" }),
+              });
+            });
+          });
+          const onEyes = (e) => {
+            eyes.forEach(({ svg, x, y }) => {
+              const r = svg.getBoundingClientRect();
+              if (!r.width) return;
+              const dx = e.clientX - (r.left + r.width / 2);
+              const dy = e.clientY - (r.top + r.height / 2);
+              const a = Math.atan2(dy, dx);
+              const d = Math.min(1.8, Math.hypot(dx, dy) / 70);
+              x(Math.cos(a) * d);
+              y(Math.sin(a) * d);
+            });
+          };
+          if (eyes.length) {
+            window.addEventListener("mousemove", onEyes, { passive: true });
+            teardowns.push(() => window.removeEventListener("mousemove", onEyes));
+          }
+
           // Magnetic CTAs — gsap.quickTo (the cheat sheet's own example),
           // pills lean a few px toward the cursor and glide back on leave.
-          const teardowns = [];
           document.querySelectorAll(".btn--coral, .btn--store, .vid__pill, .hero__ctl").forEach((el) => {
             const xTo = gsap.quickTo(el, "x", { duration: 0.4, ease: "power3" });
             const yTo = gsap.quickTo(el, "y", { duration: 0.4, ease: "power3" });
