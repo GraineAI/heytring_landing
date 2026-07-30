@@ -9,7 +9,7 @@ const qa = [
   },
   {
     q: "Is Tring free?",
-    a: "Yes. Call screening with live transcript, take over, Ask Ring to call, wrap-up notes, spam blocking and the English + Hindi assistant are all free. Tring Pro adds extras like your own cloned voice.",
+    a: "Yes. Call screening with live transcript, take over, Ask Ring to call, wrap-up notes, spam blocking and an assistant that speaks 12+ Indian languages are all free. Tring Pro adds extras like your own cloned voice.",
   },
   {
     q: "Is the voice cloning safe?",

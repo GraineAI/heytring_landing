@@ -160,7 +160,7 @@ export default function Hero() {
         </div>
 
         <p className="hero__trust">
-          Closed beta · Free · English + Hindi · Made for India <IndiaFlag />
+          Closed beta · Free · 12+ Indian languages · Made for India <IndiaFlag />
         </p>
 
         <Surfer />

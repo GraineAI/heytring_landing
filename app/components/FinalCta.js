@@ -10,7 +10,7 @@ export default function FinalCta() {
           your attention back — free, in the voice of your choice.
         </p>
         <StoreButtons onDark placement="final" />
-        <p className="final__tiny">Free · English + Hindi · For users 18 and older</p>
+        <p className="final__tiny">Free · 12+ Indian languages · For users 18 and older</p>
       </div>
     </section>
   );

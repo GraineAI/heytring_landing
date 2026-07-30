@@ -110,7 +110,7 @@ export default function Terms() {
             <li>Mid-call live summary notifications</li>
             <li>Spam blocking &amp; caller ID</li>
             <li>Favourites priority ring-through</li>
-            <li>Multilingual assistant (English + Hindi)</li>
+            <li>Multilingual assistant (12+ Indian languages)</li>
           </ul>
           <p><strong>Paid — Tring Plus</strong> adds only the extras:</p>
           <table>
