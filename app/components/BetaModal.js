@@ -113,12 +113,35 @@ export default function BetaModal() {
           <div className="bmodal__done">
             <Ring size={92} state="happy" />
             <h3>{phase === "exists" ? "You're already on the list!" : "You're on the list!"}</h3>
-            <p>
-              {phase === "exists"
-                ? "We have your details — we'll reach out to you soon to get you onboarded."
-                : "We onboard new testers every week. Watch your inbox — your invite (and your own Ring) is coming."}
-            </p>
-            <button className="btn btn--coral" onClick={() => setOpen(false)}>Done</button>
+            {device === "ios" ? (
+              <>
+                <p>
+                  Your TestFlight invite is ready — install Tring right now:
+                </p>
+                <a className="btn btn--coral" href="/go/ios?p=post-signup"
+                  target="_blank" rel="noreferrer">
+                   Join the TestFlight beta
+                </a>
+                <p className="bm-note">
+                  Install the TestFlight app first if you don&rsquo;t have it.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  We&rsquo;re adding <b>{email || "your email"}</b> to the Google
+                  Play tester list. Once you get our confirmation, install from:
+                </p>
+                <a className="btn btn--coral" href="/go/play?p=post-signup"
+                  target="_blank" rel="noreferrer">
+                  Open the Play beta
+                </a>
+                <p className="bm-note">
+                  The link works after your email is approved — usually within a day.
+                </p>
+              </>
+            )}
+            <button className="bm-close2" onClick={() => setOpen(false)}>Close</button>
           </div>
         ) : (
           <>

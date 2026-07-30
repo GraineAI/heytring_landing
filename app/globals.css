@@ -921,3 +921,10 @@ p { margin: 0; }
 }
 .bm-dev { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .bm-dev svg { flex: none; }
+
+/* post-signup download state */
+.bmodal__done .btn { margin-top: 12px; }
+.bm-note { font-size: 12.5px !important; color: var(--muted-2) !important; margin-top: 10px; }
+.bmodal__done b { color: #fff; }
+.bm-close2 { background: none; border: 0; color: var(--muted-2); font-size: 14px; font-weight: 700; margin-top: 14px; }
+.bm-close2:hover { color: #fff; }
