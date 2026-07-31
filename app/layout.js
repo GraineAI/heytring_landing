@@ -1,6 +1,5 @@
 import { Figtree, JetBrains_Mono } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
-import { Analytics } from "@vercel/analytics/react";
+import SiteAnalytics from "./components/SiteAnalytics";
 import "./globals.css";
 
 // Swish's typeface: Figtree carries the whole site — headings and body —
@@ -70,11 +69,17 @@ export default function RootLayout({ children }) {
         {/* Traffic tracking, both rails:
             • Vercel Analytics — zero-config pageviews + custom events the moment this deploys.
             • GA4 — activates when NEXT_PUBLIC_GA_ID (G-XXXXXXXXXX) is set in Vercel env; until
-              then it renders nothing. Conversion events fire via components/analytics.js. */}
-        <Analytics />
-        {process.env.NEXT_PUBLIC_GA_ID ? (
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
-        ) : null}
+              then it renders nothing. Conversion events fire via components/analytics.js.
+
+            /share/<token> IS EXCLUDED FROM BOTH. The token in that URL is not an identifier, it
+            is the CREDENTIAL — apollo spends 256 bits of entropy on it precisely so the space
+            cannot be walked. Reporting the page URL to analytics hands a working link to a
+            recording of somebody's private phone call to two third parties, alongside the
+            visitor's IP and user agent, and leaves it sitting in dashboards and exports that
+            outlive the link's own expiry. Revoking afterwards does not un-send it.
+            beforeSend drops the event entirely rather than redacting, because a redacted URL
+            still tells them a share was viewed and when. */}
+        <SiteAnalytics />
       </body>
     </html>
   );
