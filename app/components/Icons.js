@@ -147,3 +147,15 @@ export const Android = (p) => (
     <path stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" d="M8.6 9.4 7 6.5m8.4 2.9L17 6.5" fill="none" />
   </svg>
 );
+
+export const Gamepad = (p) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" {...p}>
+    <path
+      d="M8.5 7h7a5.5 5.5 0 0 1 5.4 4.5l.7 4a3 3 0 0 1-5.4 2.3L15 16H9l-1.2 1.8a3 3 0 0 1-5.4-2.3l.7-4A5.5 5.5 0 0 1 8.5 7Z"
+      stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"
+    />
+    <path d="M7.5 11v2.4M6.3 12.2h2.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <circle cx="15.6" cy="11.6" r="1.05" fill="currentColor" />
+    <circle cx="17.6" cy="13.4" r="1.05" fill="currentColor" />
+  </svg>
+);

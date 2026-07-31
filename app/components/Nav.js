@@ -1,4 +1,5 @@
 import Logo from "./Logo";
+import { Gamepad } from "./Icons";
 
 /** Floating glass nav pill (dark). The CTA opens the beta-invite modal. */
 export default function Nav() {
@@ -13,13 +14,19 @@ export default function Nav() {
         <div className="nav__links">
           <a href="#story">What Ring Does</a>
           <a href="#app">The App</a>
-          <a href="#play">Play</a>
           <a href="#video">Watch It</a>
           <a href="#voice">Your Voice</a>
           <a href="#faq">FAQ</a>
         </div>
 
         <div className="nav__cta">
+          {/* the game is the site's most interactive moment — it gets its own
+              pill and stays visible on mobile, where the link row collapses */}
+          <a className="nav__play" href="#play" aria-label="Play the Tring game">
+            <Gamepad width={17} height={17} />
+            <span>Play</span>
+          </a>
+
           <button className="btn btn--coral" data-beta="android" data-beta-placement="nav">
             Get the beta
           </button>
