@@ -21,15 +21,36 @@ export const metadata = {
  * single rejection shape. A visitor cannot learn which tokens were ever valid.
  */
 export default async function SharedCall({ params }) {
+  // 404 means the link is genuinely gone (revoked, expired, or never real — apollo returns one
+  // shape for all three on purpose). Anything else is OUR outage, and saying "this link is no
+  // longer available" then is wrong in a way that matters: the recipient gives up on a link that
+  // is perfectly valid, and the sender never learns why.
   let data = null;
+  let gone = false;
   try {
     const res = await fetch(
       `${API_BASE}/api/v1/calls/share/public/${encodeURIComponent(params.token)}`,
       { cache: "no-store" }
     );
     if (res.ok) data = await res.json();
+    else if (res.status === 404) gone = true;
   } catch {
     data = null;
+  }
+
+  if (!data && !gone) {
+    return (
+      <main className="wrap" style={{ maxWidth: 560, margin: "0 auto", padding: "72px 24px" }}>
+        <h1 style={{ fontSize: 26, marginBottom: 10 }}>Couldn’t load this call</h1>
+        <p style={{ opacity: 0.7, lineHeight: 1.6 }}>
+          Something went wrong at our end — the link itself is probably fine. Please refresh in a
+          moment.
+        </p>
+        <p style={{ marginTop: 28 }}>
+          <a href="/">← Tring</a>
+        </p>
+      </main>
+    );
   }
 
   if (!data) {
