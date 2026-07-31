@@ -1,4 +1,8 @@
 import { API_BASE } from "../../lib/links";
+import Logo from "../../components/Logo";
+import { Ring } from "../../components/Mascot";
+import StoreButtons from "../../components/StoreButtons";
+import BetaModal from "../../components/BetaModal";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -9,6 +13,43 @@ export const metadata = {
   title: "A call on Tring",
   robots: { index: false, follow: false, nocache: true },
 };
+
+function ShareShell({ children }) {
+  return (
+    <main className="share">
+      <div className="share__wrap">
+        <a className="brand share__brand" href="/" aria-label="Tring home">
+          <Logo size={30} className="brand__logo" />
+          <span className="brand__name">Tring</span>
+        </a>
+        {children}
+      </div>
+      <BetaModal />
+    </main>
+  );
+}
+
+/** The pitch, right where the proof is: this very call was handled by Ring. */
+function GetTheApp() {
+  return (
+    <section className="share__cta">
+      <Ring size={72} state="happy" />
+      <h2>Want Ring answering your calls too?</h2>
+      <p>
+        Ring picked up this call, talked to the caller and wrote the note —
+        all by itself. It speaks 12+ Indian languages, and it can even answer
+        in <b>your own voice</b>.
+      </p>
+      <StoreButtons onDark placement="share" />
+      <div className="share__direct">
+        Already invited?{" "}
+        <a href="/go/play?p=share">Google Play</a> ·{" "}
+        <a href="/go/ios?p=share">TestFlight</a>
+      </div>
+      <span className="share__ctatiny">Closed beta · Free · 12+ Indian languages · Made for India</span>
+    </section>
+  );
+}
 
 /**
  * /share/<token> — the page a Tring user's shared link opens.
@@ -40,77 +81,100 @@ export default async function SharedCall({ params }) {
 
   if (!data && !gone) {
     return (
-      <main className="wrap" style={{ maxWidth: 560, margin: "0 auto", padding: "72px 24px" }}>
-        <h1 style={{ fontSize: 26, marginBottom: 10 }}>Couldn’t load this call</h1>
-        <p style={{ opacity: 0.7, lineHeight: 1.6 }}>
-          Something went wrong at our end — the link itself is probably fine. Please refresh in a
-          moment.
-        </p>
-        <p style={{ marginTop: 28 }}>
-          <a href="/">← Tring</a>
-        </p>
-      </main>
+      <ShareShell>
+        <div className="share__state">
+          <Ring size={84} state="idle" />
+          <h1>Couldn&rsquo;t load this call</h1>
+          <p>
+            Something went wrong at our end — the link itself is probably fine.
+            Please refresh in a moment.
+          </p>
+        </div>
+        <GetTheApp />
+      </ShareShell>
     );
   }
 
   if (!data) {
     return (
-      <main className="wrap" style={{ maxWidth: 560, margin: "0 auto", padding: "72px 24px" }}>
-        <h1 style={{ fontSize: 26, marginBottom: 10 }}>This link is no longer available</h1>
-        <p style={{ opacity: 0.7, lineHeight: 1.6 }}>
-          Shared call links expire, and the person who shared it can turn it off at any time.
-          Ask them for a new link if you still need it.
-        </p>
-        <p style={{ marginTop: 28 }}>
-          <a href="/">← Tring</a>
-        </p>
-      </main>
+      <ShareShell>
+        <div className="share__state">
+          <Ring size={84} state="sleeping" />
+          <h1>This link is no longer available</h1>
+          <p>
+            Shared call links expire, and the person who shared it can turn it
+            off at any time. Ask them for a new link if you still need it.
+          </p>
+        </div>
+        <GetTheApp />
+      </ShareShell>
     );
   }
 
   const mins = data.duration_seconds ? Math.max(1, Math.round(data.duration_seconds / 60)) : null;
+  const initial = (data.caller || "?").trim().charAt(0).toUpperCase() || "?";
 
   return (
-    <main className="wrap" style={{ maxWidth: 560, margin: "0 auto", padding: "56px 24px" }}>
-      <p style={{ fontSize: 13, letterSpacing: 0.4, opacity: 0.6, textTransform: "uppercase" }}>
-        Shared from Tring
-      </p>
-      <h1 style={{ fontSize: 28, margin: "10px 0 4px" }}>{data.caller}</h1>
-      <p style={{ opacity: 0.6, fontSize: 14 }}>
-        Answered by Tring{mins ? ` · about ${mins} min` : ""}
-      </p>
+    <ShareShell>
+      <span className="share__tag">
+        <span className="d" /> Shared from Tring
+      </span>
+
+      {/* the call header, styled like the app's call-detail screen */}
+      <header className="share__head">
+        <span className="share__av">{initial}</span>
+        <div>
+          <h1>{data.caller}</h1>
+          <p>
+            Answered by <b>Ring</b>, the Tring assistant
+            {mins ? ` · about ${mins} min` : ""}
+          </p>
+        </div>
+        <span className="share__halo">
+          <span className="h" /><span className="h" />
+          <Ring size={54} state="talking" />
+        </span>
+      </header>
 
       {data.summary ? (
-        <section style={{ marginTop: 28, padding: 18, borderRadius: 16, background: "rgba(0,0,0,.04)" }}>
-          <h2 style={{ fontSize: 15, marginBottom: 8, opacity: 0.7 }}>What they wanted</h2>
-          <p style={{ lineHeight: 1.65, margin: 0 }}>{data.summary}</p>
+        <section className="share__card share__card--summary">
+          <span className="share__k">What they wanted</span>
+          <p>{data.summary}</p>
         </section>
       ) : null}
 
-      {/* Audio may be absent even on a valid link — apollo returns null rather than leaking a
-          private storage URL when presigning fails. The summary is still worth showing. */}
+      {/* Audio streams through /share/<token>/audio: the browser never holds a storage URL,
+          so a revoked link stops playing even in an already-open tab. Audio may be absent on a
+          valid link (apollo returns null rather than leak a URL); the summary still matters. */}
       {data.audio_url ? (
-        <section style={{ marginTop: 22 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 10, opacity: 0.7 }}>Recording</h2>
+        <section className="share__card">
+          <span className="share__k">Recording</span>
+          <div className="share__eq" aria-hidden="true">
+            {Array.from({ length: 24 }, (_, i) => (
+              <span key={i} style={{ height: `${8 + ((i * 7) % 20)}px` }} />
+            ))}
+          </div>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <audio controls preload="none" src={data.audio_url} style={{ width: "100%" }} />
+          <audio controls preload="none" src={`/share/${encodeURIComponent(params.token)}/audio`} />
         </section>
       ) : (
-        <p style={{ marginTop: 22, opacity: 0.6, fontSize: 14 }}>
-          The recording couldn’t be loaded right now.
-        </p>
+        <p className="share__noaudio">The recording couldn&rsquo;t be loaded right now.</p>
       )}
 
       {/* Both parties are audible on a call recording. Say so, to the person listening. */}
-      <p style={{ marginTop: 30, fontSize: 12.5, opacity: 0.55, lineHeight: 1.6 }}>
-        This call was answered by an AI assistant on the recipient’s behalf, and shared by them.
-        Please treat it as you would any private conversation.
+      <p className="share__privacy">
+        This call was answered by an AI assistant on the recipient&rsquo;s
+        behalf, and shared by them. Please treat it as you would any private
+        conversation.
         {data.expires_at ? " This link expires automatically." : ""}
       </p>
 
-      <p style={{ marginTop: 26 }}>
-        <a href="/">What is Tring? →</a>
+      <GetTheApp />
+
+      <div className="doodles share__doodles" aria-hidden="true" />
+      <p className="share__foot">
+        <a href="/">heytring.com</a> · Don&rsquo;t pick up. Don&rsquo;t dial. Tring.
       </p>
-    </main>
+    </ShareShell>
   );
 }

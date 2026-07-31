@@ -1000,3 +1000,93 @@ p { margin: 0; }
   .rg-board { height: 58vh; }
   .rg-hud { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   SHARE PAGE — /share/<token>: a call, beautifully framed,
+   with the "get the app" pitch right under the proof
+   ============================================================ */
+.share {
+  min-height: 100svh;
+  background:
+    radial-gradient(90% 50% at 50% -10%, rgba(244,83,46,0.16), transparent 60%),
+    var(--bg);
+  padding: 40px 20px 60px;
+}
+.share__wrap { max-width: 620px; margin: 0 auto; }
+.share__brand { margin-bottom: 34px; display: inline-flex; }
+.share__tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(244,83,46,0.12); border: 1px solid rgba(244,83,46,0.35);
+  color: var(--coral-hot); border-radius: 999px; padding: 6px 14px;
+  font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+}
+.share__tag .d { width: 7px; height: 7px; border-radius: 4px; background: var(--coral-hot); animation: blink 1.6s infinite; }
+.share__head {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 20px;
+}
+.share__av {
+  width: 58px; height: 58px; border-radius: 29px; flex: none;
+  background: var(--card-2); border: 1px solid var(--line-soft);
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--coral-hot);
+}
+.share__head h1 { font-size: clamp(24px, 5vw, 32px); letter-spacing: -0.02em; }
+.share__head p { font-size: 14px; color: var(--muted); margin-top: 3px; }
+.share__head p b { color: var(--coral-hot); }
+.share__mascot { margin-left: auto; flex: none; }
+.share__card {
+  margin-top: 18px;
+  background: var(--card); border: 1px solid var(--line-soft);
+  border-radius: 20px; padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+.share__card--summary { border-left: 3px solid var(--coral); }
+.share__k {
+  display: block;
+  font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted-2); margin-bottom: 8px;
+}
+.share__card p { font-size: 16.5px; line-height: 1.65; color: var(--text); }
+.share__eq {
+  display: flex; align-items: flex-end; gap: 3px; height: 30px; margin: 4px 0 12px;
+}
+.share__eq span {
+  width: 5px; border-radius: 3px; background: var(--coral); opacity: .75;
+  animation: eqbar 1.2s ease-in-out infinite; transform-origin: bottom;
+}
+.share__eq span:nth-child(3n) { animation-delay: .2s; }
+.share__eq span:nth-child(3n+1) { animation-delay: .4s; }
+.share__card audio { width: 100%; display: block; }
+.share__noaudio { margin-top: 18px; font-size: 14px; color: var(--muted-2); }
+.share__privacy { margin-top: 20px; font-size: 12.5px; color: var(--muted-2); line-height: 1.6; }
+.share__state { text-align: center; padding: 30px 0 6px; }
+.share__state h1 { font-size: clamp(24px, 5vw, 30px); margin-top: 14px; }
+.share__state p { margin: 12px auto 0; font-size: 15.5px; color: var(--muted); max-width: 44ch; line-height: 1.6; }
+.share__cta {
+  margin-top: 30px;
+  text-align: center;
+  background:
+    radial-gradient(120% 140% at 50% -20%, var(--coral-hot) 0%, var(--coral) 45%, var(--coral-deep) 100%);
+  border-radius: 26px; padding: 34px 24px 28px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.share__cta h2 { color: #fff; font-size: clamp(22px, 4.6vw, 30px); margin-top: 10px; letter-spacing: -0.02em; }
+.share__cta p { color: rgba(255,255,255,0.94); font-size: 15.5px; line-height: 1.6; max-width: 46ch; margin-top: 10px; }
+.share__cta p b { color: #fff; }
+.share__cta .cta-row { justify-content: center; margin-top: 20px; }
+.share__ctatiny { margin-top: 14px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); }
+.share__foot { margin-top: 26px; text-align: center; font-size: 13px; color: var(--muted-2); }
+.share__foot a { color: var(--coral-hot); font-weight: 700; }
+
+/* share page: extra brand flourishes */
+.share__halo { position: relative; margin-left: auto; flex: none; width: 62px; height: 62px; display: grid; place-items: center; }
+.share__halo .h {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 50%;
+  border: 2px solid var(--coral); opacity: 0;
+  animation: sonar 2.4s ease-out infinite;
+}
+.share__halo .h:nth-child(2) { animation-delay: 1.2s; }
+.share__direct { margin-top: 14px; font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.85); }
+.share__direct a { color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.share__doodles { margin-top: 30px; border-radius: 16px; border: 1px solid var(--line-soft); }
