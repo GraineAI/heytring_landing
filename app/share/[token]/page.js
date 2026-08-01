@@ -7,12 +7,36 @@ import BetaModal from "../../components/BetaModal";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-// NOINDEX. This page shows a recording of somebody's private phone call. It is reachable only by
-// an unguessable link the owner chose to send, and it must never appear in a search result.
-export const metadata = {
-  title: "A call on Tring",
-  robots: { index: false, follow: false, nocache: true },
-};
+// NOINDEX: this page shows a recording of somebody's private phone call, so it must never appear
+// in a search result. It IS meant to unfurl in the chat it was sent to, though — so the card gets
+// its own title, description and self-referencing url. Inheriting the site-wide ones (as it did)
+// made every shared call preview as "Tring — don't pick up..." pointing at the homepage, which is
+// why chat apps showed the wrong thing or nothing at all. `follow` is left on: nofollow/nocache
+// protect no privacy here and make some unfurlers give up on the preview entirely.
+export function generateMetadata({ params }) {
+  const url = `https://heytring.com/share/${encodeURIComponent(params.token)}`;
+  return {
+    title: "A call on Tring",
+    description:
+      "Someone shared a call their AI assistant picked up. Open it to hear the recording and read the note.",
+    robots: { index: false, follow: true },
+    alternates: { canonical: url },
+    openGraph: {
+      title: "A call, answered by Ring",
+      description:
+        "Someone shared a call their AI assistant picked up. Open it to hear the recording and read the note.",
+      url,
+      siteName: "Tring",
+      type: "website",
+      locale: "en_IN",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "A call, answered by Ring",
+      description: "Shared from Tring — hear the recording and read the note.",
+    },
+  };
+}
 
 function ShareShell({ children }) {
   return (
