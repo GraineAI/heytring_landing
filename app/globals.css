@@ -930,75 +930,69 @@ p { margin: 0; }
 .bm-close2:hover { color: #fff; }
 
 /* ============================================================
-   RING GAME — "Do Ring's job" arcade section
+   TRING SQUADRON — the canvas space shooter (#play)
    ============================================================ */
-.rg-scenewrap { perspective: 1100px; margin-top: 48px; }
-.rg-scene { transform-style: preserve-3d; }
-.rg-hud {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; margin-bottom: 12px; padding: 0 6px;
+.sq { margin-top: 44px; }
+.sq__hud {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 0 4px 12px;
 }
-.rg-stat { font-size: 14px; font-weight: 700; color: var(--muted); }
-.rg-stat b { color: #fff; font-size: 17px; margin-left: 4px; }
-.rg-lives { display: flex; gap: 6px; }
-.rg-life { font-size: 16px; opacity: .22; filter: grayscale(1); transition: .2s; }
-.rg-life.on { opacity: 1; filter: none; }
-.rg-board {
+.sq__stat { font-size: 14px; font-weight: 700; color: var(--muted); }
+.sq__stat b { color: #fff; font-size: 18px; margin-left: 5px; }
+.sq__stat--best b { color: var(--coral-hot); }
+.sq__shields { display: flex; gap: 6px; margin-left: auto; }
+.sq__shields i {
+  width: 26px; height: 9px; border-radius: 5px; display: block;
+  background: rgba(255,255,255,0.12);
+  transition: background .2s ease, box-shadow .2s ease;
+}
+.sq__shields i.on { background: var(--coral); box-shadow: 0 0 12px rgba(244,83,46,0.7); }
+.sq__stage {
   position: relative;
-  height: min(460px, 62vh);
-  background:
-    radial-gradient(80% 100% at 50% 115%, rgba(244,83,46,0.25), transparent 60%),
-    linear-gradient(160deg, #241C17, #120D0B);
-  border: 1px solid var(--line-soft);
   border-radius: 26px;
   overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(244,83,46,0.16), transparent 62%),
+    linear-gradient(180deg, #120D0B 0%, #0A0706 100%);
   box-shadow: var(--shadow-soft);
-  touch-action: manipulation;
 }
-.rg-phone {
-  position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-  width: 92px; height: 58px;
-  background: #000; border: 1px solid var(--line-soft);
-  border-radius: 18px 18px 0 0;
-  display: grid; place-items: center;
+.sq__canvas {
+  display: block; width: 100%; height: min(520px, 64vh);
+  touch-action: none; cursor: crosshair;
 }
-.rg-card {
-  position: absolute; top: 0;
-  display: flex; align-items: center; gap: 8px;
-  background: var(--card); border: 1.5px solid var(--line-soft);
-  border-radius: 14px; padding: 9px 13px;
-  color: #fff; font-size: 13.5px; font-weight: 700; font-family: inherit;
-  box-shadow: 0 14px 30px -14px rgba(0,0,0,.8);
-  cursor: pointer; white-space: nowrap; user-select: none;
-  will-change: transform;
-}
-.rg-card .ic { font-size: 17px; }
-.rg-card--spam { border-color: rgba(244,83,46,0.6); }
-.rg-card--spam .lb::after { content: " ✕"; color: var(--coral-hot); }
-.rg-card--good { border-color: rgba(63,201,140,0.5); }
-.rg-card--good .lb::after { content: " ✓"; color: var(--green); }
-.rg-toast {
-  position: absolute; z-index: 5; pointer-events: none;
-  font-size: 13px; font-weight: 800; color: var(--green);
-  text-shadow: 0 2px 8px rgba(0,0,0,.8);
-}
-.rg-toast--bad { color: #FF7B72; }
-.rg-overlay {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 6;
+.sq__overlay {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 8px; text-align: center; padding: 24px;
-  background: rgba(18,13,11,0.82);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  gap: 9px; text-align: center; padding: 26px;
+  background: rgba(10,7,6,0.82);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
 }
-.rg-overlay h3 { font-size: 24px; color: #fff; }
-.rg-overlay p { font-size: 15px; color: var(--muted); max-width: 42ch; }
-.rg-overlay p b { color: #fff; }
-.rg-overlay .btn { margin-top: 10px; }
-.rg-endcta { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.sq__hero {
+  width: min(190px, 42vw); height: auto; border-radius: 20px;
+  border: 1px solid var(--line-soft);
+  box-shadow: 0 20px 50px -20px rgba(0,0,0,0.9);
+}
+.sq__overlay h3 { font-size: clamp(22px, 4vw, 30px); color: #fff; margin-top: 6px; }
+.sq__overlay p { font-size: 15px; color: var(--muted); max-width: 46ch; line-height: 1.55; }
+.sq__overlay p b { color: #fff; }
+.sq__overlay .btn { margin-top: 6px; }
+.sq__spam { color: var(--coral-hot); font-weight: 800; }
+.sq__real { color: var(--green); font-weight: 800; }
+.sq__keys { font-size: 12px; color: var(--muted-2); margin-top: 2px; }
+.sq__share { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.sq__copied { font-size: 12.5px; font-weight: 700; color: var(--green); }
+.sq__cta {
+  margin-top: 12px; background: none; border: 0;
+  color: var(--coral-hot); font-family: var(--font-display);
+  font-weight: 800; font-size: 14.5px; text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.sq__cta:hover { color: #fff; }
 @media (max-width: 620px) {
-  .rg-board { height: 58vh; }
-  .rg-hud { flex-wrap: wrap; }
+  .sq__canvas { height: 60vh; }
+  .sq__hud { gap: 14px; }
+  .sq__shields { margin-left: 0; }
 }
 
 /* ============================================================
@@ -1108,3 +1102,12 @@ p { margin: 0; }
   .nav__play { padding: 9px 12px; }
   .nav__play span { display: none; }   /* icon-only on the smallest screens */
 }
+
+/* STANDALONE /play — the game embedded in the mobile app's WebView (app/play/page.js).
+   The marketing page wraps every section in generous vertical rhythm; inside a phone-sized
+   WebView that padding is wasted space around a fixed play area, so the section collapses to
+   fill the viewport instead. Dark ground so the canvas starfield meets the screen edge cleanly
+   rather than sitting on a cream card. */
+.playpage { min-height: 100dvh; background: var(--ink); display: grid; align-items: center; }
+.playpage .section { padding: 12px 0; }
+.playpage .wrap { padding-left: 12px; padding-right: 12px; }
