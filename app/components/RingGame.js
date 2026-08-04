@@ -396,7 +396,8 @@ export default function RingGame({ embedded = false }) {
 
   /* ── share the score ── */
   const share = useCallback(async () => {
-    const text = `I shot down ${hud.blocked} spam calls and scored ${hud.score} flying for Tring Squadron 🚀 (and I didn't hit Maa). Beat that:`;
+    const n = hud.blocked === 1 ? "1 spam call" : `${hud.blocked} spam calls`;
+    const text = `I shot down ${n} and scored ${hud.score} flying for Tring Squadron 🚀 (and I didn't hit Maa). Beat that:`;
     track("game_share", { score: hud.score, blocked: hud.blocked });
     try {
       if (navigator.share) {
@@ -412,7 +413,7 @@ export default function RingGame({ embedded = false }) {
   }, [hud]);
 
   const waText = encodeURIComponent(
-    `I shot down ${hud.blocked} spam calls and scored ${hud.score} flying for Tring Squadron 🚀 Beat that: ${SHARE_URL}`
+    `I shot down ${hud.blocked === 1 ? "1 spam call" : `${hud.blocked} spam calls`} and scored ${hud.score} flying for Tring Squadron 🚀 Beat that: ${SHARE_URL}`
   );
 
   return (
@@ -466,11 +467,14 @@ export default function RingGame({ embedded = false }) {
                   </>
                 ) : (
                   <>
-                    <h3>{hud.blocked} spam calls down</h3>
+                    <h3>{hud.blocked === 1 ? "1 spam call down" : `${hud.blocked} spam calls down`}</h3>
                     <p>
                       You scored <b>{hud.score}</b>
-                      {best > 0 && hud.score >= best ? " — a new personal best!" : ""}. Ring flies
-                      this mission all day, in 12+ Indian languages, so you never have to.
+                      {best > 0 && hud.score >= best
+                        ? " — a new personal best. "
+                        : ". "}
+                      Ring flies this mission all day, in 12+ Indian languages, so you
+                      never have to.
                     </p>
 
                     <div className="sq__share">
