@@ -1,4 +1,4 @@
-import RingGame from "../components/RingGame";
+import RingGame3D from "../components/RingGame3D";
 
 /**
  * Standalone Tring Squadron — the same game component the homepage uses, with no nav, footer or
@@ -27,7 +27,7 @@ export const viewport = {
 export default function PlayPage() {
   return (
     <main className="playpage">
-      <RingGame embedded />
+      <RingGame3D embedded />
     </main>
   );
 }

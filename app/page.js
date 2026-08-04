@@ -6,7 +6,7 @@ import PhoneStory from "./components/PhoneStory";
 import AppBento from "./components/AppBento";
 import VideoSection from "./components/VideoSection";
 import HowItWorks from "./components/HowItWorks";
-import RingGame from "./components/RingGame";
+import RingGame3D from "./components/RingGame3D";
 import VoiceClone from "./components/VoiceClone";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
@@ -28,7 +28,7 @@ export default function Home() {
             <AppBento />
             <VideoSection />
             <HowItWorks />
-            <RingGame />
+            <RingGame3D />
             <VoiceClone />
             <Faq />
             <FinalCta />
