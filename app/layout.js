@@ -1,5 +1,6 @@
 import { Figtree, JetBrains_Mono } from "next/font/google";
 import SiteAnalytics from "./components/SiteAnalytics";
+import SupportChat from "./components/SupportChat";
 import "./globals.css";
 
 // Swish's typeface: Figtree carries the whole site — headings and body —
@@ -80,6 +81,7 @@ export default function RootLayout({ children }) {
             beforeSend drops the event entirely rather than redacting, because a redacted URL
             still tells them a share was viewed and when. */}
         <SiteAnalytics />
+        <SupportChat />
       </body>
     </html>
   );
