@@ -29,12 +29,24 @@ const SHARE_URL =
  *   the app, so both are noise at best and a broken promise at worst (that CTA opens a beta-invite
  *   modal that assumes a browser).
  */
+/**
+ * The line that gets shared publicly, so it must never claim a clean run that
+ * did not happen: "I didn't hit Maa" alongside a negative score is a giveaway
+ * that the copy is generated rather than earned.
+ */
+function scoreLine({ score, blocked, missed }) {
+  const kills =
+    blocked === 0 ? "" : blocked === 1 ? "I shot down 1 spam call and " : `I shot down ${blocked} spam calls and `;
+  const clean = blocked > 0 && missed === 0 ? " Never hit a real call, either." : "";
+  return `${kills}${kills ? "s" : "S"}cored ${score} flying for Tring Squadron 🚀${clean}`;
+}
+
 export default function RingGame({ embedded = false }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
   const [phase, setPhase] = useState("idle"); // idle | playing | over
-  const [hud, setHud] = useState({ score: 0, blocked: 0, shields: 3 });
+  const [hud, setHud] = useState({ score: 0, blocked: 0, missed: 0, shields: 3 });
   const [best, setBest] = useState(0);
   const [shared, setShared] = useState("");
   const [hasHero, setHasHero] = useState(false);
@@ -64,7 +76,7 @@ export default function RingGame({ embedded = false }) {
     const G = {
       stars: [], foes: [], bolts: [], bits: [],
       ship: { x: 0, y: 0, tx: 0, tilt: 0 },
-      score: 0, blocked: 0, shields: 3,
+      score: 0, blocked: 0, missed: 0, shields: 3,
       spawnIn: 900, sinceSpawn: 0, fireIn: 0, wave: 0,
       shake: 0, over: false, toasts: [],
     };
@@ -137,7 +149,7 @@ export default function RingGame({ embedded = false }) {
     function endGame() {
       G.over = true;
       running = false;
-      setHud({ score: G.score, blocked: G.blocked, shields: 0 });
+      setHud({ score: G.score, blocked: G.blocked, missed: G.missed, shields: 0 });
       setPhase("over");
       try {
         const prev = Number(localStorage.getItem("tring_squadron_best") || 0);
@@ -188,13 +200,13 @@ export default function RingGame({ embedded = false }) {
             G.shake = 14;
             burst(f.x + f.w / 2, H - 40, "#FF7B72", 18);
             toast("It rang!", f.x + f.w / 2, H - 66, true);
-            setHud({ score: G.score, blocked: G.blocked, shields: Math.max(0, G.shields) });
+            setHud({ score: G.score, blocked: G.blocked, missed: G.missed, shields: Math.max(0, G.shields) });
             if (G.shields <= 0) endGame();
           } else {
             G.score += 5;
             burst(f.x + f.w / 2, H - 40, "#3FC98C", 8);
             toast("Ring handled it +5", f.x + f.w / 2, H - 66, false);
-            setHud({ score: G.score, blocked: G.blocked, shields: G.shields });
+            setHud({ score: G.score, blocked: G.blocked, missed: G.missed, shields: G.shields });
           }
         }
       }
@@ -211,11 +223,12 @@ export default function RingGame({ embedded = false }) {
               toast("Blocked +10", f.x + f.w / 2, f.y, false);
             } else {
               G.score -= 15;
+              G.missed += 1;
               burst(f.x + f.w / 2, f.y + f.h / 2, "#FF7B72");
               toast(f.label === "Maa" ? "You shot MAA! −15" : "That one mattered −15", f.x + f.w / 2, f.y, true);
               G.shake = 8;
             }
-            setHud({ score: G.score, blocked: G.blocked, shields: G.shields });
+            setHud({ score: G.score, blocked: G.blocked, missed: G.missed, shields: G.shields });
           }
         }
       }
@@ -366,11 +379,11 @@ export default function RingGame({ embedded = false }) {
     gameRef.current.start = () => {
       Object.assign(G, {
         foes: [], bolts: [], bits: [], toasts: [],
-        score: 0, blocked: 0, shields: 3,
+        score: 0, blocked: 0, missed: 0, shields: 3,
         spawnIn: 900, sinceSpawn: 0, fireIn: 0, wave: 0, shake: 0, over: false,
       });
       G.ship.x = W / 2; G.ship.tx = W / 2;
-      setHud({ score: 0, blocked: 0, shields: 3 });
+      setHud({ score: 0, blocked: 0, missed: 0, shields: 3 });
       running = true;
     };
     gameRef.current.stop = () => { running = false; };
@@ -396,8 +409,7 @@ export default function RingGame({ embedded = false }) {
 
   /* ── share the score ── */
   const share = useCallback(async () => {
-    const n = hud.blocked === 1 ? "1 spam call" : `${hud.blocked} spam calls`;
-    const text = `I shot down ${n} and scored ${hud.score} flying for Tring Squadron 🚀 (and I didn't hit Maa). Beat that:`;
+    const text = `${scoreLine(hud)} Beat that:`;
     track("game_share", { score: hud.score, blocked: hud.blocked });
     try {
       if (navigator.share) {
@@ -413,7 +425,7 @@ export default function RingGame({ embedded = false }) {
   }, [hud]);
 
   const waText = encodeURIComponent(
-    `I shot down ${hud.blocked === 1 ? "1 spam call" : `${hud.blocked} spam calls`} and scored ${hud.score} flying for Tring Squadron 🚀 Beat that: ${SHARE_URL}`
+    `${scoreLine(hud)} Beat that: ${SHARE_URL}`
   );
 
   return (
