@@ -35,39 +35,48 @@ function IndiaFlag() {
 function Surfer() {
   return (
     <svg className="surfer" width="230" height="164" viewBox="0 0 240 170" aria-hidden="true">
+      <defs>
+        <radialGradient id="surfBody" cx="34%" cy="26%" r="78%">
+          <stop offset="0" stopColor="#FBBFA9" />
+          <stop offset="46%" stopColor="#E8735A" />
+          <stop offset="100%" stopColor="#B8452F" />
+        </radialGradient>
+      </defs>
       {/* motion streaks */}
-      <path d="M18 120 h34 M8 134 h26" stroke="rgba(244,83,46,.5)" strokeWidth="4" strokeLinecap="round" />
-      {/* the board */}
+      <path d="M18 120 h34 M8 134 h26" stroke="rgba(232,115,90,.55)" strokeWidth="4" strokeLinecap="round" />
+      {/* the board — mint, so the hero carries all three brand colours */}
       <g transform="rotate(-6 120 132)">
-        <rect x="38" y="122" width="164" height="17" rx="9" fill="#FB7A5C" />
-        <rect x="38" y="128" width="164" height="4" rx="2" fill="rgba(255,255,255,.4)" />
+        <rect x="38" y="122" width="164" height="17" rx="9" fill="#7FD1B9" />
+        <rect x="38" y="139" width="164" height="5" rx="2.5" fill="#3F9E85" />
+        <rect x="38" y="127" width="164" height="4" rx="2" fill="rgba(255,255,255,.45)" />
       </g>
       {/* splash */}
-      <circle cx="203" cy="148" r="4" fill="#F4532E" opacity=".8" />
-      <circle cx="213" cy="140" r="3" fill="#FB7A5C" opacity=".7" />
-      <circle cx="36" cy="150" r="3" fill="#FB7A5C" opacity=".6" />
+      <circle cx="203" cy="148" r="4" fill="#E8735A" opacity=".85" />
+      <circle cx="213" cy="140" r="3" fill="#A98BC9" opacity=".8" />
+      <circle cx="36" cy="150" r="3" fill="#7FD1B9" opacity=".7" />
       {/* legs */}
-      <path d="M106 106 L100 122 M126 106 L132 122" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
+      <path d="M106 106 L100 122 M126 106 L132 122" stroke="#B8452F" strokeWidth="6" strokeLinecap="round" />
       {/* the script (left hand) */}
       <g transform="rotate(-10 62 66)">
-        <rect x="48" y="48" width="28" height="36" rx="3" fill="#fff" />
-        <path d="M54 57 h16 M54 64 h16 M54 71 h16 M54 78 h10" stroke="#C9BBB2" strokeWidth="2" strokeLinecap="round" />
+        <rect x="48" y="48" width="28" height="36" rx="4" fill="#FFFDFB" />
+        <path d="M54 57 h16 M54 64 h16 M54 71 h16 M54 78 h10" stroke="#C0AB9E" strokeWidth="2" strokeLinecap="round" />
       </g>
       {/* arms */}
-      <path d="M92 88 L72 70" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
-      <path d="M140 88 L160 72" stroke="#C73A1A" strokeWidth="6" strokeLinecap="round" />
+      <path d="M92 88 L72 70" stroke="#B8452F" strokeWidth="6" strokeLinecap="round" />
+      <path d="M140 88 L160 72" stroke="#B8452F" strokeWidth="6" strokeLinecap="round" />
       {/* the phone (right hand) */}
       <g transform="rotate(10 168 66)">
-        <rect x="158" y="50" width="19" height="32" rx="4" fill="#000" />
-        <rect x="161" y="54" width="13" height="22" rx="2" fill="#1F1712" />
-        <circle cx="167.5" cy="65" r="4" fill="#F4532E" />
+        <rect x="158" y="50" width="19" height="32" rx="5" fill="#2C1B14" />
+        <rect x="161" y="54" width="13" height="22" rx="2" fill="#3A2A22" />
+        <circle cx="167.5" cy="65" r="4" fill="#E8735A" />
       </g>
-      {/* Ring */}
-      <circle cx="116" cy="80" r="30" fill="#F4532E" />
-      <circle cx="106" cy="78" r="5.5" fill="#fff" />
-      <circle cx="126" cy="78" r="5.5" fill="#fff" />
-      <circle className="pupil" cx="107.5" cy="79" r="2.6" fill="#1B1512" />
-      <circle className="pupil" cx="127.5" cy="79" r="2.6" fill="#1B1512" />
+      {/* Ring — the same glossy sphere as components/Mascot.js */}
+      <circle cx="118" cy="83" r="30" fill="#A63C28" />
+      <circle cx="116" cy="80" r="30" fill="url(#surfBody)" />
+      <circle cx="106" cy="77.4" r="5.5" fill="#fff" />
+      <circle cx="126" cy="77.4" r="5.5" fill="#fff" />
+      <circle className="pupil" cx="107.5" cy="79" r="2.6" fill="#2C1B14" />
+      <circle className="pupil" cx="127.5" cy="79" r="2.6" fill="#2C1B14" />
       <ellipse cx="116" cy="93" rx="4.5" ry="5.5" fill="#fff" />
     </svg>
   );

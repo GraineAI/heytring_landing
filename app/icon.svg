@@ -1,10 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#F4532E"/>
-  <g fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M23 17 L27 18 L29.5 26 L25 29 A22 22 0 0 0 35 39 L38 34.5 L46 37 L47 41 C47 43.5 45 45.5 42.5 45.5 A31 31 0 0 1 18.5 21.5 C18.5 19 20.5 17 23 17 Z"/>
-  </g>
-  <g fill="none" stroke="#FFD9CE" stroke-width="2.6" stroke-linecap="round" opacity="0.9">
-    <path d="M44 20 a10 10 0 0 1 0 12"/>
-    <path d="M48 16 a16 16 0 0 1 0 20"/>
+  <!-- Tring — Lotus Garden. At tab size the full wordmark collapses to mush, so
+       the icon sheet hands over to the skewed `t` monogram below 76px. The mint
+       and purple offsets are the same solid extrusion the wordmark uses.
+       The glyph is repeated three times rather than <use>d: favicons get
+       rendered by a lot of old and odd rasterisers, and a broken href there
+       shows up as a blank tab rather than an error anyone would notice. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2A38F"/>
+      <stop offset=".48" stop-color="#E8735A"/>
+      <stop offset="1" stop-color="#C4523C"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="26%" cy="20%" r="70%">
+      <stop offset="0" stop-color="#fff" stop-opacity=".4"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
+  <rect width="64" height="64" rx="14" fill="url(#sheen)"/>
+
+  <g transform="translate(1,0) skewX(-9)">
+    <g fill="#A98BC9" transform="translate(4,4)">
+      <path d="M14 24h34v9H14z"/>
+      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
+    </g>
+    <g fill="#7FD1B9" transform="translate(2,2)">
+      <path d="M14 24h34v9H14z"/>
+      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
+    </g>
+    <g fill="#FFFDFB">
+      <path d="M14 24h34v9H14z"/>
+      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
+    </g>
   </g>
 </svg>

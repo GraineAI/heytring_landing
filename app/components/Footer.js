@@ -1,4 +1,5 @@
 import Logo from "./Logo";
+import Wordmark from "./Wordmark";
 
 export default function Footer() {
   return (
@@ -10,7 +11,7 @@ export default function Footer() {
           <div>
             <a className="brand" href="#top">
               <Logo size={34} className="brand__logo" />
-              <span className="brand__name">Tring</span>
+              <Wordmark size={29} surface="var(--bg-2)" />
             </a>
             <p className="footer__blurb">
               Your personal AI phone assistant. Ring answers the calls you&rsquo;d rather
@@ -54,8 +55,13 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* the sign-off — a giant cropped wordmark (Swish's closing move) */}
-      <div className="footer__giant" aria-hidden="true">Tring</div>
+      {/* The sign-off: the wordmark at full volume. Rendered through the same
+          component as the nav so the extrusion, skew and square-dot i are the
+          one drawing — and `surface` is the footer's own brown, because the g's
+          notch is a knockout and would otherwise punch a white hole. */}
+      <div className="footer__giant" aria-hidden="true">
+        <Wordmark size={null} tone="white" surface="var(--ink-deep)" />
+      </div>
     </footer>
   );
 }

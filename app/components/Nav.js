@@ -1,4 +1,5 @@
 import Logo from "./Logo";
+import Wordmark from "./Wordmark";
 import { Gamepad } from "./Icons";
 
 /** Floating glass nav pill (dark). The CTA opens the beta-invite modal. */
@@ -8,7 +9,7 @@ export default function Nav() {
       <div className="wrap nav__in">
         <a className="brand" href="#top" aria-label="Tring home">
           <Logo size={32} className="brand__logo" />
-          <span className="brand__name">Tring</span>
+          <Wordmark size={27} surface="#FFFDFB" />
         </a>
 
         <div className="nav__links">

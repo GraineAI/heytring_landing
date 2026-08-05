@@ -7,22 +7,30 @@ const svgUri = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 /** The app mark — same artwork as app/icon.svg. */
 export const LOGO_TILE = svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-<rect width="64" height="64" rx="16" fill="#F4532E"/>
-<g fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-<path d="M23 17 L27 18 L29.5 26 L25 29 A22 22 0 0 0 35 39 L38 34.5 L46 37 L47 41 C47 43.5 45 45.5 42.5 45.5 A31 31 0 0 1 18.5 21.5 C18.5 19 20.5 17 23 17 Z"/>
-</g>
-<g fill="none" stroke="#FFD9CE" stroke-width="2.6" stroke-linecap="round" opacity="0.9">
-<path d="M44 20 a10 10 0 0 1 0 12"/><path d="M48 16 a16 16 0 0 1 0 20"/>
+<defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#F2A38F"/><stop offset=".48" stop-color="#E8735A"/><stop offset="1" stop-color="#C4523C"/>
+</linearGradient></defs>
+<rect width="64" height="64" rx="14" fill="url(#t)"/>
+<g transform="translate(1,0) skewX(-9)">
+<g fill="#A98BC9" transform="translate(4,4)"><path d="M14 24h34v9H14z"/><path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/></g>
+<g fill="#7FD1B9" transform="translate(2,2)"><path d="M14 24h34v9H14z"/><path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/></g>
+<g fill="#FFFDFB"><path d="M14 24h34v9H14z"/><path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/></g>
 </g></svg>`);
 
 /** Ring, the mascot — idle (smiling) or talking (open mouth). */
 export const ring = (talking = false) => svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-<circle cx="50" cy="58" r="30" fill="#F4532E"/>
-<circle cx="40" cy="56" r="5.5" fill="#fff"/><circle cx="60" cy="56" r="5.5" fill="#fff"/>
-<circle cx="41.5" cy="57" r="2.6" fill="#1B1512"/><circle cx="61.5" cy="57" r="2.6" fill="#1B1512"/>
+<defs>
+<radialGradient id="rb" cx="34%" cy="26%" r="78%"><stop offset="0" stop-color="#FBBFA9"/><stop offset="46%" stop-color="#E8735A"/><stop offset="100%" stop-color="#B8452F"/></radialGradient>
+<linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+<circle cx="52" cy="61" r="30" fill="#A63C28"/>
+<circle cx="50" cy="58" r="30" fill="url(#rb)"/>
+<path d="M24 46a30 30 0 0 1 52 0a30 30 0 0 0-52 0z" fill="url(#rg)"/>
+<circle cx="40" cy="55.4" r="5.5" fill="#fff"/><circle cx="60" cy="55.4" r="5.5" fill="#fff"/>
+<circle cx="41.5" cy="57" r="2.6" fill="#2C1B14"/><circle cx="61.5" cy="57" r="2.6" fill="#2C1B14"/>
 ${talking
   ? '<ellipse cx="50" cy="71" rx="4.5" ry="5.5" fill="#fff"/>'
-  : '<path d="M44 70 Q50 75 56 70" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>'}
+  : '<path d="M44 70 Q50 75 56 70" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round"/>'}
 </svg>`);
 
 /**
@@ -63,7 +71,7 @@ export const shell = {
   flexDirection: "column",
   justifyContent: "space-between",
   padding: "68px 72px",
-  background: "linear-gradient(135deg, #1F1712 0%, #17120F 55%, #120D0B 100%)",
+  background: "linear-gradient(135deg, #4A3226 0%, #3A2A22 52%, #2C1B14 100%)",
   fontFamily: "Figtree, sans-serif",
   position: "relative",
 };
@@ -76,7 +84,7 @@ export const glow = {
   width: 760,
   height: 760,
   borderRadius: 760,
-  background: "radial-gradient(circle, rgba(244,83,46,0.34) 0%, rgba(244,83,46,0) 68%)",
+  background: "radial-gradient(circle, rgba(232,115,90,0.42) 0%, rgba(232,115,90,0) 68%)",
   display: "flex",
 };
 

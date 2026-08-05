@@ -31,8 +31,8 @@ export function createScene(canvas, opts = {}) {
   renderer.toneMappingExposure = 1.15;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0706);
-  scene.fog = new THREE.Fog(0x0a0706, 90, 235);
+  scene.background = new THREE.Color(0x2c1b14);
+  scene.fog = new THREE.Fog(0x2c1b14, 90, 235);
 
   const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 600);
   camera.position.set(0, 5.5, 27);
@@ -86,7 +86,7 @@ export function createScene(canvas, opts = {}) {
   scene.add(streaks);
 
   /* the corridor floor — reads as speed even when nothing else moves */
-  const grid = keep(new THREE.GridHelper(420, 60, PALETTE.tringDeep, 0x2a1c15));
+  const grid = keep(new THREE.GridHelper(420, 60, PALETTE.tringDeep, 0x4a3226));
   grid.material.transparent = true;
   grid.material.opacity = 0.22;
   grid.material.depthWrite = false;
@@ -167,7 +167,7 @@ export function createScene(canvas, opts = {}) {
   });
 
   const eBulletGeo = keep(new THREE.SphereGeometry(0.55, 8, 6));
-  const eBulletMat = basic(0xff5c8a, { blending: THREE.AdditiveBlending, depthWrite: false });
+  const eBulletMat = basic(0xa98bc9, { blending: THREE.AdditiveBlending, depthWrite: false });
   const eBullets = pool(POOL.eBullets, () => new THREE.Mesh(eBulletGeo, eBulletMat));
 
   /* one pooled body per enemy type, so a Mesh is only ever re-pointed, never rebuilt */
@@ -213,9 +213,9 @@ export function createScene(canvas, opts = {}) {
   /* ─────────────────────────────────────────────────────────────── the boss */
 
   const boss = new THREE.Group();
-  const bossCore = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(4.2, 1)), solid(0x7b3fa0));
+  const bossCore = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(4.2, 1)), solid(0xa98bc9));
   boss.add(bossCore);
-  const bossRing = new THREE.Mesh(keep(new THREE.TorusGeometry(6.6, 0.75, 10, 34)), solid(0x3a2b4a));
+  const bossRing = new THREE.Mesh(keep(new THREE.TorusGeometry(6.6, 0.75, 10, 34)), solid(0x6e5591));
   boss.add(bossRing);
   const bossEye = new THREE.Mesh(keep(new THREE.SphereGeometry(1.5, 16, 12)), basic(PALETTE.tring, { opacity: 1 }));
   bossEye.position.z = 3.6;
@@ -381,8 +381,8 @@ export function createScene(canvas, opts = {}) {
       bossCore.rotation.x += dt * 0.25;
       bossRing.rotation.z += dt * 1.1;
       bossRing.rotation.x = Math.PI / 2.4 + Math.sin(t * 0.6) * 0.2;
-      bossCore.material.color.setHex(b.hit > 0.4 ? 0xffffff : 0x7b3fa0);
-      bossEye.material.color.setHex(b.hp / b.maxHp < 0.45 ? 0xff2d55 : PALETTE.tring);
+      bossCore.material.color.setHex(b.hit > 0.4 ? 0xffffff : 0xa98bc9);
+      bossEye.material.color.setHex(b.hp / b.maxHp < 0.45 ? 0xffc53d : PALETTE.tring);
       bossEye.scale.setScalar(1 + Math.sin(t * 5) * 0.12);
     } else {
       boss.visible = false;

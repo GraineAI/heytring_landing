@@ -16,7 +16,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#1B1512",
+  themeColor: "#2C1B14",
   width: "device-width",
   initialScale: 1,
   // The game is a fixed play area; letting it pinch-zoom inside a WebView just breaks aim.

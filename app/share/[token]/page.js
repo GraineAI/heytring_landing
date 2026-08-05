@@ -1,5 +1,6 @@
 import { API_BASE } from "../../lib/links";
 import Logo from "../../components/Logo";
+import Wordmark from "../../components/Wordmark";
 import { Ring } from "../../components/Mascot";
 import StoreButtons from "../../components/StoreButtons";
 import BetaModal from "../../components/BetaModal";
@@ -44,7 +45,7 @@ function ShareShell({ children }) {
       <div className="share__wrap">
         <a className="brand share__brand" href="/" aria-label="Tring home">
           <Logo size={30} className="brand__logo" />
-          <span className="brand__name">Tring</span>
+          <Wordmark size={26} surface="var(--bg)" />
         </a>
         {children}
       </div>

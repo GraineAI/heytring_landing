@@ -36,7 +36,7 @@ export default async function Image() {
               padding: "8px 18px",
               borderRadius: 999,
               border: "2px solid rgba(244,83,46,0.5)",
-              color: "#FB7A5C",
+              color: "#F2A38F",
               fontSize: 20,
               fontWeight: 800,
               letterSpacing: 1.6,
@@ -53,7 +53,7 @@ export default async function Image() {
           </div>
           <div style={{ display: "flex", fontSize: 82, fontWeight: 800, letterSpacing: -3.4, lineHeight: 1.06 }}>
             <span style={{ color: "#fff", marginRight: 22 }}>Don&rsquo;t dial.</span>
-            <span style={{ color: "#F4532E" }}>Tring.</span>
+            <span style={{ color: "#E8735A" }}>Tring.</span>
           </div>
           <div style={{ display: "flex", marginTop: 22, fontSize: 30, fontWeight: 600, color: "#B7A79D", maxWidth: 820 }}>
             Ring answers the calls you&rsquo;d rather skip — in your own voice, if you want.

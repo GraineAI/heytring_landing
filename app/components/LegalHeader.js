@@ -1,12 +1,13 @@
-import { Phone } from "./Icons";
+import Logo from "./Logo";
+import Wordmark from "./Wordmark";
 
 export default function LegalHeader() {
   return (
     <nav className="nav is-scrolled">
       <div className="wrap nav__in">
         <a className="brand" href="/" aria-label="Tring home">
-          <span className="brand__mark"><Phone width={17} height={17} style={{ color: "#fff" }} /></span>
-          <span className="brand__name">Tring</span>
+          <Logo size={30} className="brand__logo" />
+          <Wordmark size={26} surface="#FFFDFB" />
           <span className="brand__tag">transfer to Ring</span>
         </a>
         <div className="nav__cta">
