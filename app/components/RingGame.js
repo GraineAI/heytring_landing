@@ -204,7 +204,7 @@ export default function RingGame({ embedded = false }) {
             if (G.shields <= 0) endGame();
           } else {
             G.score += 5;
-            burst(f.x + f.w / 2, H - 40, "#7FD1B9", 8);
+            burst(f.x + f.w / 2, H - 40, "#30D158", 8);
             toast("Ring handled it +5", f.x + f.w / 2, H - 66, false);
             setHud({ score: G.score, blocked: G.blocked, missed: G.missed, shields: G.shields });
           }
@@ -219,7 +219,7 @@ export default function RingGame({ embedded = false }) {
             f.dead = true; b.y = -99;
             if (f.spam) {
               G.score += 10; G.blocked += 1;
-              burst(f.x + f.w / 2, f.y + f.h / 2, "#FF7057");
+              burst(f.x + f.w / 2, f.y + f.h / 2, "#FF9179");
               toast("Blocked +10", f.x + f.w / 2, f.y, false);
             } else {
               G.score -= 15;
@@ -257,27 +257,27 @@ export default function RingGame({ embedded = false }) {
       ctx.beginPath(); ctx.moveTo(-7, 16); ctx.lineTo(7, 16); ctx.lineTo(0, 16 + flame); ctx.closePath(); ctx.fill();
 
       // wings
-      ctx.fillStyle = "#A50F07";
+      ctx.fillStyle = "#C4380F";
       ctx.beginPath();
       ctx.moveTo(-26, 18); ctx.lineTo(-8, -2); ctx.lineTo(8, -2); ctx.lineTo(26, 18);
       ctx.lineTo(14, 18); ctx.lineTo(0, 8); ctx.lineTo(-14, 18);
       ctx.closePath(); ctx.fill();
 
       // fuselage
-      ctx.fillStyle = "#F5261A";
+      ctx.fillStyle = "#F4532E";
       ctx.beginPath();
       ctx.moveTo(0, -26); ctx.lineTo(11, 6); ctx.lineTo(6, 18); ctx.lineTo(-6, 18); ctx.lineTo(-11, 6);
       ctx.closePath(); ctx.fill();
 
       // canopy — Ring at the controls
-      ctx.fillStyle = "#1C120D";
+      ctx.fillStyle = "#000000";
       ctx.beginPath(); ctx.ellipse(0, -4, 8.5, 10, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#F5261A";
+      ctx.fillStyle = "#F4532E";
       ctx.beginPath(); ctx.arc(0, -3, 6, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#fff";
       ctx.beginPath(); ctx.arc(-2.3, -4, 2.1, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(2.3, -4, 2.1, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#1C120D";
+      ctx.fillStyle = "#000000";
       ctx.beginPath(); ctx.arc(-2, -3.6, 1, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(2.6, -3.6, 1, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
@@ -291,7 +291,7 @@ export default function RingGame({ embedded = false }) {
       // stars
       for (const s of G.stars) {
         ctx.globalAlpha = 0.25 + s.z * 0.36;
-        ctx.fillStyle = s.z > 1.4 ? "#FDF1EC" : "#8C7365";
+        ctx.fillStyle = s.z > 1.4 ? "#FFF0EB" : "#84848C";
         ctx.fillRect(s.x, s.y, s.z > 1.4 ? 2 : 1.4, s.z > 1.4 ? 2.6 : 1.6);
       }
       ctx.globalAlpha = 1;
@@ -315,7 +315,7 @@ export default function RingGame({ embedded = false }) {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       for (const f of G.foes) {
-        const c = f.spam ? "#F5261A" : "#7FD1B9";
+        const c = f.spam ? "#F4532E" : "#30D158";
         ctx.fillStyle = f.spam ? "rgba(244,83,46,0.14)" : "rgba(63,201,140,0.12)";
         ctx.strokeStyle = c;
         ctx.lineWidth = 1.6;
@@ -346,7 +346,7 @@ export default function RingGame({ embedded = false }) {
       // floating score text
       for (const t of G.toasts) {
         ctx.globalAlpha = Math.max(0, t.life);
-        ctx.fillStyle = t.bad ? "#FF7B72" : "#7FD1B9";
+        ctx.fillStyle = t.bad ? "#FF7B72" : "#30D158";
         ctx.font = "800 13px Figtree, system-ui, sans-serif";
         ctx.fillText(t.text, t.x, t.y);
       }
@@ -524,15 +524,15 @@ export default function RingGame({ embedded = false }) {
 function PilotBadge() {
   return (
     <svg width="104" height="104" viewBox="0 0 120 120" aria-hidden="true">
-      <circle cx="60" cy="64" r="34" fill="#F5261A" />
+      <circle cx="60" cy="64" r="34" fill="#F4532E" />
       <circle cx="48" cy="60" r="7" fill="#fff" />
       <circle cx="72" cy="60" r="7" fill="#fff" />
-      <circle cx="49.6" cy="61.4" r="3.2" fill="#1C120D" />
-      <circle cx="73.6" cy="61.4" r="3.2" fill="#1C120D" />
+      <circle cx="49.6" cy="61.4" r="3.2" fill="#000000" />
+      <circle cx="73.6" cy="61.4" r="3.2" fill="#000000" />
       <ellipse cx="60" cy="80" rx="5" ry="6" fill="#fff" />
       {/* helmet */}
       <path d="M26 58a34 34 0 0 1 68 0v4a6 6 0 0 1-6 6h-8V58a26 26 0 0 0-40-0v10h-8a6 6 0 0 1-6-6Z" fill="#F1EDE8" />
-      <path d="M58 24h6v34h-6z" fill="#F5261A" opacity=".85" />
+      <path d="M58 24h6v34h-6z" fill="#F4532E" opacity=".85" />
       <rect x="24" y="60" width="12" height="20" rx="5" fill="#E2DAD2" />
       <rect x="84" y="60" width="12" height="20" rx="5" fill="#E2DAD2" />
       <path d="M84 78c6 4 8 10 6 16" stroke="#F1EDE8" strokeWidth="4" fill="none" strokeLinecap="round" />

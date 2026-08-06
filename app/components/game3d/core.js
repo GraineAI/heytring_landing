@@ -13,22 +13,22 @@ const DESPAWN_Z = 22;
 
 /* Lotus Garden, in hex the renderer can hand to three.js. */
 export const PALETTE = {
-  tring: 0xf5261a,
-  tringDeep: 0xa50f07,
-  cream: 0xfffdfb,
-  hull: 0xefdfd6,
-  shield: 0x7fd1b9,
+  tring: 0xf4532e,
+  tringDeep: 0xc4380f,
+  cream: 0xffffff,
+  hull: 0xefedee,
+  shield: 0x30d158,
   rapid: 0xffc53d,
-  spread: 0x3f9e85,
-  life: 0xa98bc9,
-  ring: 0x7fd1b9,
+  spread: 0x0f5f3e,
+  life: 0xc77ddd,
+  ring: 0x30d158,
 };
 
 export const ENEMY_TYPES = {
-  spambot: { hp: 2, r: 1.5, speed: 26, score: 10, fire: 0, pattern: "drift", color: 0xc4130a },
-  robocall: { hp: 3, r: 1.5, speed: 44, score: 20, fire: 0, pattern: "weave", color: 0xff7057 },
-  phisher: { hp: 3, r: 1.4, speed: 20, score: 35, fire: 0, pattern: "chase", color: 0x3f9e85 },
-  telemarketer: { hp: 8, r: 2.1, speed: 4, score: 55, fire: 1.5, pattern: "turret", color: 0xa98bc9 },
+  spambot: { hp: 2, r: 1.5, speed: 26, score: 10, fire: 0, pattern: "drift", color: 0xe5401c },
+  robocall: { hp: 3, r: 1.5, speed: 44, score: 20, fire: 0, pattern: "weave", color: 0xff9179 },
+  phisher: { hp: 3, r: 1.4, speed: 20, score: 35, fire: 0, pattern: "chase", color: 0x0f5f3e },
+  telemarketer: { hp: 8, r: 2.1, speed: 4, score: 55, fire: 1.5, pattern: "turret", color: 0xc77ddd },
 };
 
 const WEAPONS = {

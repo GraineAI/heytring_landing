@@ -1,37 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- Tring — Lotus Garden. At tab size the full wordmark collapses to mush, so
-       the icon sheet hands over to the skewed `t` monogram below 76px. The mint
-       and purple offsets are the same solid extrusion the wordmark uses.
-       The glyph is repeated three times rather than <use>d: favicons get
-       rendered by a lot of old and odd rasterisers, and a broken href there
-       shows up as a blank tab rather than an error anyone would notice. -->
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FF7057"/>
-      <stop offset=".48" stop-color="#F5261A"/>
-      <stop offset="1" stop-color="#C4130A"/>
-    </linearGradient>
-    <radialGradient id="sheen" cx="26%" cy="20%" r="70%">
-      <stop offset="0" stop-color="#fff" stop-opacity=".4"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-
-  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
-  <rect width="64" height="64" rx="14" fill="url(#sheen)"/>
-
-  <g transform="translate(1,0) skewX(-9)">
-    <g fill="#A98BC9" transform="translate(4,4)">
-      <path d="M14 24h34v9H14z"/>
-      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
-    </g>
-    <g fill="#7FD1B9" transform="translate(2,2)">
-      <path d="M14 24h34v9H14z"/>
-      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
-    </g>
-    <g fill="#FFFDFB">
-      <path d="M14 24h34v9H14z"/>
-      <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z"/>
-    </g>
+  <!-- Tring — coral tile, white `t`. Drawn as paths, not set as text: this file
+       is rasterised by favicon pipelines and OG renderers that have no webfont. -->
+  <rect width="64" height="64" rx="18" fill="#F4532E"/>
+  <g fill="#FFFFFF">
+    <path d="M15 25h34v8.5H15z"/>
+    <path d="M26.5 12h10.5v26.5c0 4 2.9 6.4 6.9 6.1l1.2 8.3c-10.9 1.2-19-5.3-19-14.4V12z"/>
   </g>
 </svg>

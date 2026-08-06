@@ -16,77 +16,95 @@
    and never for a raw hex.
    ============================================================ */
 :root {
-  /* Surfaces — blush and cream, warm the whole way down */
-  --bg:         #F7F1EC;   /* page background */
-  --bg-2:       #FDF1EC;   /* blush, the app's own surface tint */
-  --card:       #FFFDFB;   /* cards */
-  --card-2:     #FDF8F5;   /* cards, recessed */
-  --line:       #E7D8CE;   /* hairline border */
-  --line-soft:  rgba(58,42,34,0.10);
+  /* ============================================================
+     TRING — the palette from the app redesign sheet.
+     Neutral canvas, white cards, near-black ink, and coral that means
+     exactly one thing: act. The accent shows up on one control per
+     section and nowhere else — nav, cards and chips stay neutral. That
+     restraint is the system; spend coral everywhere and it stops working.
+     ============================================================ */
 
-  /* Ink — warm brown, never pure black. Used ON light surfaces. */
-  --ink:        #2E211A;
-  --ink-deep:   #1C120D;   /* dark stages: splash, paywall, the game */
+  /* Surfaces */
+  --bg:         #E8E6E3;   /* page */
+  --bg-2:       #F7F7F8;   /* recessed */
+  --card:       #FFFFFF;   /* cards */
+  --card-2:     #F4F1F2;   /* inset field inside a card */
+  --line:       #E7E7EA;   /* hairline */
+  --line-2:     #DEDCDD;   /* hairline, stronger */
+  --line-soft:  rgba(11,11,12,0.08);
 
-  /* The brand red, sharpened. The Lotus Garden salmon (#F5261A) was ~64%
-     saturation — soft enough that it read pink against cream and lost the
-     shout a telecom brand needs. This is the same hue at full chroma, so the
-     mascot and wordmark still read as Tring, but the CTA now lands like a
-     poster. `deep` is the solid lift under every pill. */
-  --coral:      #F5261A;
-  --coral-hot:  #FF7057;
-  --coral-deep: #C4130A;
-  --coral-dark: #A50F07;
-  --coral-tint: #FFE2DC;
-  --peach:      #FDF1EC;
+  /* Ink */
+  --ink:        #0B0B0C;
+  --ink-deep:   #000000;   /* dark stages */
+  --ink-card:   #1C1C1E;   /* cards on a dark stage */
+  --ink-card-2: #2C2C2E;   /* raised on a dark stage */
 
-  /* Mint + soft purple: the two accents that keep coral from shouting alone */
-  --mint:       #7FD1B9;
-  --mint-soft:  #CFEDE2;
-  --mint-wash:  #E7F6F0;
-  --mint-deep:  #3F9E85;
-  --purple:     #A98BC9;
-  --purple-deep:#6E5591;
+  /* Coral — the one accent */
+  --coral:      #F4532E;
+  --coral-hot:  #FF9179;   /* coral on a dark surface */
+  --coral-deep: #E5401C;   /* hover / pressed */
+  --coral-dark: #C4380F;
+  --coral-tint: #FFE5DD;   /* container */
+  --coral-wash: #FFF0EB;   /* lightest container */
+  --on-coral:   #5C1500;   /* text on a coral container */
+  --on-coral-2: #7A3218;
 
-  /* Text on light */
-  --text:       #2E211A;
-  --muted:      #5D473C;
-  --muted-2:    #83695B;
-  --muted-3:    #AC978A;
-  --green:      #3F9E85;
-  --ok:         #226B58;
+  /* Supporting tones. Containers + their on-colours, never as fills. */
+  --green:      #30D158;
+  --green-tint: #D9F2E4;
+  --on-green:   #0F5F3E;
+  --purple:     #C77DDD;
+  --purple-tint:#F3E4F8;
+  --on-purple:  #6B2A80;
+  --gold-tint:  #FBF0DA;
+  --on-gold:    #7A5A12;
+  --blue-tint:  #E2E8FB;
+  --on-blue:    #25397A;
+  --red:        #FF453A;
+  --red-tint:   #FFDAD6;
+  --on-red:     #8C1D18;
 
-  /* Text on the dark stages (game, splash, paywall) */
-  --on-dark:      #FDF1EC;
-  --on-dark-mute: #C0AB9E;
+  /* Text */
+  --text:       #0B0B0C;
+  --muted:      #54545E;
+  --muted-2:    #84848C;
+  --muted-3:    #A5A3A4;
+  --mint:       #30D158;   /* legacy alias */
+  --mint-soft:  #D9F2E4;
+  --mint-wash:  #D9F2E4;
+  --mint-deep:  #0F5F3E;
+  --purple-deep:#6B2A80;
+  --ok:         #0F5F3E;
 
-  --font-display: var(--font-poppins), "Poppins", system-ui, sans-serif;
+  /* Text on the dark stages */
+  --on-dark:      #FFFFFF;
+  --on-dark-mute: rgba(235,235,245,0.6);
+  --on-dark-dim:  rgba(235,235,245,0.35);
+
+  /* One family, weights 400-700. The old 800-on-everything is gone —
+     hierarchy comes from size and colour instead. */
+  --font-display: var(--font-figtree), "Figtree", system-ui, sans-serif;
   --font-body: var(--font-figtree), "Figtree", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --maxw: 1140px;
   --radius: 20px;
-  --radius-card: 28px;   /* Lotus Garden's card radius */
-  --radius-lg: 34px;
+  --radius-card: 24px;
+  --radius-lg: 28px;
 
   --ease-swish: cubic-bezier(0.12, 0.23, 0.19, 1);
   --ease-loader: cubic-bezier(0.65, 0.01, 0.05, 0.99);
 
-  /* Depth comes from surface contrast and hairlines, not blur. The only
-     shadow left in the system is the solid lift below, which is a colour
-     block rather than a blur — soften it and the whole thing goes generic. */
+  /* Depth is surface + hairline. No blurred cards. */
   --shadow-soft: none;
   --shadow-card: none;
   --shadow-coral: none;
-  --hair: 1px solid var(--line);
-
-  /* The signature move: a solid, unblurred lift under pills and cards.
-     Blur it and the whole system goes soft and generic. */
-  --lift:       0 6px 0 var(--coral-deep);
-  --lift-press: 0 2px 0 var(--coral-deep);
-  --lift-mint:  0 6px 0 var(--mint-deep);
-  --lift-ink:   0 6px 0 var(--ink);
+  --lift:       none;
+  --lift-press: none;
+  --lift-mint:  none;
+  --lift-ink:   none;
 }
+
 
 * { box-sizing: border-box; }
 
@@ -119,9 +137,9 @@ button { font-family: inherit; cursor: pointer; }
 
 h1, h2, h3, h4 {
   font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.03em;   /* Poppins runs wider than Figtree; pull it back in */
-  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
   margin: 0;
   color: var(--ink);
 }
@@ -142,13 +160,11 @@ p { margin: 0; }
 }
 
 .eyebrow {
-  font-size: 14px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  /* --coral-hot was 1.8:1 on the blush page — it was picked for a dark theme.
-     The deep coral clears 4.5:1 on cream; the dark stages override below. */
-  color: var(--coral-deep);
-  font-weight: 800;
+  color: var(--coral);
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -172,7 +188,7 @@ p { margin: 0; }
 .ps .lead b, .voice .lead b, .final .lead b { color: #fff; }
 
 .head { max-width: 720px; }
-.head h2 { font-size: clamp(34px, 5vw, 58px); margin-top: 16px; letter-spacing: -0.035em; line-height: 1.0; }
+.head h2 { font-size: clamp(30px, 4.2vw, 48px); margin-top: 14px; letter-spacing: -0.03em; line-height: 1.1; font-weight: 700; }
 .head p { margin-top: 18px; }
 .head--center { margin: 0 auto; text-align: center; }
 .head--center .eyebrow { justify-content: center; }
@@ -244,47 +260,32 @@ p { margin: 0; }
   background: var(--card);
   color: var(--ink);
   padding: 12px 22px;
-  border-color: var(--line);
-  box-shadow: var(--lift-ink);
+  border-color: var(--line-2);
 }
-.btn--store:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--ink); }
-.btn--store:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.btn--store:hover { border-color: var(--ink); }
 .btn--store .store-k { display: flex; flex-direction: column; line-height: 1.05; text-align: left; }
 .btn--store .store-k small { font-size: 10.5px; letter-spacing: .04em; opacity: .6; font-weight: 500; }
 .btn--store .store-k span { font-size: 16px; font-weight: 700; font-family: var(--font-display); }
 .btn--store svg { flex: none; transition: transform .12s ease; }
 .btn--store:active svg { transform: translateY(2px); }
 
-.btn--coral {
-  background: var(--coral);
-  color: #fff;
-  box-shadow: var(--lift);
-}
-.btn--coral:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--coral-deep); }
-.btn--coral:active { transform: translateY(4px); box-shadow: var(--lift-press); }
+.btn--coral { background: var(--coral); color: #fff; }
+.btn--coral:hover { background: var(--coral-deep); }
 
-.btn--ghost {
-  background: var(--card); color: var(--ink); border-color: var(--line);
-  box-shadow: 0 5px 0 var(--line);
-}
-.btn--ghost:hover { border-color: var(--coral); color: var(--coral-deep); box-shadow: 0 7px 0 var(--coral-tint); }
-.btn--ghost:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--line); }
+.btn--ghost { background: transparent; color: var(--ink); border-color: var(--line-2); }
+.btn--ghost:hover { background: var(--card); border-color: var(--ink); }
 
-.btn--mint { background: var(--mint); color: var(--ink); box-shadow: var(--lift-mint); }
-.btn--mint:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--mint-deep); }
-.btn--mint:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--mint-deep); }
+.btn--mint { background: var(--green-tint); color: var(--on-green); }
+.btn--mint:hover { filter: brightness(0.97); }
 
-/* on the dark stages the lift flips to a deeper brown so it still reads */
-.btn--onDark { background: #fff; color: var(--ink); box-shadow: 0 6px 0 rgba(0,0,0,0.4); }
-.btn--onDark:hover { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(0,0,0,0.45); }
-.btn--onDark:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.4); }
+.btn--onDark { background: #fff; color: var(--ink); }
+.btn--onDark:hover { filter: brightness(0.94); }
 .ps .btn--ghost, .voice .btn--ghost, .final .btn--ghost,
 .sq__overlay .btn--ghost, .g3__overlay .btn--ghost, .share__cta .btn--ghost {
   background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.28);
-  box-shadow: 0 5px 0 rgba(0,0,0,0.32);
 }
 .ps .btn--store, .voice .btn--store, .final .btn--store, .share__cta .btn--store {
-  box-shadow: 0 6px 0 rgba(0,0,0,0.4); border-color: transparent;
+  border-color: transparent;
 }
 
 /* Reduced motion: keep the lift (it is colour, not movement), drop the travel. */
@@ -342,8 +343,8 @@ p { margin: 0; }
 .hero__veil {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background:
-    radial-gradient(80% 55% at 50% 28%, rgba(232,115,90,0.20), transparent 62%),
-    linear-gradient(180deg, rgba(44,27,20,0.88) 0%, rgba(44,27,20,0.44) 34%, rgba(44,27,20,0.16) 56%, var(--bg) 100%);
+    radial-gradient(80% 55% at 50% 28%, rgba(244,83,46,0.16), transparent 62%),
+    linear-gradient(180deg, rgba(11,11,12,0.90) 0%, rgba(11,11,12,0.50) 34%, rgba(11,11,12,0.20) 56%, var(--bg) 100%);
 }
 .hero__ctl {
   position: absolute; right: 26px; bottom: 26px; z-index: 5;
@@ -359,14 +360,12 @@ p { margin: 0; }
 .hero__ctl:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
 .hero__in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 .hero h1 {
-  /* The poster voice: uppercase, heaviest weight, tracking pulled in and the
-     leading set below 1. At display sizes the default -0.035em still reads
-     loose — the shout only lands when the words nearly touch. */
-  font-size: clamp(46px, 7.6vw, 104px);
-  font-weight: 800;
-  text-transform: uppercase;
+  /* Size and colour carry the hierarchy now, not weight. 700 at 88px reads
+     as confident; 800 uppercase read as shouting, which this product isn't. */
+  font-size: clamp(42px, 6.6vw, 88px);
+  font-weight: 700;
   letter-spacing: -0.035em;
-  line-height: 0.88;
+  line-height: 1.02;
   color: #fff;
 }
 .hero h1 { text-wrap: balance; }
@@ -447,6 +446,7 @@ p { margin: 0; }
 }
 .ps-badge:hover { background: rgba(255,255,255,0.22); }
 .ps .eyebrow, .voice .eyebrow, .final .eyebrow { color: var(--coral-hot); }
+.footer__col a:hover { color: #fff; }
 .ps .eyebrow::before { background: #fff; }
 .ps h2 { color: #fff; font-size: clamp(28px, 3.6vw, 44px); margin-top: 12px; }
 .ps__sub { margin-top: 14px; font-size: 17.5px; color: rgba(255,255,255,0.92); max-width: 42ch; }
@@ -471,13 +471,13 @@ p { margin: 0; }
   width: min(320px, 82vw);
   border-radius: 48px;
   padding: 12px;
-  background: linear-gradient(160deg, #2E211A, var(--ink-deep));
+  background: linear-gradient(160deg, #0B0B0C, var(--ink-deep));
   box-shadow: 0 60px 120px -50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1) inset;
 }
 /* the app's DARK mode screen */
 .ps-screen {
   border-radius: 38px;
-  background: linear-gradient(180deg, #2E211A, var(--ink-deep));
+  background: linear-gradient(180deg, #0B0B0C, var(--ink-deep));
   overflow: hidden;
   aspect-ratio: 9 / 19;
   position: relative;
@@ -694,7 +694,7 @@ p { margin: 0; }
   aspect-ratio: 16 / 9;
   background:
     radial-gradient(80% 100% at 50% 115%, rgba(232,115,90,0.45), transparent 60%),
-    linear-gradient(160deg, #2E211A, var(--ink-deep));
+    linear-gradient(160deg, #0B0B0C, var(--ink-deep));
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--line-soft);
 }
@@ -737,7 +737,7 @@ p { margin: 0; }
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 3;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   color: #fff; text-align: center; padding: 24px;
-  background: linear-gradient(160deg, #2E211A, var(--ink-deep));
+  background: linear-gradient(160deg, #0B0B0C, var(--ink-deep));
 }
 .vid__soon b { font-family: var(--font-display); font-size: 20px; }
 .vid__soon span { color: var(--muted); font-size: 14.5px; max-width: 40ch; }
@@ -758,7 +758,7 @@ p { margin: 0; }
 /* ---------- voice (coral-rimmed dark panel) ---------- */
 .voice {
   background:
-    radial-gradient(120% 90% at 82% 0%, #5A1A10 0%, transparent 55%),
+    radial-gradient(120% 90% at 82% 0%, #1C1C1E 0%, transparent 55%),
     var(--ink-deep);
   border: 1px solid var(--line-soft);
   color: #fff;
@@ -846,16 +846,18 @@ p { margin: 0; }
 .footer > .wrap { padding-top: 62px; }
 .doodles {
   height: 64px;
-  background-color: #2E211A;
+  background-color: #0B0B0C;
   border-top: 1px solid rgba(255,255,255,0.10);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='64'%3E%3Cg fill='none' stroke='%23E8735A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 38 q8 -16 16 0 t16 0'/%3E%3Ccircle cx='86' cy='32' r='12'/%3E%3Ccircle cx='82' cy='30' r='1.7' fill='%23E8735A' stroke='none'/%3E%3Ccircle cx='90' cy='30' r='1.7' fill='%23E8735A' stroke='none'/%3E%3Cpath d='M82 37 q4 3 8 0'/%3E%3Cpath d='M130 24 v16 M122 32 h16'/%3E%3Cpath d='M168 26 a8 8 0 0 1 0 12 M174 20 a14 14 0 0 1 0 24'/%3E%3Cpath d='M206 38 l8 -12 8 12 8 -12'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-position: center;
 }
 .footer__top { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px; }
-.footer .brand .wm { color: #FFFDFB; }
+.footer .brand .wm { color: #FFFFFF; }
 .footer__blurb { margin-top: 16px; font-size: 14.5px; color: var(--on-dark-mute); max-width: 34ch; line-height: 1.6; }
-.footer__col h5 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--mint); margin: 0 0 16px; }
+/* Column labels are labels. Green here was an iOS status colour doing
+   decoration, which breaks the same rule coral follows: accent means act. */
+.footer__col h5 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: rgba(235,235,245,0.45); margin: 0 0 16px; }
 .footer__col a, .footer__col span { display: block; font-size: 14.5px; color: var(--on-dark-mute); margin-bottom: 11px; transition: color .15s; }
 .footer__col a:hover { color: #fff; }
 .footer__bar { margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: #A08578; }
@@ -865,11 +867,11 @@ p { margin: 0; }
    headroom underneath rather than a tighter box. */
 .footer__giant {
   margin-top: 30px;
-  /* The g's descender sits ~0.21em below the baseline and the purple extrusion
-     adds another 0.107em, so the headroom has to scale with the mark or the
-     tail gets sliced off by the overflow clip. A fixed 34px was enough at
-     desktop size and not at any other. */
-  padding-bottom: min(9.5vw, 92px);
+  /* Figtree's g drops ~0.22em below the baseline and line-height:1 puts the
+     box bottom at roughly the baseline, so the tail lives outside the box and
+     the overflow clip will slice it unless the headroom scales with the mark.
+     Measured at 1.99x font-size wide, which is what sets the 46vw above. */
+  padding-bottom: min(11vw, 100px);
   text-align: center;
   overflow: hidden;
   user-select: none;
@@ -880,7 +882,7 @@ p { margin: 0; }
    at ~612px wide and cropped the mark — the bug this sign-off keeps hitting.
    Sizing straight off the viewport is what actually guarantees it fits: at
    12.4vw the mark lands at ~86% of the viewport at every width. */
-.footer__giant .wm { font-size: min(34vw, 330px); }
+.footer__giant .wm { font-size: min(46vw, 420px); }
 
 /* ---------- mascot micro-animations ---------- */
 .ring-mascot { transform-box: fill-box; transform-origin: center; overflow: visible; }
@@ -1043,7 +1045,7 @@ p { margin: 0; }
   border: 1px solid var(--line-soft);
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(232,115,90,0.20), transparent 62%),
-    linear-gradient(180deg, #2E211A 0%, #1C120D 100%);
+    linear-gradient(180deg, #0B0B0C 0%, #000000 100%);
   box-shadow: var(--shadow-soft);
 }
 .sq__canvas {
@@ -1245,7 +1247,7 @@ p { margin: 0; }
   border-radius: 26px;
   overflow: hidden;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #2E211A 0%, #1C120D 100%);
+  background: linear-gradient(180deg, #0B0B0C 0%, #000000 100%);
   box-shadow: var(--shadow-soft);
 }
 .g3__canvas {
@@ -1366,48 +1368,28 @@ p { margin: 0; }
 .g3--embed .g3__canvas { height: calc(100dvh - 150px); }
 
 /* ============================================================
-   WORDMARK — Poppins ExtraBold, skewed, square-dot i, notched g,
-   mint→purple extrusion. Ratios are the 56px drawing divided by 56.
+   WORDMARK — Figtree 700, coral, one colour.
    ============================================================ */
 .wm {
   font-family: var(--font-display);
-  font-weight: 800;
-  line-height: 0.8;
-  letter-spacing: -0.043em;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1;
   display: inline-block;
   user-select: none;
 }
-.wm__in { display: inline-flex; align-items: flex-end; transform: skewX(-9deg); }
-.wm__r { margin-right: -0.01em; }
-.wm__i {
-  display: inline-flex; flex-direction: column; align-items: center;
-  gap: 0.089em; padding: 0 0.071em 0.054em;
-}
-.wm__dot { width: 0.161em; height: 0.161em; display: block; }
-.wm__stem { width: 0.161em; height: 0.518em; display: block; }
-.wm__g { position: relative; display: inline-block; }
-.wm__notch {
-  position: absolute; left: 0.196em; top: 0.393em;
-  width: 0.214em; height: 0.214em; display: block;
-}
 
-/* the wordmark inside the nav/footer brand lockup */
-.brand .wm { margin-bottom: -0.06em; }
-
-/* ---------- app icon ---------- */
+/* the `t` tile — the app icon, and the only place the mark is boxed */
 .appicon {
   position: relative; display: inline-grid; place-items: center; flex: none;
   overflow: hidden;
-  background: linear-gradient(150deg, #FF7057 0%, #F5261A 48%, #C4130A 100%);
-  box-shadow: 0 10px 22px -10px rgba(58,42,34,0.55);
+  background: var(--coral);
 }
-.appicon__sheen {
-  position: absolute; left: -16%; top: -20%; width: 92%; height: 92%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.42), rgba(255,255,255,0) 70%);
-}
-.appicon__bar {
-  position: absolute; left: 16%; right: 16%; bottom: 19%;
-  height: 4%; min-height: 2px; background: var(--mint);
-  transform: skewX(-14deg); z-index: 3;
+.appicon__t {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin-top: -0.04em;
 }

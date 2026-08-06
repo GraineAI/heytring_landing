@@ -1,82 +1,39 @@
 /**
- * The Tring wordmark — Lotus Garden.
+ * The Tring wordmark.
  *
- * Poppins ExtraBold, skewed -9°, with a square-dot i, a notched g, and a
- * stacked mint→purple extrusion. Straight off the icon sheet.
+ * Figtree, weight 700, one colour — coral, the way it started. The stacked
+ * mint/purple extrusion is gone: the redesign spends the accent on exactly one
+ * "act" control per screen, and a logo that shouts in three colours competes
+ * with the button you actually want pressed.
  *
- * Every measurement is in `em` so a single `size` (the font-size in px) scales
- * the whole lockup — extrusion offsets, the i's dot and stem, the g's notch.
- * The design sheet specifies it at 56px; the ratios below are that drawing
- * divided by 56, which is why they look like odd decimals.
- *
- * Two things are genuinely load-bearing:
- *  - `surface` is the colour BEHIND the mark. The g's notch is a knockout, not
- *    a shape, so it has to be painted in the background colour or the letter
- *    fills in and reads as a lowercase q.
- *  - The extrusion is text-shadow at zero blur. Blurring it turns a solid
- *    3D lift into a drop shadow, which is a different brand.
+ * Sizing: pass `size` in px, or `size={null}` to hand sizing to CSS. An inline
+ * font-size beats any stylesheet rule, which is how the footer sign-off once
+ * ended up pinned at 612px wide inside a 390px phone.
  */
-
-const MINT = "#7FD1B9";
-const PURPLE = "#A98BC9";
-
 export default function Wordmark({
   size = 34,
-  tone = "coral", // coral (on light) | white (on dark/coral) | ink (monochrome)
-  surface = "var(--card)",
+  tone = "coral", // coral | white | ink
   className = "",
   style,
 }) {
-  const ink = tone === "white" ? "#FFFDFB" : tone === "ink" ? "var(--ink)" : "var(--coral)";
-  const mono = tone === "ink";
-  const shadow = mono
-    ? "none"
-    : `${0.054}em ${0.054}em 0 ${MINT}, ${0.107}em ${0.107}em 0 ${PURPLE}`;
-
+  const color = tone === "white" ? "#FFFFFF" : tone === "ink" ? "var(--ink)" : "var(--coral)";
   return (
     <span
       className={`wm ${className}`}
-      style={{
-        // `size: null` hands sizing to CSS. An inline font-size beats any
-        // stylesheet rule, so a fixed number here would pin the mark at one
-        // width on every screen — which is exactly how the footer sign-off
-        // ended up 612px wide on a 390px phone.
-        ...(size == null ? null : { fontSize: size }),
-        color: ink,
-        textShadow: shadow,
-        ...style,
-      }}
+      style={{ ...(size == null ? null : { fontSize: size }), color, ...style }}
       role="img"
       aria-label="Tring"
     >
-      <span aria-hidden="true" className="wm__in">
-        t<span className="wm__r">r</span>
-        {/* the i, drawn rather than typed: square dot over a square stem */}
-        <span className="wm__i">
-          <i
-            className="wm__dot"
-            style={{ background: mono ? "currentColor" : MINT, boxShadow: mono ? "none" : `0.054em 0.054em 0 ${PURPLE}` }}
-          />
-          <i
-            className="wm__stem"
-            style={{ background: "currentColor", boxShadow: shadow === "none" ? "none" : `0.054em 0.054em 0 ${MINT}, 0.107em 0.107em 0 ${PURPLE}` }}
-          />
-        </span>
-        n
-        <span className="wm__g">
-          g<i className="wm__notch" style={{ background: surface }} />
-        </span>
-      </span>
+      <span aria-hidden="true">tring</span>
     </span>
   );
 }
 
 /**
- * The app icon: the wordmark on its coral squircle, with the mint bar.
- * Same artwork as public/icon and the store listing, so the tab, the OG card
- * and the phone home screen are all the one mark.
+ * The lockup used in the nav and footer: the `t` tile, then the word.
+ * Kept as one component so the two never drift apart in size or spacing.
  */
-export function AppIcon({ size = 64, radius = 0.225, className = "", style }) {
+export function AppIcon({ size = 64, radius = 0.28, className = "", style }) {
   return (
     <span
       className={`appicon ${className}`}
@@ -84,9 +41,13 @@ export function AppIcon({ size = 64, radius = 0.225, className = "", style }) {
       role="img"
       aria-label="Tring"
     >
-      <span className="appicon__sheen" aria-hidden="true" />
-      <Wordmark size={size * 0.345} tone="white" surface="#F5261A" style={{ position: "relative", zIndex: 2 }} />
-      <span className="appicon__bar" aria-hidden="true" />
+      <span
+        className="appicon__t"
+        style={{ fontSize: size * 0.58 }}
+        aria-hidden="true"
+      >
+        t
+      </span>
     </span>
   );
 }

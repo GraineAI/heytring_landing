@@ -9,7 +9,7 @@ export default function Nav() {
       <div className="wrap nav__in">
         <a className="brand" href="#top" aria-label="Tring home">
           <Logo size={32} className="brand__logo" />
-          <Wordmark size={27} surface="#FFFDFB" />
+          <Wordmark size={27} />
         </a>
 
         <div className="nav__links">

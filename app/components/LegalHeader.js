@@ -7,7 +7,7 @@ export default function LegalHeader() {
       <div className="wrap nav__in">
         <a className="brand" href="/" aria-label="Tring home">
           <Logo size={30} className="brand__logo" />
-          <Wordmark size={26} surface="#FFFDFB" />
+          <Wordmark size={26} />
           <span className="brand__tag">transfer to Ring</span>
         </a>
         <div className="nav__cta">

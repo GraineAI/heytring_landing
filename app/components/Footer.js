@@ -11,7 +11,7 @@ export default function Footer() {
           <div>
             <a className="brand" href="#top">
               <Logo size={34} className="brand__logo" />
-              <Wordmark size={29} surface="var(--bg-2)" />
+              <Wordmark size={29} />
             </a>
             <p className="footer__blurb">
               Your personal AI phone assistant. Ring answers the calls you&rsquo;d rather
@@ -55,12 +55,11 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* The sign-off: the wordmark at full volume. Rendered through the same
-          component as the nav so the extrusion, skew and square-dot i are the
-          one drawing — and `surface` is the footer's own brown, because the g's
-          notch is a knockout and would otherwise punch a white hole. */}
+      {/* The sign-off: the wordmark at full volume, through the same component
+          as the nav so the two never drift. Sizing is left to CSS — an inline
+          font-size beats the stylesheet and would pin it at one width. */}
       <div className="footer__giant" aria-hidden="true">
-        <Wordmark size={null} tone="white" surface="var(--ink-deep)" />
+        <Wordmark size={null} tone="white" />
       </div>
     </footer>
   );

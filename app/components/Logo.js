@@ -1,13 +1,17 @@
 /**
- * The Tring app mark — identical artwork to the browser-tab icon (app/icon.svg)
+ * The Tring app mark — the same artwork as the browser-tab icon (app/icon.svg)
  * and the store listing, so the tab, the nav, the OG card and the phone home
  * screen all carry one mark.
  *
- * Lotus Garden: coral squircle, skewed `t` monogram, mint→purple extrusion,
- * mint bar. The full `tring` wordmark only holds above 76px — below that the
- * icon sheet hands over to this monogram, which is every size we use it at.
+ * A coral tile with a white `t`. One colour, no extrusion: the redesign spends
+ * the accent on a single "act" control per screen, and a three-colour logo
+ * competes with the button you actually want pressed.
+ *
+ * The `t` is drawn as paths rather than set as text because an SVG that ships
+ * to a favicon rasteriser, an OG card renderer and the browser all at once
+ * cannot rely on a webfont having loaded.
  */
-export default function Logo({ size = 36, radius = 14, style, className = "" }) {
+export default function Logo({ size = 36, radius = 18, style, className = "" }) {
   return (
     <svg
       width={size}
@@ -18,32 +22,11 @@ export default function Logo({ size = 36, radius = 14, style, className = "" }) 
       role="img"
       aria-label="Tring"
     >
-      <defs>
-        <linearGradient id="tringTile" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FF7057" />
-          <stop offset=".48" stopColor="#F5261A" />
-          <stop offset="1" stopColor="#C4130A" />
-        </linearGradient>
-        <radialGradient id="tringSheen" cx="26%" cy="20%" r="70%">
-          <stop offset="0" stopColor="#fff" stopOpacity=".4" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-        <g id="tringT">
-          <path d="M14 24h34v9H14z" />
-          <path d="M26 11h11v27c0 4 3 6.5 7 6.2l1.2 8.4c-11 1.2-19.2-5.4-19.2-14.6V11z" />
-        </g>
-      </defs>
-
-      <rect width="64" height="64" rx={radius} fill="url(#tringTile)" />
-      <rect width="64" height="64" rx={radius} fill="url(#tringSheen)" />
-
-      <g transform="translate(1,0) skewX(-9)">
-        <use href="#tringT" x="4" y="4" fill="#A98BC9" />
-        <use href="#tringT" x="2" y="2" fill="#7FD1B9" />
-        <use href="#tringT" fill="#FFFDFB" />
+      <rect width="64" height="64" rx={radius} fill="#F4532E" />
+      <g fill="#FFFFFF">
+        <path d="M15 25h34v8.5H15z" />
+        <path d="M26.5 12h10.5v26.5c0 4 2.9 6.4 6.9 6.1l1.2 8.3c-10.9 1.2-19-5.3-19-14.4V12z" />
       </g>
-
-      <rect x="12" y="53" width="40" height="4" fill="#7FD1B9" transform="skewX(-14) translate(7,0)" />
     </svg>
   );
 }

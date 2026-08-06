@@ -45,7 +45,7 @@ function ShareShell({ children }) {
       <div className="share__wrap">
         <a className="brand share__brand" href="/" aria-label="Tring home">
           <Logo size={30} className="brand__logo" />
-          <Wordmark size={26} surface="var(--bg)" />
+          <Wordmark size={26} />
         </a>
         {children}
       </div>
