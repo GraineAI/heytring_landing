@@ -13,8 +13,8 @@ const DESPAWN_Z = 22;
 
 /* Lotus Garden, in hex the renderer can hand to three.js. */
 export const PALETTE = {
-  tring: 0xe8735a,
-  tringDeep: 0xb8452f,
+  tring: 0xf5261a,
+  tringDeep: 0xa50f07,
   cream: 0xfffdfb,
   hull: 0xefdfd6,
   shield: 0x7fd1b9,
@@ -25,8 +25,8 @@ export const PALETTE = {
 };
 
 export const ENEMY_TYPES = {
-  spambot: { hp: 2, r: 1.5, speed: 26, score: 10, fire: 0, pattern: "drift", color: 0xc4523c },
-  robocall: { hp: 3, r: 1.5, speed: 44, score: 20, fire: 0, pattern: "weave", color: 0xf2a38f },
+  spambot: { hp: 2, r: 1.5, speed: 26, score: 10, fire: 0, pattern: "drift", color: 0xc4130a },
+  robocall: { hp: 3, r: 1.5, speed: 44, score: 20, fire: 0, pattern: "weave", color: 0xff7057 },
   phisher: { hp: 3, r: 1.4, speed: 20, score: 35, fire: 0, pattern: "chase", color: 0x3f9e85 },
   telemarketer: { hp: 8, r: 2.1, speed: 4, score: 55, fire: 1.5, pattern: "turret", color: 0xa98bc9 },
 };

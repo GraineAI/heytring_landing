@@ -25,15 +25,19 @@
   --line-soft:  rgba(58,42,34,0.10);
 
   /* Ink — warm brown, never pure black. Used ON light surfaces. */
-  --ink:        #3A2A22;
-  --ink-deep:   #2C1B14;   /* dark stages: splash, paywall, the game */
+  --ink:        #2E211A;
+  --ink-deep:   #1C120D;   /* dark stages: splash, paywall, the game */
 
-  /* Coral: the brand. `deep` is the solid lift under every pill. */
-  --coral:      #E8735A;
-  --coral-hot:  #F2A38F;
-  --coral-deep: #C4523C;
-  --coral-dark: #B8452F;
-  --coral-tint: #FBE3DA;
+  /* The brand red, sharpened. The Lotus Garden salmon (#F5261A) was ~64%
+     saturation — soft enough that it read pink against cream and lost the
+     shout a telecom brand needs. This is the same hue at full chroma, so the
+     mascot and wordmark still read as Tring, but the CTA now lands like a
+     poster. `deep` is the solid lift under every pill. */
+  --coral:      #F5261A;
+  --coral-hot:  #FF7057;
+  --coral-deep: #C4130A;
+  --coral-dark: #A50F07;
+  --coral-tint: #FFE2DC;
   --peach:      #FDF1EC;
 
   /* Mint + soft purple: the two accents that keep coral from shouting alone */
@@ -45,9 +49,9 @@
   --purple-deep:#6E5591;
 
   /* Text on light */
-  --text:       #3A2A22;
-  --muted:      #6B5348;
-  --muted-2:    #8C7365;
+  --text:       #2E211A;
+  --muted:      #5D473C;
+  --muted-2:    #83695B;
   --muted-3:    #AC978A;
   --green:      #3F9E85;
   --ok:         #226B58;
@@ -68,10 +72,13 @@
   --ease-swish: cubic-bezier(0.12, 0.23, 0.19, 1);
   --ease-loader: cubic-bezier(0.65, 0.01, 0.05, 0.99);
 
-  /* Shadows are warm-brown, not black — black on blush reads as dirt. */
-  --shadow-soft: 0 26px 50px -26px rgba(58,42,34,0.26);
-  --shadow-card: 0 10px 24px rgba(58,42,34,0.10);
-  --shadow-coral: 0 14px 30px -12px rgba(232,115,90,0.45);
+  /* Depth comes from surface contrast and hairlines, not blur. The only
+     shadow left in the system is the solid lift below, which is a colour
+     block rather than a blur — soften it and the whole thing goes generic. */
+  --shadow-soft: none;
+  --shadow-card: none;
+  --shadow-coral: none;
+  --hair: 1px solid var(--line);
 
   /* The signature move: a solid, unblurred lift under pills and cards.
      Blur it and the whole system goes soft and generic. */
@@ -135,8 +142,8 @@ p { margin: 0; }
 }
 
 .eyebrow {
-  font-size: 12.5px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   /* --coral-hot was 1.8:1 on the blush page — it was picked for a dark theme.
      The deep coral clears 4.5:1 on cream; the dark stages override below. */
@@ -165,7 +172,7 @@ p { margin: 0; }
 .ps .lead b, .voice .lead b, .final .lead b { color: #fff; }
 
 .head { max-width: 720px; }
-.head h2 { font-size: clamp(32px, 4.6vw, 52px); margin-top: 16px; }
+.head h2 { font-size: clamp(34px, 5vw, 58px); margin-top: 16px; letter-spacing: -0.035em; line-height: 1.0; }
 .head p { margin-top: 18px; }
 .head--center { margin: 0 auto; text-align: center; }
 .head--center .eyebrow { justify-content: center; }
@@ -295,11 +302,10 @@ p { margin: 0; }
   z-index: 90;
   width: min(1160px, calc(100% - 28px));
   border-radius: var(--radius-card);
-  background: rgba(255, 253, 251, 0.82);
+  background: rgba(255, 253, 251, 0.88);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border: 1px solid var(--line);
-  box-shadow: 0 12px 28px -14px rgba(58,42,34,0.28);
 }
 .nav__in { display: flex; align-items: center; justify-content: space-between; height: 66px; }
 .nav__links { display: flex; gap: 28px; align-items: center; }
@@ -353,18 +359,26 @@ p { margin: 0; }
 .hero__ctl:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
 .hero__in { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 .hero h1 {
-  font-size: clamp(44px, 7vw, 86px);
+  /* The poster voice: uppercase, heaviest weight, tracking pulled in and the
+     leading set below 1. At display sizes the default -0.035em still reads
+     loose — the shout only lands when the words nearly touch. */
+  font-size: clamp(46px, 7.6vw, 104px);
   font-weight: 800;
+  text-transform: uppercase;
   letter-spacing: -0.035em;
+  line-height: 0.88;
   color: #fff;
 }
+.hero h1 { text-wrap: balance; }
 .hero h1 .ring {
   display: inline-block;              /* so it can vibrate */
   transform-origin: 50% 60%;
   white-space: nowrap;
   color: var(--coral);
-  /* the wordmark's own extrusion, so the word and the logo are one idea */
-  text-shadow: 0.024em 0.024em 0 var(--mint), 0.048em 0.048em 0 var(--purple);
+  /* No extrusion here. It is the logo's move, and at 104px uppercase the
+     stacked mint/purple offsets stop reading as a solid lift and start
+     reading as ghosting behind the letters. The wordmark keeps it; the
+     headline stays flat, which is what makes the red look sharp. */
 }
 .hero__sub { margin: 22px auto 0; font-size: 20px; color: var(--on-dark-mute); max-width: 54ch; }
 .hero__sub b { color: #fff; font-weight: 700; }
@@ -387,7 +401,6 @@ p { margin: 0; }
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 20px; padding: 13px 16px;
-  box-shadow: 0 18px 34px -18px rgba(44,27,20,0.6);
   white-space: nowrap;
 }
 .hcard b { display: block; font-size: 14.5px; color: var(--ink); font-weight: 800; }
@@ -458,13 +471,13 @@ p { margin: 0; }
   width: min(320px, 82vw);
   border-radius: 48px;
   padding: 12px;
-  background: linear-gradient(160deg, #3A2A22, var(--ink-deep));
+  background: linear-gradient(160deg, #2E211A, var(--ink-deep));
   box-shadow: 0 60px 120px -50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1) inset;
 }
 /* the app's DARK mode screen */
 .ps-screen {
   border-radius: 38px;
-  background: linear-gradient(180deg, #3A2A22, var(--ink-deep));
+  background: linear-gradient(180deg, #2E211A, var(--ink-deep));
   overflow: hidden;
   aspect-ratio: 9 / 19;
   position: relative;
@@ -630,7 +643,7 @@ p { margin: 0; }
 .bento__item {
   border-radius: var(--radius-card);
   background: var(--card);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-card);
   padding: 18px;
   overflow: hidden;
@@ -681,7 +694,7 @@ p { margin: 0; }
   aspect-ratio: 16 / 9;
   background:
     radial-gradient(80% 100% at 50% 115%, rgba(232,115,90,0.45), transparent 60%),
-    linear-gradient(160deg, #3A2A22, var(--ink-deep));
+    linear-gradient(160deg, #2E211A, var(--ink-deep));
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--line-soft);
 }
@@ -724,7 +737,7 @@ p { margin: 0; }
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 3;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   color: #fff; text-align: center; padding: 24px;
-  background: linear-gradient(160deg, #3A2A22, var(--ink-deep));
+  background: linear-gradient(160deg, #2E211A, var(--ink-deep));
 }
 .vid__soon b { font-family: var(--font-display); font-size: 20px; }
 .vid__soon span { color: var(--muted); font-size: 14.5px; max-width: 40ch; }
@@ -733,7 +746,7 @@ p { margin: 0; }
 .orbitline {
   margin: 26px auto 0; max-width: 560px;
   display: flex; align-items: center; gap: 14px;
-  background: var(--card); border: 1px solid var(--line-soft); border-radius: 18px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
   padding: 14px 18px; box-shadow: var(--shadow-card);
 }
 .orbitline svg { flex: none; }
@@ -745,7 +758,7 @@ p { margin: 0; }
 /* ---------- voice (coral-rimmed dark panel) ---------- */
 .voice {
   background:
-    radial-gradient(120% 90% at 82% 0%, #5A3324 0%, transparent 55%),
+    radial-gradient(120% 90% at 82% 0%, #5A1A10 0%, transparent 55%),
     var(--ink-deep);
   border: 1px solid var(--line-soft);
   color: #fff;
@@ -833,7 +846,7 @@ p { margin: 0; }
 .footer > .wrap { padding-top: 62px; }
 .doodles {
   height: 64px;
-  background-color: #3A2A22;
+  background-color: #2E211A;
   border-top: 1px solid rgba(255,255,255,0.10);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='64'%3E%3Cg fill='none' stroke='%23E8735A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 38 q8 -16 16 0 t16 0'/%3E%3Ccircle cx='86' cy='32' r='12'/%3E%3Ccircle cx='82' cy='30' r='1.7' fill='%23E8735A' stroke='none'/%3E%3Ccircle cx='90' cy='30' r='1.7' fill='%23E8735A' stroke='none'/%3E%3Cpath d='M82 37 q4 3 8 0'/%3E%3Cpath d='M130 24 v16 M122 32 h16'/%3E%3Cpath d='M168 26 a8 8 0 0 1 0 12 M174 20 a14 14 0 0 1 0 24'/%3E%3Cpath d='M206 38 l8 -12 8 12 8 -12'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: repeat-x;
@@ -1030,7 +1043,7 @@ p { margin: 0; }
   border: 1px solid var(--line-soft);
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(232,115,90,0.20), transparent 62%),
-    linear-gradient(180deg, #3A2A22 0%, #2C1B14 100%);
+    linear-gradient(180deg, #2E211A 0%, #1C120D 100%);
   box-shadow: var(--shadow-soft);
 }
 .sq__canvas {
@@ -1231,8 +1244,8 @@ p { margin: 0; }
   position: relative;
   border-radius: 26px;
   overflow: hidden;
-  border: 1px solid var(--line-soft);
-  background: linear-gradient(180deg, #3A2A22 0%, #2C1B14 100%);
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #2E211A 0%, #1C120D 100%);
   box-shadow: var(--shadow-soft);
 }
 .g3__canvas {
@@ -1309,8 +1322,7 @@ p { margin: 0; }
 
 .g3__hero {
   width: min(170px, 38vw); height: auto; border-radius: 20px;
-  border: 1px solid var(--line-soft);
-  box-shadow: 0 20px 50px -20px rgba(0,0,0,0.9);
+  border: 1px solid rgba(255,255,255,0.18);
 }
 .g3__overlay h3 { font-size: clamp(22px, 4vw, 30px); color: #fff; margin-top: 6px; }
 .g3__overlay p { font-size: 15px; color: var(--muted); max-width: 48ch; line-height: 1.55; }
@@ -1386,7 +1398,7 @@ p { margin: 0; }
 .appicon {
   position: relative; display: inline-grid; place-items: center; flex: none;
   overflow: hidden;
-  background: linear-gradient(150deg, #F2A38F 0%, #E8735A 48%, #C4523C 100%);
+  background: linear-gradient(150deg, #FF7057 0%, #F5261A 48%, #C4130A 100%);
   box-shadow: 0 10px 22px -10px rgba(58,42,34,0.55);
 }
 .appicon__sheen {

@@ -8,11 +8,11 @@
 import { useEffect, useState } from "react";
 
 const S = {
-  page: { minHeight: "100vh", background: "#2C1B14", color: "#FDF1EC", padding: "48px 20px", fontFamily: "inherit" },
+  page: { minHeight: "100vh", background: "#1C120D", color: "#FDF1EC", padding: "48px 20px", fontFamily: "inherit" },
   wrap: { maxWidth: 1100, margin: "0 auto" },
-  card: { background: "#3A2A22", border: "1px solid rgba(255,255,255,.08)", borderRadius: 18, padding: 20 },
-  input: { width: "100%", background: "#2C1B14", border: "1.5px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "13px 15px", color: "#fff", fontSize: 16, outline: "none", boxSizing: "border-box" },
-  btn: { background: "#E8735A", color: "#fff", border: 0, borderRadius: 12, padding: "12px 22px", fontWeight: 800, fontSize: 15, cursor: "pointer" },
+  card: { background: "#2E211A", border: "1px solid rgba(255,255,255,.08)", borderRadius: 18, padding: 20 },
+  input: { width: "100%", background: "#1C120D", border: "1.5px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "13px 15px", color: "#fff", fontSize: 16, outline: "none", boxSizing: "border-box" },
+  btn: { background: "#F5261A", color: "#fff", border: 0, borderRadius: 12, padding: "12px 22px", fontWeight: 800, fontSize: 15, cursor: "pointer" },
   ghost: { background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   th: { textAlign: "left", padding: "10px 12px", fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: "#8C7C73", borderBottom: "1px solid rgba(255,255,255,.08)", whiteSpace: "nowrap" },
   td: { padding: "10px 12px", fontSize: 14, borderBottom: "1px solid rgba(255,255,255,.06)", verticalAlign: "top" },

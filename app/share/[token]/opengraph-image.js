@@ -39,7 +39,7 @@ export default async function Image() {
                 borderRadius: 999,
                 background: "rgba(244,83,46,0.16)",
                 border: "2px solid rgba(244,83,46,0.45)",
-                color: "#F2A38F",
+                color: "#FF7057",
                 fontSize: 21,
                 fontWeight: 800,
                 letterSpacing: 1.8,

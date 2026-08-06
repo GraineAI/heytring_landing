@@ -31,8 +31,8 @@ export function createScene(canvas, opts = {}) {
   renderer.toneMappingExposure = 1.15;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x2c1b14);
-  scene.fog = new THREE.Fog(0x2c1b14, 90, 235);
+  scene.background = new THREE.Color(0x1c120d);
+  scene.fog = new THREE.Fog(0x1c120d, 90, 235);
 
   const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 600);
   camera.position.set(0, 5.5, 27);
@@ -66,7 +66,7 @@ export function createScene(canvas, opts = {}) {
   starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
   const stars = new THREE.Points(
     starGeo,
-    keep(new THREE.PointsMaterial({ color: 0xfdede7, size: 0.42, sizeAttenuation: true, transparent: true, opacity: 0.85, depthWrite: false }))
+    keep(new THREE.PointsMaterial({ color: 0xfff3f0, size: 0.42, sizeAttenuation: true, transparent: true, opacity: 0.85, depthWrite: false }))
   );
   scene.add(stars);
 
@@ -86,7 +86,7 @@ export function createScene(canvas, opts = {}) {
   scene.add(streaks);
 
   /* the corridor floor — reads as speed even when nothing else moves */
-  const grid = keep(new THREE.GridHelper(420, 60, PALETTE.tringDeep, 0x4a3226));
+  const grid = keep(new THREE.GridHelper(420, 60, PALETTE.tringDeep, 0x3a1a12));
   grid.material.transparent = true;
   grid.material.opacity = 0.22;
   grid.material.depthWrite = false;

@@ -8,7 +8,7 @@ const svgUri = (svg) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 /** The app mark — same artwork as app/icon.svg. */
 export const LOGO_TILE = svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="#F2A38F"/><stop offset=".48" stop-color="#E8735A"/><stop offset="1" stop-color="#C4523C"/>
+<stop offset="0" stop-color="#FF7057"/><stop offset=".48" stop-color="#F5261A"/><stop offset="1" stop-color="#C4130A"/>
 </linearGradient></defs>
 <rect width="64" height="64" rx="14" fill="url(#t)"/>
 <g transform="translate(1,0) skewX(-9)">
@@ -20,14 +20,14 @@ export const LOGO_TILE = svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox
 /** Ring, the mascot — idle (smiling) or talking (open mouth). */
 export const ring = (talking = false) => svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
 <defs>
-<radialGradient id="rb" cx="34%" cy="26%" r="78%"><stop offset="0" stop-color="#FBBFA9"/><stop offset="46%" stop-color="#E8735A"/><stop offset="100%" stop-color="#B8452F"/></radialGradient>
+<radialGradient id="rb" cx="34%" cy="26%" r="78%"><stop offset="0" stop-color="#FFA694"/><stop offset="46%" stop-color="#F5261A"/><stop offset="100%" stop-color="#A50F07"/></radialGradient>
 <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient>
 </defs>
-<circle cx="52" cy="61" r="30" fill="#A63C28"/>
+<circle cx="52" cy="61" r="30" fill="#9C0D05"/>
 <circle cx="50" cy="58" r="30" fill="url(#rb)"/>
 <path d="M24 46a30 30 0 0 1 52 0a30 30 0 0 0-52 0z" fill="url(#rg)"/>
 <circle cx="40" cy="55.4" r="5.5" fill="#fff"/><circle cx="60" cy="55.4" r="5.5" fill="#fff"/>
-<circle cx="41.5" cy="57" r="2.6" fill="#2C1B14"/><circle cx="61.5" cy="57" r="2.6" fill="#2C1B14"/>
+<circle cx="41.5" cy="57" r="2.6" fill="#1C120D"/><circle cx="61.5" cy="57" r="2.6" fill="#1C120D"/>
 ${talking
   ? '<ellipse cx="50" cy="71" rx="4.5" ry="5.5" fill="#fff"/>'
   : '<path d="M44 70 Q50 75 56 70" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round"/>'}
@@ -71,7 +71,7 @@ export const shell = {
   flexDirection: "column",
   justifyContent: "space-between",
   padding: "68px 72px",
-  background: "linear-gradient(135deg, #4A3226 0%, #3A2A22 52%, #2C1B14 100%)",
+  background: "linear-gradient(135deg, #3A1A12 0%, #2E211A 52%, #1C120D 100%)",
   fontFamily: "Figtree, sans-serif",
   position: "relative",
 };

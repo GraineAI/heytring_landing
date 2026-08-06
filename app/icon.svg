@@ -7,9 +7,9 @@
        shows up as a blank tab rather than an error anyone would notice. -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F2A38F"/>
-      <stop offset=".48" stop-color="#E8735A"/>
-      <stop offset="1" stop-color="#C4523C"/>
+      <stop offset="0" stop-color="#FF7057"/>
+      <stop offset=".48" stop-color="#F5261A"/>
+      <stop offset="1" stop-color="#C4130A"/>
     </linearGradient>
     <radialGradient id="sheen" cx="26%" cy="20%" r="70%">
       <stop offset="0" stop-color="#fff" stop-opacity=".4"/>

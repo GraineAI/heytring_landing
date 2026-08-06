@@ -20,9 +20,9 @@ export default function Logo({ size = 36, radius = 14, style, className = "" }) 
     >
       <defs>
         <linearGradient id="tringTile" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F2A38F" />
-          <stop offset=".48" stopColor="#E8735A" />
-          <stop offset="1" stopColor="#C4523C" />
+          <stop offset="0" stopColor="#FF7057" />
+          <stop offset=".48" stopColor="#F5261A" />
+          <stop offset="1" stopColor="#C4130A" />
         </linearGradient>
         <radialGradient id="tringSheen" cx="26%" cy="20%" r="70%">
           <stop offset="0" stopColor="#fff" stopOpacity=".4" />

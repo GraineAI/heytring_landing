@@ -85,7 +85,7 @@ export function AppIcon({ size = 64, radius = 0.225, className = "", style }) {
       aria-label="Tring"
     >
       <span className="appicon__sheen" aria-hidden="true" />
-      <Wordmark size={size * 0.345} tone="white" surface="#E8735A" style={{ position: "relative", zIndex: 2 }} />
+      <Wordmark size={size * 0.345} tone="white" surface="#F5261A" style={{ position: "relative", zIndex: 2 }} />
       <span className="appicon__bar" aria-hidden="true" />
     </span>
   );
