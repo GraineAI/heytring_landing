@@ -1,23 +1,16 @@
-import { Figtree, Poppins, JetBrains_Mono } from "next/font/google";
+import { Figtree, JetBrains_Mono } from "next/font/google";
 import SiteAnalytics from "./components/SiteAnalytics";
 import SupportChat from "./components/SupportChat";
 import "./globals.css";
 
-// Lotus Garden pairs two families, and the split is load-bearing:
-// Poppins ExtraBold does the shouting (wordmark, headlines, numerals) because
-// its geometric bowls survive the skew and the stacked mint/purple extrusion;
-// Figtree does the talking (UI and body) because it stays legible small.
+// One family, four weights. The redesign sheet is explicit that hierarchy
+// comes from size and colour rather than weight, so 800/900 are not loaded —
+// nothing can reach for them by accident, and every visitor stops paying for
+// two faces where the design only ever asked for one.
 const figtree = Figtree({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-figtree",
-  display: "swap",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-poppins",
   display: "swap",
 });
 
@@ -65,9 +58,9 @@ export const metadata = {
 };
 
 export const viewport = {
-  // Lotus Garden's blush surface — the browser chrome should meet the page,
-  // not sit on top of it as a coral bar.
-  themeColor: "#FDF1EC",
+  // The page canvas, so the browser chrome meets the page instead of sitting
+  // on top of it as a coral bar.
+  themeColor: "#E8E6E3",
   width: "device-width",
   initialScale: 1,
 };
@@ -75,7 +68,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     // font vars live on <html> so :root-level tokens can reference them
-    <html lang="en" className={`${figtree.variable} ${poppins.variable} ${mono.variable}`}>
+    <html lang="en" className={`${figtree.variable} ${mono.variable}`}>
       <body>
         {children}
         {/* Traffic tracking, both rails:

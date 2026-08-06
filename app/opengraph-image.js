@@ -26,7 +26,7 @@ export default async function Image() {
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO_TILE} width={72} height={72} alt="" />
-          <div style={{ display: "flex", fontSize: 46, fontWeight: 800, color: "#fff", letterSpacing: -1.6 }}>
+          <div style={{ display: "flex", fontSize: 46, fontWeight: 700, color: "#fff", letterSpacing: -1.6 }}>
             Tring
           </div>
           <div
@@ -38,7 +38,7 @@ export default async function Image() {
               border: "2px solid rgba(244,83,46,0.5)",
               color: "#FF9179",
               fontSize: 20,
-              fontWeight: 800,
+              fontWeight: 700,
               letterSpacing: 1.6,
             }}
           >
@@ -48,10 +48,10 @@ export default async function Image() {
 
         {/* the line */}
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 82, fontWeight: 800, color: "#fff", letterSpacing: -3.4, lineHeight: 1.06 }}>
+          <div style={{ display: "flex", fontSize: 82, fontWeight: 700, color: "#fff", letterSpacing: -3.4, lineHeight: 1.06 }}>
             Don&rsquo;t pick up.
           </div>
-          <div style={{ display: "flex", fontSize: 82, fontWeight: 800, letterSpacing: -3.4, lineHeight: 1.06 }}>
+          <div style={{ display: "flex", fontSize: 82, fontWeight: 700, letterSpacing: -3.4, lineHeight: 1.06 }}>
             <span style={{ color: "#fff", marginRight: 22 }}>Don&rsquo;t dial.</span>
             <span style={{ color: "#F4532E" }}>Tring.</span>
           </div>

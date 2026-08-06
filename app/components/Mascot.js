@@ -61,7 +61,7 @@ export function Ring({ size = 100, state = "idle", animated = true, style, class
             <path d="M44 70 Q50 75 56 70" stroke="#fff" strokeWidth="3.2" fill="none" strokeLinecap="round" />
           )}
           {state === "sleeping" && (
-            <text x="72" y="38" fill="var(--purple)" fontSize="16" fontWeight="800" className="ring-zzz">z</text>
+            <text x="72" y="38" fill="var(--purple)" fontSize="16" fontWeight="700" className="ring-zzz">z</text>
           )}
         </>
       )}

@@ -24,7 +24,7 @@ export default async function Image() {
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO_TILE} width={64} height={64} alt="" />
-          <div style={{ display: "flex", fontSize: 40, fontWeight: 800, color: "#fff", letterSpacing: -1.4 }}>
+          <div style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#fff", letterSpacing: -1.4 }}>
             Tring
           </div>
         </div>
@@ -41,13 +41,13 @@ export default async function Image() {
                 border: "2px solid rgba(244,83,46,0.45)",
                 color: "#FF9179",
                 fontSize: 21,
-                fontWeight: 800,
+                fontWeight: 700,
                 letterSpacing: 1.8,
               }}
             >
               SHARED FROM TRING
             </div>
-            <div style={{ display: "flex", marginTop: 26, fontSize: 68, fontWeight: 800, color: "#fff", letterSpacing: -2.6, lineHeight: 1.08 }}>
+            <div style={{ display: "flex", marginTop: 26, fontSize: 68, fontWeight: 700, color: "#fff", letterSpacing: -2.6, lineHeight: 1.08 }}>
               A call, answered by Ring
             </div>
             <div style={{ display: "flex", marginTop: 20, fontSize: 29, fontWeight: 600, color: "#B7A79D", maxWidth: 700 }}>

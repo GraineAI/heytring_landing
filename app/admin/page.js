@@ -12,7 +12,7 @@ const S = {
   wrap: { maxWidth: 1100, margin: "0 auto" },
   card: { background: "#0B0B0C", border: "1px solid rgba(255,255,255,.08)", borderRadius: 18, padding: 20 },
   input: { width: "100%", background: "#000000", border: "1.5px solid rgba(255,255,255,.14)", borderRadius: 12, padding: "13px 15px", color: "#fff", fontSize: 16, outline: "none", boxSizing: "border-box" },
-  btn: { background: "#F4532E", color: "#fff", border: 0, borderRadius: 12, padding: "12px 22px", fontWeight: 800, fontSize: 15, cursor: "pointer" },
+  btn: { background: "#F4532E", color: "#fff", border: 0, borderRadius: 12, padding: "12px 22px", fontWeight: 700, fontSize: 15, cursor: "pointer" },
   ghost: { background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   th: { textAlign: "left", padding: "10px 12px", fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: "#8C7C73", borderBottom: "1px solid rgba(255,255,255,.08)", whiteSpace: "nowrap" },
   td: { padding: "10px 12px", fontSize: 14, borderBottom: "1px solid rgba(255,255,255,.06)", verticalAlign: "top" },
@@ -21,8 +21,8 @@ const S = {
 function Tile({ k, v }) {
   return (
     <div style={{ ...S.card, padding: 16, flex: "1 1 140px" }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase" }}>{k}</div>
-      <div style={{ fontSize: 30, fontWeight: 800, color: "#fff", marginTop: 4 }}>{v}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase" }}>{k}</div>
+      <div style={{ fontSize: 30, fontWeight: 700, color: "#fff", marginTop: 4 }}>{v}</div>
     </div>
   );
 }
@@ -84,7 +84,7 @@ export default function Admin() {
     return (
       <div style={{ ...S.page, display: "grid", placeItems: "center" }}>
         <form onSubmit={login} style={{ ...S.card, width: "min(420px, 92vw)", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>Tring admin</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Tring admin</div>
           <input style={S.input} type="password" placeholder="Password" value={pw}
             onChange={(e) => setPw(e.target.value)} autoFocus />
           {err && <div style={{ color: "#FF7B72", fontSize: 14 }}>{err}</div>}
@@ -132,7 +132,7 @@ export default function Admin() {
     <div style={S.page}>
       <div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", margin: 0 }}>Beta waitlist</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Beta waitlist</h1>
           <div style={{ display: "flex", gap: 10 }}>
             <button style={S.ghost} onClick={load}>Refresh</button>
             <a href="/api/admin/export?table=waitlist"><button style={S.btn}>Export CSV</button></a>
@@ -169,7 +169,7 @@ export default function Admin() {
                         width: 26, height: 26, borderRadius: 13, cursor: "pointer",
                         border: r.contacted ? "0" : "2px solid rgba(255,255,255,.25)",
                         background: r.contacted ? "#15A06A" : "transparent",
-                        color: "#fff", fontSize: 13, fontWeight: 800,
+                        color: "#fff", fontSize: 13, fontWeight: 700,
                         display: "grid", placeItems: "center", lineHeight: 1,
                       }}
                     >
@@ -193,7 +193,7 @@ export default function Admin() {
           </table>
         </div>
 
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "28px 0 12px" }}>Store-link clicks</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Store-link clicks</h2>
         <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
             <thead><tr>
