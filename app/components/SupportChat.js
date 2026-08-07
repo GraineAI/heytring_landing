@@ -29,19 +29,29 @@ const AGENT_ID = "704dc590-38cb-4a1d-af51-6a4121c243f2";
 const PUBLISHABLE_KEY = "pk_live_674cf36dfaecacb77b41ef84bf4fbb1e";
 
 /**
- * Set false to fall back to Freshchat.
+ * FLIP TO true ONCE /embed/<agentId> RENDERS THE WIDGET.
  *
- * This existed because the widget briefly rendered the whole graine.ai
- * marketing homepage inside the chat panel: www.graine.ai had no
- * /embed/<agentId> route, so Next 307'd the iframe to "/". That route now
- * returns 200 and serves the widget, so we are on Graine.
+ * The route returns 200 now (it used to 307 to "/"), but it serves the
+ * *marketing site's* app shell rather than the widget app. Next hydrates it
+ * client-side into the graine.ai homepage, which is what appears inside the
+ * chat panel. The iframe URL ends up as https://www.graine.ai/ through a
+ * client-side navigation, not an HTTP redirect — so a curl of the route looks
+ * healthy and proves nothing.
  *
- * Kept as a switch rather than deleted because the failure was invisible from
- * this side — the loader script and the session API were both healthy, and
- * only the iframe contents were wrong. If that recurs, flipping this is the
- * fastest way back to a working support bubble.
+ * The tell is in the network trace: after the embed route loads, the page
+ * calls /api/auth/verify (401 "No session token"), /api/admin/whoami,
+ * /api/credits (401) and /api/exchange-rate. A support widget has no reason
+ * to ask for an exchange rate or an admin whoami — that is the dashboard
+ * bundle booting.
+ *
+ * Everything upstream is healthy: embed/v1.js is 200, /api/embed/session is
+ * 200 and returns the right appearance config. Only what the embed route
+ * renders is wrong.
+ *
+ * Verify in a browser, not with curl, before flipping this again: load the
+ * page, open the panel, and read the iframe's text content.
  */
-const GRAINE_EMBED_READY = true;
+const GRAINE_EMBED_READY = false;
 
 export default function SupportChat() {
   const pathname = usePathname() || "";
