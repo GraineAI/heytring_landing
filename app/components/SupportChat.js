@@ -18,40 +18,47 @@ import Script from "next/script";
  * nothing there — rather than hiding the launcher — keeps the URL out of their
  * logs entirely.
  *
- * The publishable key below is public by design: Graine's own docs state it
- * identifies the agent and is not a password. It is safe in page source. What
- * it is NOT is an access control — per the same docs, the allowlist gates which
- * sites may load the agent's configuration, but does not yet gate the voice
- * socket, which will accept a connection from anyone holding the agent id.
+ * The publishable key below is public by design: it identifies the agent and is
+ * not a password, so it is safe in page source. The control that matters is the
+ * domain allowlist, and that is enforced — an off-list Origin is refused 403 by
+ * both /api/embed/session and /api/embed/ticket, verified above.
+ *
+ * The remaining gap is upstream of this file: the bare chat socket at
+ * wss://ws.graine.ai/chat/v1/<agentId> is still reachable directly by anyone
+ * holding the agent id, so the ticketed gateway bounds abuse rather than
+ * preventing it. Nothing here can close that; it is a Graine-side change.
  */
 
 const AGENT_ID = "704dc590-38cb-4a1d-af51-6a4121c243f2";
 const PUBLISHABLE_KEY = "pk_live_674cf36dfaecacb77b41ef84bf4fbb1e";
 
 /**
- * FLIP TO true ONCE /embed/<agentId> RENDERS THE WIDGET.
+ * Rollback switch. true = Graine agent, false = Freshchat.
  *
- * The route returns 200 now (it used to 307 to "/"), but it serves the
- * *marketing site's* app shell rather than the widget app. Next hydrates it
- * client-side into the graine.ai homepage, which is what appears inside the
- * chat panel. The iframe URL ends up as https://www.graine.ai/ through a
- * client-side navigation, not an HTTP redirect — so a curl of the route looks
- * healthy and proves nothing.
+ * This was false because /embed/<agentId> served the graine.ai marketing page
+ * inside the chat panel. The cause was a middleware bug on Graine's side:
+ * publicRoutes there is an EXACT-match list, so a path with a dynamic segment
+ * was never public and every session-less visitor — which is every visitor to
+ * this site — was redirected to "/". That is fixed.
  *
- * The tell is in the network trace: after the embed route loads, the page
- * calls /api/auth/verify (401 "No session token"), /api/admin/whoami,
- * /api/credits (401) and /api/exchange-rate. A support widget has no reason
- * to ask for an exchange rate or an admin whoami — that is the dashboard
- * bundle booting.
+ * Re-verified against production before flipping, all from an off-Graine origin:
  *
- * Everything upstream is healthy: embed/v1.js is 200, /api/embed/session is
- * 200 and returns the right appearance config. Only what the embed route
- * renders is wrong.
+ *   /embed/<agentId>            200, serves the embed route, and none of the
+ *                               /api/auth/verify, /api/admin/whoami,
+ *                               /api/credits or /api/exchange-rate calls that
+ *                               gave the dashboard bundle away last time
+ *   /api/embed/session          200 with this agent's appearance, Origin
+ *                               heytring.com
+ *   /api/embed/ticket           issues a v1 ticket, so the authenticated
+ *                               gateway path is live rather than falling back
+ *   /api/embed/logo?k=…         200 image/png
+ *   Origin: not-tring.example   403 "not on this agent's allowed list"
  *
- * Verify in a browser, not with curl, before flipping this again: load the
- * page, open the panel, and read the iframe's text content.
+ * Keep the switch. This is a live marketing page and the widget is a
+ * third-party dependency; flipping one constant is a faster rollback than a
+ * revert if Graine ever regresses again.
  */
-const GRAINE_EMBED_READY = false;
+const GRAINE_EMBED_READY = true;
 
 export default function SupportChat() {
   const pathname = usePathname() || "";
