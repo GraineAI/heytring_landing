@@ -29,27 +29,19 @@ const AGENT_ID = "704dc590-38cb-4a1d-af51-6a4121c243f2";
 const PUBLISHABLE_KEY = "pk_live_674cf36dfaecacb77b41ef84bf4fbb1e";
 
 /**
- * FLIP THIS TO true ONCE GRAINE'S EMBED ROUTE IS SERVED.
+ * Set false to fall back to Freshchat.
  *
- * The widget currently renders the whole graine.ai marketing homepage inside
- * the chat panel. That is a routing bug on their side, not here:
+ * This existed because the widget briefly rendered the whole graine.ai
+ * marketing homepage inside the chat panel: www.graine.ai had no
+ * /embed/<agentId> route, so Next 307'd the iframe to "/". That route now
+ * returns 200 and serves the widget, so we are on Graine.
  *
- *   1. embed/v1.js derives its origin from document.currentScript.src, so the
- *      dashboard's snippet resolves it to www.graine.ai.
- *   2. www.graine.ai is the marketing site. It has no /embed/<agentId> route,
- *      so Next 307s the iframe to "/" and the homepage loads in the panel.
- *   3. The loader's own hardcoded fallback origin is https://app.graine.ai —
- *      which has no DNS record at all.
- *
- * The agent itself is fine: /api/embed/session returns 200 with the right
- * config (title, accent, radius, launcher label). Only the iframe host is
- * wrong. Fix is either to serve /embed/<agentId> on www.graine.ai, or to
- * point app.graine.ai at the widget app the loader already expects.
- *
- * Until then we serve Freshchat, because a support bubble that opens a
- * different company's homepage is worse than the plain one it replaced.
+ * Kept as a switch rather than deleted because the failure was invisible from
+ * this side — the loader script and the session API were both healthy, and
+ * only the iframe contents were wrong. If that recurs, flipping this is the
+ * fastest way back to a working support bubble.
  */
-const GRAINE_EMBED_READY = false;
+const GRAINE_EMBED_READY = true;
 
 export default function SupportChat() {
   const pathname = usePathname() || "";
