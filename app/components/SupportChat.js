@@ -29,8 +29,8 @@ import Script from "next/script";
  * preventing it. Nothing here can close that; it is a Graine-side change.
  */
 
-const AGENT_ID = "704dc590-38cb-4a1d-af51-6a4121c243f2";
-const PUBLISHABLE_KEY = "pk_live_674cf36dfaecacb77b41ef84bf4fbb1e";
+const AGENT_ID = "fab5eff5-8d54-41cb-b7fa-ca375c3199ee";
+const PUBLISHABLE_KEY = "pk_live_551fd5f11c73ae1d6476cd5c05adc247";
 
 /**
  * Rollback switch. true = Graine agent, false = Freshchat.

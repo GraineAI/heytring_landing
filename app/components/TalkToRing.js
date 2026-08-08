@@ -32,7 +32,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const GRAINE = "https://www.graine.ai";
-const PUBLISHABLE_KEY = "pk_live_674cf36dfaecacb77b41ef84bf4fbb1e";
+const PUBLISHABLE_KEY = "pk_live_551fd5f11c73ae1d6476cd5c05adc247";
 
 /** Tring's coral, so the widget belongs to the page rather than visiting it. */
 const ACCENT = "E8674A";
