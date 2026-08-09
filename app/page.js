@@ -2,11 +2,9 @@ import Preloader from "./components/Preloader";
 import Nav from "./components/Nav";
 import Motion from "./components/Motion";
 import Hero from "./components/Hero";
-import PhoneStory from "./components/PhoneStory";
-import AppBento from "./components/AppBento";
+import Story from "./components/Story";
 import VideoSection from "./components/VideoSection";
-import HowItWorks from "./components/HowItWorks";
-import RingGame3D from "./components/RingGame3D";
+import Pillars from "./components/Pillars";
 import VoiceClone from "./components/VoiceClone";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
@@ -23,12 +21,14 @@ export default function Home() {
       <div id="smooth-wrapper">
         <div id="smooth-content">
           <main>
+            {/* Swish's rhythm: atmosphere, then plain talk, then proof, then
+                what we own, then the ask. PhoneStory, AppBento, HowItWorks and
+                the Squadron game were all saying versions of the same thing in
+                more chrome; the game still lives at /play for the app's WebView. */}
             <Hero />
-            <PhoneStory />
-            <AppBento />
+            <Story />
             <VideoSection />
-            <HowItWorks />
-            <RingGame3D />
+            <Pillars />
             <VoiceClone />
             <Faq />
             <FinalCta />

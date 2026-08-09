@@ -26,9 +26,9 @@ export default function Footer() {
 
           <div className="footer__col">
             <h5>Product</h5>
-            <a href="#story">What Ring does</a>
+            <a href="#story">Why Tring</a>
             <a href="#video">Watch it</a>
-            <a href="#how">How it works</a>
+            <a href="#how">What we built</a>
             <a href="#voice">Your voice</a>
             <a href="#faq">FAQ</a>
           </div>
