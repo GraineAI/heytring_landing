@@ -1,8 +1,12 @@
 "use client";
 
 /**
- * Preloader — Swish's "Logo Reveal" with the real brand asset (tile,
- * phone glyph, call waves + wordmark in white on the coral gradient).
+ * Preloader — Swish's "Logo Reveal": the lockup wipes in left-to-right on a
+ * full-bleed coral wash, then the whole thing slides up out of the way.
+ *
+ * The tile is inverted here — white square, coral `t` — because the real mark
+ * is a coral tile, and a coral tile on a coral wash is not a mark, it is a
+ * hole. Same drawing, same paths as app/icon.svg, polarity flipped.
  *
  * Rendering strategy, bulletproof across Safari / Chrome / Brave / old
  * WebViews:
@@ -20,20 +24,18 @@ import { useEffect } from "react";
 function Lockup() {
   return (
     <span className="loader__wm" aria-hidden="true">
-      <svg viewBox="0 0 64 64" fill="none">
-        {/* the tile, as a white outline */}
-        <rect x="2" y="2" width="60" height="60" rx="15" stroke="#fff" strokeWidth="3.5" />
-        {/* phone glyph — exact path from app/icon.svg */}
-        <g stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 17 L27 18 L29.5 26 L25 29 A22 22 0 0 0 35 39 L38 34.5 L46 37 L47 41 C47 43.5 45 45.5 42.5 45.5 A31 31 0 0 1 18.5 21.5 C18.5 19 20.5 17 23 17 Z" />
-        </g>
-        {/* call waves — exact paths from app/icon.svg */}
-        <g stroke="#fff" strokeWidth="2.6" strokeLinecap="round" opacity="0.9">
-          <path d="M44 20 a10 10 0 0 1 0 12" />
-          <path d="M48 16 a16 16 0 0 1 0 20" />
+      <svg viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="18" fill="#fff" />
+        {/* the same `t` as app/icon.svg, knocked out in coral. Literal hex
+            rather than var(--coral): CSS variables in an SVG presentation
+            attribute are not reliably supported, and this must paint on the
+            very first frame, before any stylesheet has had a say. */}
+        <g fill="#F4532E">
+          <path d="M15 25h34v8.5H15z" />
+          <path d="M26.5 12h10.5v26.5c0 4 2.9 6.4 6.9 6.1l1.2 8.3c-10.9 1.2-19-5.3-19-14.4V12z" />
         </g>
       </svg>
-      <span>Tring</span>
+      <span className="loader__word">tring</span>
     </span>
   );
 }

@@ -321,8 +321,9 @@ p { margin: 0; }
 }
 
 /* ============================================================
-   LOADER — unchanged coral reveal; hardened for old browsers and
-   backed by the JS driver in Preloader.js
+   LOADER — Swish's reveal: the lockup wipes in left-to-right on a coral
+   wash, then slides up. Hardened for old browsers and backed by the JS
+   driver in Preloader.js.
    ============================================================ */
 .loader {
   position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 200;
@@ -333,7 +334,6 @@ p { margin: 0; }
 .loader__bg {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: var(--coral);
-  background: linear-gradient(135deg, var(--coral) 0%, var(--coral-hot) 100%);
   animation: loaderBgOut 0.5s ease 1.05s forwards;
 }
 .loader__inner {
@@ -349,13 +349,15 @@ p { margin: 0; }
   animation: loaderFill 1s var(--ease-loader) 0.05s forwards;
 }
 .loader__wm {
-  display: inline-flex; align-items: center; gap: 16px;
+  display: inline-flex; align-items: center; gap: 0.28em;
   color: #fff;
   font-family: var(--font-display);
-  font-weight: 700; font-size: clamp(40px, 8vw, 58px);
-  letter-spacing: -0.04em; line-height: 1;
+  font-weight: 700; font-size: clamp(42px, 8.4vw, 64px);
+  line-height: 1;
 }
-.loader__wm svg { width: 0.98em; height: 0.98em; flex: none; }
+/* matches components/Wordmark.js so the loader and the nav are one mark */
+.loader__word { letter-spacing: -0.045em; }
+.loader__wm svg { width: 0.92em; height: 0.92em; flex: none; border-radius: 0.26em; }
 
 @keyframes loaderFill { to { -webkit-clip-path: inset(0% 0% 0% 0%); clip-path: inset(0% 0% 0% 0%); } }
 @keyframes loaderBgOut { to { opacity: 0; } }
