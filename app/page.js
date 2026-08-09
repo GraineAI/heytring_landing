@@ -6,7 +6,6 @@ import PhoneStory from "./components/PhoneStory";
 import AppBento from "./components/AppBento";
 import VideoSection from "./components/VideoSection";
 import HowItWorks from "./components/HowItWorks";
-import TalkToRing from "./components/TalkToRing";
 import RingGame3D from "./components/RingGame3D";
 import VoiceClone from "./components/VoiceClone";
 import Faq from "./components/Faq";
@@ -29,11 +28,6 @@ export default function Home() {
             <AppBento />
             <VideoSection />
             <HowItWorks />
-            {/* The product, on the page. SupportChat mounts the same agent as a
-                corner bubble — right for support, wrong for a landing page
-                selling an AI that answers calls, where hiding the strongest
-                argument behind a launcher asks the visitor to go looking. */}
-            <TalkToRing />
             <RingGame3D />
             <VoiceClone />
             <Faq />
