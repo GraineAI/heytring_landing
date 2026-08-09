@@ -1,5 +1,6 @@
 import Logo from "./Logo";
 import Wordmark from "./Wordmark";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Footer() {
   return (
@@ -50,6 +51,7 @@ export default function Footer() {
         </div>
 
         <div className="footer__bar">
+            <ThemeToggle />
           <span>© 2026 Mavrix AI Private Limited. All rights reserved.</span>
           <span>Made in India 🇮🇳 · For users 18+</span>
         </div>

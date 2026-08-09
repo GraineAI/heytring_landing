@@ -58,9 +58,12 @@ export const metadata = {
 };
 
 export const viewport = {
-  // The page canvas, so the browser chrome meets the page instead of sitting
-  // on top of it as a coral bar.
-  themeColor: "#E8E6E3",
+  // One per scheme, so the browser chrome meets the page in both themes
+  // instead of sitting on top of it as a pale bar.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#E8E6E3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0B0C" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -69,6 +72,17 @@ export default function RootLayout({ children }) {
   return (
     // font vars live on <html> so :root-level tokens can reference them
     <html lang="en" className={`${figtree.variable} ${mono.variable}`}>
+      <head>
+        {/* Runs before first paint. A React effect would set the theme AFTER
+            the browser has already painted, which is one frame of white flash
+            for every dark-mode visitor. Auto stores nothing and lets the CSS
+            media query decide, so the page keeps following the device. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("tring_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
+      </head>
       <body>
         {children}
         {/* Traffic tracking, both rails:
