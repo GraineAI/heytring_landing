@@ -1,6 +1,5 @@
 import { Figtree, JetBrains_Mono } from "next/font/google";
 import SiteAnalytics from "./components/SiteAnalytics";
-import SupportChat from "./components/SupportChat";
 import "./globals.css";
 
 // One family, four weights. The redesign sheet is explicit that hierarchy
@@ -99,7 +98,12 @@ export default function RootLayout({ children }) {
             beforeSend drops the event entirely rather than redacting, because a redacted URL
             still tells them a share was viewed and when. */}
         <SiteAnalytics />
-        <SupportChat />
+        {/* Chat widget removed from the site. components/SupportChat.js is kept
+            rather than deleted — it still holds the Graine agent config and the
+            Freshchat fallback — so putting it back is one import and one line.
+            It was unmounted because the Graine embed renders graine.ai's own
+            marketing homepage inside the chat panel: /embed/<agentId> returns
+            200 but serves the site's app shell, not the widget. */}
       </body>
     </html>
   );
