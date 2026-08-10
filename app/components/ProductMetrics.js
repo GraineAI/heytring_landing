@@ -176,23 +176,128 @@ function TrueUsers({ f }) {
 }
 
 /**
- * India's coastline and land border, as (lat, lon) run through the SAME
- * equirectangular projection the server uses for the bubbles
- * (x = (lon-68)/30, y = (37-lat)/31). That is the whole trick: because the
- * outline and the dots share one transform, a state centroid lands where the
- * state actually is, with no projection library and no choropleth payload.
- *
- * ~57 vertices — unmistakably India at 300px, small enough to inline.
+ * PostHog's $geoip_subdivision_1_name vs the map package's names. They agree on
+ * every state we see except one, so this is an alias table rather than a
+ * matching algorithm — and it stays that way on purpose: a fuzzy matcher that
+ * silently mis-assigns a state is worse than a lookup that visibly misses one.
  */
-const INDIA =
-  "M60.0 26.8 L89.0 15.5 L104.0 24.8 L111.0 45.4 L110.0 61.9 L130.0 68.1 L121.0 84.6 " +
-  "L150.0 93.9 L167.0 103.2 L201.0 109.4 L208.0 93.9 L211.0 101.2 L240.0 105.3 L274.0 97.0 " +
-  "L290.0 90.8 L293.0 103.2 L271.0 117.7 L265.0 132.1 L254.0 144.5 L246.0 153.8 L232.0 138.3 " +
-  "L217.0 124.9 L210.0 121.8 L201.0 130.1 L209.0 153.8 L194.0 159.0 L189.0 172.4 L170.0 185.8 " +
-  "L153.0 199.2 L133.0 213.7 L123.0 217.8 L123.0 246.7 L118.0 259.1 L118.0 275.6 L112.0 285.9 " +
-  "L101.0 290.1 L95.5 298.5 L89.0 294.2 L82.0 278.7 L74.0 259.1 L68.0 247.7 L60.0 227.1 " +
-  "L53.0 206.5 L48.0 184.8 L47.0 168.3 L46.0 160.0 L20.0 151.7 L10.0 154.8 L12.0 146.6 " +
-  "L6.0 137.3 L30.0 127.0 L20.0 118.7 L25.0 98.1 L20.0 87.7 L55.0 77.4 L65.0 61.9 L65.0 46.5 Z";
+const NAME_ALIAS = { "National Capital Territory of Delhi": "Delhi" };
+const mapName = (n) => NAME_ALIAS[n] || n;
+
+/**
+ * IndiaChoropleth — real state boundaries from @svg-maps/india (36 states and
+ * UTs, no API key, no tiles, no billing, nothing fetched at runtime).
+ *
+ * This replaces a hand-drawn national outline with bubbles on top. Bubbles
+ * could only say "somewhere around here"; a filled state says exactly which
+ * one, and makes every state clickable rather than only the dozen we have
+ * users in — which is what "region-wise" actually means.
+ *
+ * The 172KB of path data is dynamically imported so it is fetched when the geo
+ * panel renders, not on every admin page view.
+ */
+function IndiaChoropleth({ placed, maxP, sel, pick }) {
+  const [map, setMap] = useState(null);
+  const [hover, setHover] = useState(null);
+  const [pins, setPins] = useState([]);   // tiny states that need a marker
+  const svgRef = useRef(null);
+
+  useEffect(() => {
+    let live = true;
+    import("@svg-maps/india")
+      .then((m) => { if (live) setMap(m.default || m); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  // people-by-map-name, so a path can look up its own number in O(1)
+  const byName = {};
+  for (const s of placed) byName[mapName(s.state)] = s;
+
+  /**
+   * A choropleth's blind spot: importance is area, and our biggest region is
+   * one of the country's smallest. Delhi is #1 at 70 people and renders as a
+   * speck you would never find. So measure each state we have users in and
+   * give the small ones an explicit dot — the map has to show the top state.
+   *
+   * Measured from the DOM rather than precomputed because the package's
+   * projection is its own, and getBBox is the only honest source for where a
+   * path actually landed.
+   */
+  useEffect(() => {
+    if (!map || !svgRef.current) return;
+    const out = [];
+    for (const s of placed) {
+      const el = svgRef.current.querySelector(`[data-state="${CSS.escape(mapName(s.state))}"]`);
+      if (!el) continue;
+      let bb;
+      try { bb = el.getBBox(); } catch (_) { continue; }
+      if (bb.width * bb.height < 260) {         // ~1% of the map's shorter side, squared
+        out.push({ name: s.state, people: s.people, cx: bb.x + bb.width / 2, cy: bb.y + bb.height / 2 });
+      }
+    }
+    setPins(out);
+  }, [map, placed]);
+
+  if (!map) {
+    return <div style={{ height: 300, display: "grid", placeItems: "center", color: MUTED, fontSize: 13 }}>Loading map…</div>;
+  }
+
+  const selName = sel ? mapName(sel) : null;
+
+  return (
+    <svg ref={svgRef} viewBox={map.viewBox} style={{ width: "100%", maxWidth: 400, height: "auto", display: "block", margin: "0 auto" }}
+         role="img" aria-label="Map of Tring users across Indian states">
+      <rect x="0" y="0" width="100%" height="100%" fill="transparent" onClick={() => pick(null)} />
+      {map.locations.map((loc) => {
+        const hit = byName[loc.name];
+        const people = hit ? hit.people : 0;
+        // sqrt so a 70 does not flatten every 2 into the same near-black.
+        const t = people ? 0.16 + 0.68 * Math.sqrt(people / maxP) : 0;
+        const isSel = selName === loc.name;
+        const isHov = hover === loc.name;
+        return (
+          <path
+            key={loc.id}
+            data-state={loc.name}
+            d={loc.path}
+            fill={people ? `rgba(244,83,46,${isSel ? Math.min(1, t + 0.3) : t})` : "rgba(255,255,255,.05)"}
+            stroke={isSel ? "#F4532E" : isHov ? "rgba(244,83,46,.6)" : "rgba(255,255,255,.18)"}
+            strokeWidth={isSel ? 1.6 : 0.6}
+            opacity={selName && !isSel ? 0.35 : 1}
+            style={{ cursor: hit ? "pointer" : "default", transition: "opacity .15s ease, fill .15s ease" }}
+            onClick={(e) => { e.stopPropagation(); if (hit) pick(hit.state); }}
+            onMouseEnter={() => setHover(loc.name)}
+            onMouseLeave={() => setHover((h) => (h === loc.name ? null : h))}
+            tabIndex={hit ? 0 : -1}
+            role={hit ? "button" : undefined}
+            aria-label={hit ? `${loc.name}, ${people} people` : undefined}
+            onKeyDown={(e) => { if (hit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick(hit.state); } }}
+          >
+            <title>{people ? `${loc.name} · ${people}` : loc.name}</title>
+          </path>
+        );
+      })}
+
+      {/* leader dots for the states too small to read as fill */}
+      {pins.map((pin) => {
+        const isSel = sel === pin.name;
+        return (
+          <g key={pin.name} onClick={(e) => { e.stopPropagation(); pick(pin.name); }}
+             style={{ cursor: "pointer" }} opacity={selName && !isSel ? 0.35 : 1}>
+            <circle cx={pin.cx} cy={pin.cy} r={isSel ? 7 : 5.5}
+                    fill="#F4532E" stroke="#0E0E10" strokeWidth="1.5" />
+            <text x={pin.cx} y={pin.cy - 9} textAnchor="middle" fontSize="11" fontWeight="700"
+                  fill="#FFF0EB" stroke="#0E0E10" strokeWidth="3" paintOrder="stroke"
+                  pointerEvents="none">
+              {pin.people}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 /** Dark tiles, no POI clutter — the data is the subject, not the restaurants. */
 const MAP_STYLE = [
@@ -314,12 +419,7 @@ function GeoMap({ states, countries, funnel }) {
   const maxP = Math.max(1, ...placed.map((s) => s.people));
   const indiaTotal = placed.reduce((n, s) => n + s.people, 0);
   const allPeople = (countries || []).reduce((n, c) => n + c.people, 0);
-  const W = 300, H = 320;
-  const r = (p) => 6 + 26 * Math.sqrt(p / maxP);
 
-  // Painted largest-first so the small bubbles land on top and stay clickable;
-  // `placed` stays in rank order for the list and for the label rule below.
-  const byArea = [...placed].sort((a, b) => b.people - a.people);
   const chosen = placed.find((s) => s.state === sel) || null;
   const rank = chosen ? placed.findIndex((s) => s.state === sel) + 1 : null;
   const pick = (name) => setSel((cur) => (name == null || cur === name ? null : name));
@@ -347,52 +447,13 @@ function GeoMap({ states, countries, funnel }) {
           )}
         </div>
         <div style={{ fontSize: 12, color: MUTED, margin: "2px 0 10px" }}>
-          India · by state · bubble = unique people · 90 days{placed.length ? (useGoogle ? " · tap a bubble to zoom" : " · tap a bubble") : ""}
+          India · by state · shade = unique people · 90 days{placed.length ? (useGoogle ? " · tap to zoom" : " · tap a state") : ""}
         </div>
 
         {useGoogle ? (
           <GoogleCanvas placed={placed} maxP={maxP} sel={sel} pick={(n) => setSel(n === sel ? null : n)} onFail={() => setMapFailed(true)} />
         ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 360, height: "auto", display: "block", margin: "0 auto" }}
-             role="img" aria-label="Map of Tring users across Indian states">
-          <rect x="0" y="0" width={W} height={H} fill="#0E0E10" rx="14"
-                onClick={() => setSel(null)} style={{ cursor: sel ? "pointer" : "default" }} />
-          <path d={INDIA} fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.22)" strokeWidth="1"
-                strokeLinejoin="round" pointerEvents="none" />
-
-          {byArea.map((s) => {
-            const on = !sel || s.state === sel;
-            const rad = r(s.people);
-            return (
-              <g key={s.state} onClick={() => pick(s.state)} style={{ cursor: "pointer" }}
-                 opacity={on ? 1 : 0.22} role="button" tabIndex={0}
-                 aria-label={`${s.state}, ${s.people} people`}
-                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(s.state); } }}>
-                {/* a generous invisible hit area — the small bubbles are 6px */}
-                <circle cx={s.x * W} cy={s.y * H} r={Math.max(rad, 14)} fill="transparent" />
-                <circle cx={s.x * W} cy={s.y * H} r={rad}
-                        fill={s.state === sel ? "rgba(244,83,46,.55)" : "rgba(244,83,46,.28)"}
-                        stroke="#F4532E" strokeWidth={s.state === sel ? 2.5 : 1.5} />
-                <circle cx={s.x * W} cy={s.y * H} r="2" fill="#F4532E" />
-              </g>
-            );
-          })}
-
-          {/* Exactly one label at a time. Labelling the top five piled "70 30 8 40 32"
-              on top of each other, because Delhi, Haryana, Punjab and Chandigarh sit
-              within ~2 degrees and their bubbles already overlap. The ranked list
-              beside the map carries every number; the map carries the shape. */}
-          {(chosen || byArea[0]) && (() => {
-            const s = chosen || byArea[0];
-            return (
-              <text x={s.x * W} y={s.y * H - r(s.people) - 4} textAnchor="middle"
-                    fontSize="10" fill="#FFF0EB" fontWeight="700" pointerEvents="none"
-                    stroke="#0E0E10" strokeWidth="3" paintOrder="stroke">
-                {s.people}
-              </text>
-            );
-          })()}
-        </svg>
+          <IndiaChoropleth placed={placed} maxP={maxP} sel={sel} pick={pick} />
         )}
 
         {chosen && (
