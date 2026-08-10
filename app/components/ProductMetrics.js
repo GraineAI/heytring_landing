@@ -130,6 +130,107 @@ function Chart({ series }) {
   );
 }
 
+/**
+ * TrueUsers — reframes the inflated headline. MAU counts every person with any event, including CI,
+ * emulators and App Store review bots; on an India-only login-required app that roughly doubles the
+ * number. The honest read is the funnel: installed → signed in, and India vs test-infrastructure.
+ */
+function TrueUsers({ f }) {
+  const testInfra = Math.max(0, (f.total || 0) - (f.india || 0));
+  const step = (label, n, of, color) => (
+    <div style={{ flex: "1 1 150px" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", color: MUTED, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: color || "#fff", marginTop: 2 }}>{n.toLocaleString()}</div>
+      {of != null && <div style={{ fontSize: 12, color: MUTED }}>{of}</div>}
+    </div>
+  );
+  return (
+    <div style={{ ...CARD, marginTop: 12 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4 }}>
+        Who’s actually there <span style={{ color: MUTED, fontWeight: 500 }}>· real humans, not the MAU headline</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
+        MAU counts anyone who opened the app — CI, emulators and store-review bots included. For a
+        login-required, India-only app the number that means <strong style={{ color: INK }}>a real
+        person onboarded</strong> is sign-ins, and the honest denominator is the India cohort.
+      </div>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        {step("Installed", f.installed, "opened the app", "#F4532E")}
+        {step("In India", f.india, `${testInfra} elsewhere (mostly test infra)`, "#3B82F6")}
+        {step("Signed in", f.signedIn, "completed OTP — real users", "#3FBF7F")}
+        {step("Activation", f.activation, "signed in ÷ installed", f.activation < 30 ? "#FFB454" : "#3FBF7F")}
+      </div>
+      {step && f.activation != null && (
+        <div style={{ fontSize: 12, color: MUTED, marginTop: 12 }}>
+          {`Read: ${f.installed} installs → ${f.signedIn} signed in (${f.activation}% activation). The ${testInfra}-person gap between total and India is test/CI/review traffic hitting this same PostHog project.`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * GeoMap — the real cohort placed on India. No external tiles or libraries (CSP-safe): a plain
+ * lat/lon graticule with a bubble per state, sized by users, positioned from the server-computed
+ * x/y fractions. A ranked list sits beside it so identity is never bubble-only.
+ */
+function GeoMap({ states, countries, funnel }) {
+  const placed = (states || []).filter((s) => s.x != null && s.people > 0);
+  const maxP = Math.max(1, ...placed.map((s) => s.people));
+  const W = 300, H = 320;
+  const r = (p) => 6 + 26 * Math.sqrt(p / maxP);
+  return (
+    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}>
+      <div style={{ ...CARD, flex: "2 1 340px" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 2 }}>Where Tring users are</div>
+        <div style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>India · by state · bubble = unique people · 90 days</div>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 360, height: "auto", display: "block", margin: "0 auto" }}
+             role="img" aria-label="Map of Tring users across Indian states">
+          <rect x="0" y="0" width={W} height={H} fill="#0E0E10" rx="14" />
+          {/* graticule */}
+          {[0.25, 0.5, 0.75].map((g) => (
+            <g key={g} stroke="rgba(255,255,255,.05)" strokeWidth="1">
+              <line x1={g * W} y1="0" x2={g * W} y2={H} /><line x1="0" y1={g * H} x2={W} y2={g * H} />
+            </g>
+          ))}
+          {placed.map((s) => (
+            <g key={s.state}>
+              <circle cx={s.x * W} cy={s.y * H} r={r(s.people)} fill="rgba(244,83,46,.28)" stroke="#F4532E" strokeWidth="1.5" />
+              <circle cx={s.x * W} cy={s.y * H} r="2" fill="#F4532E" />
+            </g>
+          ))}
+          {/* label the top 5 so the map is legible without hover */}
+          {placed.slice(0, 5).map((s) => (
+            <text key={s.state} x={s.x * W} y={s.y * H - r(s.people) - 3} textAnchor="middle" fontSize="9" fill="#FFF0EB" fontWeight="700">
+              {s.people}
+            </text>
+          ))}
+        </svg>
+      </div>
+      <div style={{ ...CARD, flex: "1 1 260px" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 10 }}>Top states</div>
+        <div style={{ maxHeight: 210, overflowY: "auto" }}>
+          {placed.slice(0, 12).map((s, i) => (
+            <div key={s.state} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.06)", fontSize: 13 }}>
+              <span style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
+                <span style={{ color: MUTED, marginRight: 6 }}>{i + 1}</span>{s.state}
+              </span>
+              <span style={{ color: SUB }}>{s.people}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "14px 0 8px" }}>By country</div>
+        {(countries || []).slice(0, 5).map((c) => (
+          <div key={c.country} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+            <span style={{ color: c.country === "India" ? "#3FBF7F" : c.country === "United States" ? "#FFB454" : INK }}>{c.country}</span>
+            <span style={{ color: SUB }}>{c.people}{c.country === "United States" ? " · test infra" : ""}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
@@ -170,6 +271,9 @@ export default function ProductMetrics() {
         <Tile k="Sessions" v={v.sessions.toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
         <Tile k="Events" v={v.events30d.toLocaleString()} sub="30 days" />
       </div>
+
+      {d.funnel && <TrueUsers f={d.funnel} />}
+      {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} />}
 
       {!a.windowIsFullMonth && (
         // Without this the MAU tile reads as a real rolling metric when it cannot be one yet.
