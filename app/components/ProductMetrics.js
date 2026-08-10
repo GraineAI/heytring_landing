@@ -700,36 +700,64 @@ function Depth({ rows }) {
  * until a build carrying the new events ships, which is shown as "awaiting build" rather than hidden.
  */
 function Journey({ steps, lifecycle }) {
+  // Steps that ship their event in the NEXT app release — a 0 here is "not measured yet", NOT a
+  // drop-off, so it must not be drawn as an empty bar with "0% of prev" (which reads as a cliff).
+  const PENDING = new Set(["otp_requested", "onboarded", "forwarding"]);
   const top = Math.max(1, steps[0]?.people || 0);
-  const anyNew = steps.slice(2).some((s) => s.people > 0);   // otp_requested onward = the new events
+  const anyPending = steps.some((s) => PENDING.has(s.key) && s.people === 0);
+  let lastMeasured = null;   // carry the previous step that actually had data, to skip pending gaps
   return (
     <div style={{ ...CARD, marginTop: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User journey <span style={{ color: MUTED, fontWeight: 500 }}>· install → onboarded · India · 90d</span></div>
-        {!anyNew && <div style={{ fontSize: 11.5, color: "#FFB454" }}>later steps await the next build’s events</div>}
+        {anyPending && <div style={{ fontSize: 11.5, color: "#8C7C73" }}>grey steps ship their event in the next release</div>}
       </div>
       <div style={{ marginTop: 14 }}>
         {steps.map((s, i) => {
+          const pending = PENDING.has(s.key) && s.people === 0;
           const pct = Math.round((s.people / top) * 100);
-          const prev = i > 0 ? steps[i - 1].people : null;
-          const conv = prev ? Math.round((s.people / Math.max(1, prev)) * 100) : null;
+          // conversion + absolute drop measured against the last step that HAS data
+          const conv = !pending && lastMeasured ? Math.round((s.people / Math.max(1, lastMeasured.people)) * 100) : null;
+          const dropped = !pending && lastMeasured ? lastMeasured.people - s.people : null;
+          if (!pending) lastMeasured = s;
           return (
-            <div key={s.key} style={{ marginBottom: 9 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
-                <span style={{ color: INK }}>{i + 1}. {s.label}</span>
-                <span style={{ color: SUB }}>
-                  {s.people.toLocaleString()}
-                  {conv != null && <span style={{ color: conv < 50 ? "#FFB454" : MUTED }}> · {conv}% of prev</span>}
-                </span>
+            <div key={s.key} style={{ marginBottom: 11 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 12.5, marginBottom: 3 }}>
+                <span style={{ color: pending ? MUTED : INK, fontWeight: pending ? 400 : 600 }}>{i + 1}. {s.label}</span>
+                {pending ? (
+                  <span style={{ color: MUTED, fontStyle: "italic" }}>ships next release</span>
+                ) : (
+                  <span>
+                    <span style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>{s.people.toLocaleString()}</span>
+                    {conv != null && <span style={{ color: conv < 60 ? "#FFB454" : MUTED }}> · {conv}% of prev</span>}
+                    {dropped != null && dropped > 0 && <span style={{ color: "#FF7B72" }}> · −{dropped.toLocaleString()} lost</span>}
+                  </span>
+                )}
               </div>
-              <div style={{ height: 22, background: "rgba(255,255,255,.05)", borderRadius: 6, overflow: "hidden" }}>
-                <div style={{ width: `${Math.max(pct, s.people > 0 ? 2 : 0)}%`, height: "100%",
-                  background: `linear-gradient(90deg, #F4532E, ${conv != null && conv < 50 ? "#FFB454" : "#F4532E"})`,
-                  borderRadius: 6, transition: "width .4s" }} />
+              <div style={{ height: 22, background: "rgba(255,255,255,.05)", borderRadius: 6, overflow: "hidden",
+                border: pending ? "1px dashed rgba(255,255,255,.14)" : "none" }}>
+                {!pending && (
+                  <div style={{ width: `${Math.max(pct, s.people > 0 ? 3 : 0)}%`, height: "100%",
+                    background: `linear-gradient(90deg, #F4532E, ${conv != null && conv < 60 ? "#FFB454" : "#F4532E"})`,
+                    borderRadius: 6, transition: "width .4s", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{pct}%</span>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
+        {(() => {
+          const inst = steps.find((s) => s.key === "installed")?.people || 0;
+          const sign = steps.find((s) => s.key === "signed_in")?.people || 0;
+          const act = inst ? Math.round((sign / inst) * 1000) / 10 : 0;
+          return (
+            <div style={{ marginTop: 6, padding: "10px 14px", background: "rgba(244,83,46,.08)", borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.5 }}>
+              <strong>Bottom line:</strong> {inst} installed → {sign} signed in = <strong style={{ color: act < 30 ? "#FFB454" : "#3FBF7F" }}>{act}% activation</strong>.
+              {inst - sign > 0 && <> {inst - sign} people installed and never became users — the biggest single number to move.</>}
+            </div>
+          );
+        })()}
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "16px 0 8px" }}>Engagement & lifecycle</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
