@@ -6,6 +6,7 @@
  * came from, the full signup list and store-link clicks, with CSV export.
  */
 import { useEffect, useState } from "react";
+import ProductMetrics from "../components/ProductMetrics";
 
 const S = {
   page: { minHeight: "100vh", background: "#000000", color: "#FFF0EB", padding: "48px 20px", fontFamily: "inherit" },
@@ -59,9 +60,18 @@ export default function Admin() {
   const load = async () => {
     const r = await fetch("/api/admin/data");
     if (r.status === 401) { setAuthed(false); return; }
-    if (!r.ok) { setErr("Could not load data (is DATABASE_URL set?)"); setAuthed(false); return; }
-    setData(await r.json());
+    // A DATABASE failure is NOT an AUTH failure. This used to call setAuthed(false) on any
+    // non-ok response, so an unreachable Neon bounced a correctly-signed-in admin back to the
+    // password form — and took the PostHog metrics down with it, even though those come from a
+    // completely independent endpoint. Stay signed in, surface the DB problem inline.
     setAuthed(true);
+    if (!r.ok) {
+      setErr("Waitlist data unavailable (is DATABASE_URL set / reachable?)");
+      setData({ waitlist: [], clicks: [] });
+      return;
+    }
+    setErr("");
+    setData(await r.json());
   };
 
   useEffect(() => { load(); }, []);
@@ -140,6 +150,12 @@ export default function Admin() {
           </div>
         </div>
 
+        {err && (
+          <div style={{ ...S.card, marginTop: 16, padding: "12px 16px", color: "#FF7B72", borderColor: "rgba(255,123,114,.35)" }}>
+            {err}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
           <Tile k="Total signups" v={stats.total} />
           <Tile k="Onboarded" v={`${stats.onboarded} / ${stats.total}`} />
@@ -150,7 +166,12 @@ export default function Admin() {
           <Tile k="App Store clicks" v={stats.ios_clicks} />
         </div>
 
-        <div style={{ ...S.card, marginTop: 20, overflowX: "auto", padding: 0 }}>
+        {/* Live app metrics from PostHog. Self-contained: fetches /api/admin/posthog itself,
+            renders its own error/loading state, and never blocks the waitlist view below. */}
+        <ProductMetrics />
+
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
+        <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
             <thead><tr>
               <th style={S.th}>✓</th>
