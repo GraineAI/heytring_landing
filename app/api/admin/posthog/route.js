@@ -155,6 +155,9 @@ export async function GET(req) {
       const c = CENTROIDS[name];
       return {
         state: name, people: Number(people) || 0,
+        // Raw centroid too, so a real tile map can place a marker without
+        // inverting the projection below and hoping the constants still match.
+        lat: c ? c[0] : null, lon: c ? c[1] : null,
         x: c ? (c[1] - LON0) / (LON1 - LON0) : null,
         y: c ? (LAT1 - c[0]) / (LAT1 - LAT0) : null,   // y inverted (north = up)
       };

@@ -11,7 +11,13 @@
  * floor, CVD separation (ΔE 28.0 deutan), normal-vision floor (ΔE 34.0) and 3:1 contrast
  * against the #0B0B0C card surface.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+
+// Google's bundle is ~90KB and only renders when a key exists, so it is loaded
+// on demand rather than shipped to every admin page view.
+const GoogleMapReact = dynamic(() => import("google-map-react"), { ssr: false });
+const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
 
 const DAU_C = "#F4532E";   // daily actives (bars)
 const AVG_C = "#3B82F6";   // 7-day rolling average (line)
@@ -188,6 +194,107 @@ const INDIA =
   "L53.0 206.5 L48.0 184.8 L47.0 168.3 L46.0 160.0 L20.0 151.7 L10.0 154.8 L12.0 146.6 " +
   "L6.0 137.3 L30.0 127.0 L20.0 118.7 L25.0 98.1 L20.0 87.7 L55.0 77.4 L65.0 61.9 L65.0 46.5 Z";
 
+/** Dark tiles, no POI clutter — the data is the subject, not the restaurants. */
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#1B1B1D" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0E0E10" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8C7C73" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "road", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#3A3A3C" }] },
+  { featureType: "administrative.province", elementType: "geometry.stroke", stylers: [{ color: "#2A2A2C" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0E0E10" }] },
+];
+
+/** One bubble. google-map-react positions any child by its lat/lng props. */
+function Pin({ people, max, selected, dim, onPick, label }) {
+  const d = 12 + 52 * Math.sqrt(people / max);
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); onPick(); }}
+      title={`${label} · ${people}`}
+      style={{
+        width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2,
+        borderRadius: "50%", cursor: "pointer",
+        background: selected ? "rgba(244,83,46,.62)" : "rgba(244,83,46,.30)",
+        border: `${selected ? 2.5 : 1.5}px solid #F4532E`,
+        opacity: dim ? 0.25 : 1,
+        display: "grid", placeItems: "center",
+        color: "#FFF0EB", fontSize: 11, fontWeight: 700,
+        transition: "opacity .15s ease, background .15s ease",
+      }}
+    >
+      {d > 26 ? people : ""}
+    </div>
+  );
+}
+
+/**
+ * The Google-tiles canvas. Only mounted when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set —
+ * without a key the library renders a grey "for development purposes only" box,
+ * which is strictly worse than the SVG, so the SVG stays the default.
+ *
+ * Clicking a bubble pans and zooms to that state, which is the one thing a real
+ * tile map buys over the drawn outline.
+ */
+function GoogleCanvas({ placed, maxP, sel, pick, onFail }) {
+  const mapRef = useRef(null);
+  const boxRef = useRef(null);
+  const HOME = { center: { lat: 22.6, lng: 80.0 }, zoom: 4 };
+
+  // A rejected key (wrong key, referrer not allowlisted, billing off) makes
+  // Google replace the whole container with its own grey error card, and the
+  // markers never render. Watch for that and hand back to the SVG — a drawn
+  // map that works beats a tile map that apologises.
+  useEffect(() => {
+    const check = () => {
+      if (boxRef.current && boxRef.current.querySelector(".gm-err-container")) onFail();
+    };
+    const t1 = setTimeout(check, 2500);
+    const t2 = setTimeout(check, 6000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const s = placed.find((p) => p.state === sel);
+    if (s && s.lat != null) { m.panTo({ lat: s.lat, lng: s.lon }); m.setZoom(6.5); }
+    else { m.panTo(HOME.center); m.setZoom(HOME.zoom); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel]);
+
+  return (
+    // Explicit height: google-map-react fills its parent, and a parent with no
+    // height collapses the map to nothing. This is the library's own top FAQ.
+    <div ref={boxRef} style={{ height: 340, borderRadius: 14, overflow: "hidden" }}>
+      <GoogleMapReact
+        bootstrapURLKeys={{ key: MAPS_KEY }}
+        defaultCenter={HOME.center}
+        defaultZoom={HOME.zoom}
+        options={{
+          styles: MAP_STYLE, disableDefaultUI: true, zoomControl: true,
+          gestureHandling: "greedy", backgroundColor: "#0E0E10",
+        }}
+        yesIWantToUseGoogleMapApiInternals
+        onGoogleApiLoaded={({ map }) => { mapRef.current = map; }}
+        onClick={() => pick(null)}
+      >
+        {placed.map((s) => (
+          <Pin
+            key={s.state} lat={s.lat} lng={s.lon}
+            people={s.people} max={maxP} label={s.state}
+            selected={s.state === sel} dim={!!sel && s.state !== sel}
+            onPick={() => pick(s.state)}
+          />
+        ))}
+      </GoogleMapReact>
+    </div>
+  );
+}
+
 /**
  * GeoMap — the real cohort placed on India. No external tiles or libraries (CSP-safe): the
  * outline above plus a bubble per state, sized by users, positioned from the server-computed
@@ -200,6 +307,8 @@ const INDIA =
  */
 function GeoMap({ states, countries, funnel }) {
   const [sel, setSel] = useState(null);   // state name, or null for "all"
+  const [mapFailed, setMapFailed] = useState(false);
+  const useGoogle = !!MAPS_KEY && !mapFailed;
 
   const placed = (states || []).filter((s) => s.x != null && s.people > 0);
   const maxP = Math.max(1, ...placed.map((s) => s.people));
@@ -213,7 +322,7 @@ function GeoMap({ states, countries, funnel }) {
   const byArea = [...placed].sort((a, b) => b.people - a.people);
   const chosen = placed.find((s) => s.state === sel) || null;
   const rank = chosen ? placed.findIndex((s) => s.state === sel) + 1 : null;
-  const pick = (name) => setSel((cur) => (cur === name ? null : name));
+  const pick = (name) => setSel((cur) => (name == null || cur === name ? null : name));
 
   // Escape clears, so a keyboard user is never stuck in a filtered view.
   useEffect(() => {
@@ -238,9 +347,12 @@ function GeoMap({ states, countries, funnel }) {
           )}
         </div>
         <div style={{ fontSize: 12, color: MUTED, margin: "2px 0 10px" }}>
-          India · by state · bubble = unique people · 90 days{placed.length ? " · tap a bubble" : ""}
+          India · by state · bubble = unique people · 90 days{placed.length ? (useGoogle ? " · tap a bubble to zoom" : " · tap a bubble") : ""}
         </div>
 
+        {useGoogle ? (
+          <GoogleCanvas placed={placed} maxP={maxP} sel={sel} pick={(n) => setSel(n === sel ? null : n)} onFail={() => setMapFailed(true)} />
+        ) : (
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 360, height: "auto", display: "block", margin: "0 auto" }}
              role="img" aria-label="Map of Tring users across Indian states">
           <rect x="0" y="0" width={W} height={H} fill="#0E0E10" rx="14"
@@ -281,6 +393,7 @@ function GeoMap({ states, countries, funnel }) {
             );
           })()}
         </svg>
+        )}
 
         {chosen && (
           <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(244,83,46,.10)", border: "1px solid rgba(244,83,46,.32)", borderRadius: 12 }}>
