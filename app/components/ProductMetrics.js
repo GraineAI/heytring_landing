@@ -965,17 +965,118 @@ function AIStrategist({ d, tick }) {
   );
 }
 
+
+/* ─────────────────────────── loading skeleton ─────────────────────────── */
+
+/** One shimmering block. `w`/`h` are whatever the real thing measures. */
+function Bone({ w = "100%", h = 12, r = 6, mt = 0 }) {
+  return <div className="pm-bone" style={{ width: w, height: h, borderRadius: r, marginTop: mt }} />;
+}
+
+/**
+ * The skeleton is laid out to match the real dashboard tile for tile and card
+ * for card, so nothing jumps when the data lands. A single centred spinner
+ * would be less work and would move every panel on arrival.
+ *
+ * It is also honest about the wait: the first load runs 24 ClickHouse queries
+ * and takes a couple of seconds, so the caption says what is happening rather
+ * than implying the page is broken.
+ */
+function Skeleton() {
+  const card = { ...CARD, flex: "1 1 320px", minWidth: 280 };
+  return (
+    <>
+      <style>{`
+        @keyframes pmShimmer { 0% { opacity: .35 } 50% { opacity: .8 } 100% { opacity: .35 } }
+        .pm-bone { background: rgba(255,255,255,.09); animation: pmShimmer 1.4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .pm-bone { animation: none; opacity: .5 } }
+      `}</style>
+
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>
+          Product metrics <span style={{ fontSize: 13, fontWeight: 500, color: MUTED }}>· asking PostHog…</span>
+        </h2>
+      </div>
+
+      {/* the seven headline tiles */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {Array.from({ length: 7 }, (_, i) => (
+          <div key={i} style={{ ...CARD, padding: 16, flex: "1 1 130px", minWidth: 130 }}>
+            <Bone w="52%" h={9} />
+            <Bone w="66%" h={26} mt={10} />
+            <Bone w="80%" h={9} mt={9} />
+          </div>
+        ))}
+      </div>
+
+      {/* the daily-active chart */}
+      <div style={{ ...CARD, marginTop: 16 }}>
+        <Bone w={150} h={12} />
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120, marginTop: 18 }}>
+          {Array.from({ length: 30 }, (_, i) => (
+            // varied but deterministic heights — a flat row of equal bars reads
+            // as a rendered chart with no data rather than as loading
+            <div key={i} className="pm-bone" style={{ flex: 1, height: `${28 + ((i * 37) % 60)}%`, borderRadius: 3 }} />
+          ))}
+        </div>
+      </div>
+
+      {/* map + list, then two rows of panels */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}>
+        <div style={{ ...CARD, flex: "2 1 340px" }}>
+          <Bone w={170} h={12} /><Bone w={230} h={9} mt={8} />
+          <div style={{ display: "grid", placeItems: "center", marginTop: 16 }}>
+            <Bone w={220} h={250} r={14} />
+          </div>
+        </div>
+        <div style={{ ...CARD, flex: "1 1 260px" }}>
+          <Bone w={100} h={12} />
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 14 }}>
+              <Bone w={`${45 + ((i * 13) % 35)}%`} h={10} /><Bone w={28} h={10} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {[0, 1].map((row) => (
+        <div key={row} style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} style={card}>
+              <Bone w={120} h={12} /><Bone w={180} h={9} mt={7} />
+              {Array.from({ length: 5 }, (_, j) => (
+                <div key={j} style={{ marginTop: 13 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <Bone w={`${40 + ((i * 7 + j * 11) % 40)}%`} h={9} /><Bone w={34} h={9} />
+                  </div>
+                  <Bone h={5} r={3} mt={5} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 16 }}>
+        First load runs 24 queries against PostHog — usually a second or two.
+      </div>
+    </>
+  );
+}
+
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [showTable, setShowTable] = useState(false);
+  const [busyLoad, setBusyLoad] = useState(false);
 
   const [updatedAt, setUpdatedAt] = useState(null);
   const [softErr, setSoftErr] = useState("");   // a failed REFRESH when we already have data
   const dRef = useRef(null);                     // read current data inside the interval closure
   const retryRef = useRef(null);                 // one pending short-retry at a time
   useEffect(() => { dRef.current = d; }, [d]);
-  const load = async () => {
+  const load = async (force = false) => {
+    if (force) setBusyLoad(true);
     // A failed refresh must NOT blank the dashboard. If we already have numbers on screen, keep them,
     // show a small notice, and retry once in 20s (well before the next 10-min cycle). Only surface
     // the full error card on the very first load, when there's nothing to fall back to.
@@ -985,12 +1086,16 @@ export default function ProductMetrics() {
         if (!retryRef.current) retryRef.current = setTimeout(() => { retryRef.current = null; load(); }, 20000);
       } else setErr(msg);
     };
-    const r = await fetch("/api/admin/posthog").catch(() => null);
-    if (!r) return fail("Network error");
+    // ?fresh=1 skips the server's stale-while-revalidate cache. Without it the
+    // Refresh button returned whatever was already cached — a button labelled
+    // Refresh that does not refetch is a lie, and this one was telling it.
+    const r = await fetch(`/api/admin/posthog${force ? "?fresh=1" : ""}`).catch(() => null);
+    if (!r) { setBusyLoad(false); return fail("Network error"); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) return fail(j.error || `Refresh failed (${r?.status})`);
+    if (!r.ok || !j.ok) { setBusyLoad(false); return fail(j.error || `Refresh failed (${r?.status})`); }
     if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null; }
     setD(j);
+    setBusyLoad(false);
     setErr(""); setSoftErr("");
     setUpdatedAt(Date.now());
   };
@@ -1008,7 +1113,7 @@ export default function ProductMetrics() {
   const H2 = { fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" };
 
   if (err && !d) return (<><h2 style={H2}>Product metrics</h2><div style={{ ...CARD, color: "#FF7B72" }}>{err}</div></>);
-  if (!d) return (<><h2 style={H2}>Product metrics</h2><div style={{ ...CARD, color: MUTED }}>Loading from PostHog…</div></>);
+  if (!d) return <Skeleton />;
 
   const a = d.active, v = d.volume;
 
@@ -1023,8 +1128,11 @@ export default function ProductMetrics() {
               ? <span style={{ color: "#FFB454" }}>⚠ {new Date(updatedAt).toLocaleTimeString()} data · retrying</span>
               : (updatedAt ? `updated ${new Date(updatedAt).toLocaleTimeString()} · auto every 10m` : "live")}
           </span>
-          <button onClick={load} style={{ background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-            Refresh
+          <button onClick={() => load(true)} disabled={busyLoad}
+            style={{ background: "transparent", color: busyLoad ? MUTED : "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)",
+                     borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13,
+                     cursor: busyLoad ? "default" : "pointer" }}>
+            {busyLoad ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>
