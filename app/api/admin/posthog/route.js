@@ -346,6 +346,21 @@ export async function GET(req) {
     });
     const [fInstalled=0, fOpened=0, fSignedIn=0, fIndia=0, fTotal=0] = funnel[0] || [];
 
+    // Full activation journey + lifecycle (India). Fetched here rather than in the main Promise.all
+    // so this stays additive to whatever else edits that fan-out.
+    const [journey, lifecycle] = await Promise.all([hogql(Q.journey), hogql(Q.lifecycle)]);
+    const jr = journey[0] || []; const lc = lifecycle[0] || [];
+    const jSteps = [
+      { key: "installed", label: "Installed" }, { key: "opened", label: "Opened" },
+      { key: "otp_requested", label: "Requested OTP" }, { key: "signed_in", label: "Signed in" },
+      { key: "onboarded", label: "Onboarded" }, { key: "forwarding", label: "Forwarding on" },
+    ].map((st, i) => ({ ...st, people: Number(jr[i]) || 0 }));
+    const lcKeys = ["logged_out","deleted","took_over","caller_id","favourites","referred","shared_call","ran_checkup"];
+    const lcLabels = { logged_out:"Logged out", deleted:"Deleted account", took_over:"Took over a call",
+      caller_id:"Enabled caller ID", favourites:"Saved a favourite", referred:"Referred a friend",
+      shared_call:"Shared a call", ran_checkup:"Ran checkup" };
+    const lifecycleRows = lcKeys.map((k, i) => ({ key: k, label: lcLabels[k], people: Number(lc[i]) || 0 }));
+
     const full = series.filter((d) => !d.partial);
     const avgDau = full.length ? Math.round(full.reduce((a, b) => a + b.dau, 0) / full.length) : 0;
 
