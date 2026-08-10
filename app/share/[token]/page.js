@@ -71,7 +71,7 @@ function GetTheApp() {
         <a href="/go/play?p=share">Google Play</a> ·{" "}
         <a href="/go/ios?p=share">TestFlight</a>
       </div>
-      <span className="share__ctatiny">Closed beta · Free · 12+ Indian languages · Made for India</span>
+      <span className="share__ctatiny">Closed beta · free · works on the SIM you already have</span>
     </section>
   );
 }
