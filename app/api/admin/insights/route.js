@@ -16,7 +16,11 @@ import { isAuthed } from "../../../lib/adminAuth";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";  // override with whatever your account has
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";  // cheap GPT-5.4 tier ($0.75/1M in); override via env
+// GPT-5.x / o-series are REASONING models: they use max_completion_tokens (not max_tokens), accept
+// reasoning_effort, and reject a non-default temperature. Older chat models (gpt-4o-mini) want
+// temperature + tolerate max_completion_tokens. Detect and build the body accordingly.
+const IS_REASONING = /^(gpt-5|o[0-9])/.test(MODEL);
 const OPENAI_URL = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1") + "/chat/completions";
 const TTL_MS = 10 * 60 * 1000;
 
@@ -85,16 +89,20 @@ export async function POST(req) {
   }
 
   try {
+    const payload = {
+      model: MODEL,
+      messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt(summary) }],
+      response_format: { type: "json_object" },
+      // Reasoning models spend tokens thinking before the JSON, so give generous headroom.
+      max_completion_tokens: IS_REASONING ? 3000 : 1200,
+    };
+    if (IS_REASONING) payload.reasoning_effort = process.env.OPENAI_REASONING_EFFORT || "low";  // fast + cheap for a dashboard
+    else payload.temperature = 0.4;
+
     const r = await fetch(OPENAI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt(summary) }],
-        response_format: { type: "json_object" },
-        temperature: 0.4,
-        max_tokens: 1100,
-      }),
+      body: JSON.stringify(payload),
       cache: "no-store",
     });
     if (!r.ok) {
