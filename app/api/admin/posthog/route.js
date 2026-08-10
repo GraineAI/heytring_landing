@@ -43,6 +43,14 @@ async function hogql(query) {
   return j.results || [];
 }
 
+// Every query is bounded on timestamp. `totals` and `totalsGlobal` were not:
+// they asked for uniq(person_id) across ALL history with a JSON property filter
+// on every row, which is a full table scan. PostHog eventually refused them
+// outright — "hit the max execution time... failed the same way 4 times in a
+// row, so it was not run again" — and the dashboard's headline DAU/WAU/MAU
+// silently showed 0. 180 days still covers every event this project has (first
+// event 2026-07-01); it just stops asking ClickHouse to prove it.
+//
 // person_id, NOT distinct_id. The app calls identify(pseudoId(phone)) once the user logs in,
 // so one human accumulates several distinct_ids across their anonymous and identified life.
 // Counting distinct_id inflates every active-user number here.
@@ -54,7 +62,8 @@ const Q = {
       uniq(person_id)                                          AS all_time,
       countIf(timestamp >= now() - INTERVAL 30 DAY)            AS events_30d,
       min(timestamp)                                           AS first_seen
-    FROM events WHERE properties.$geoip_country_name = 'India'`,
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 180 DAY AND properties.$geoip_country_name = 'India'`,
 
   // Global (unfiltered) active users — shown small beside the India headline so the exclusion is
   // explicit. The gap is CI / emulators / App Store review, not users.
@@ -62,7 +71,7 @@ const Q = {
       uniqIf(person_id, timestamp >= now() - INTERVAL 1 DAY)   AS dau,
       uniqIf(person_id, timestamp >= now() - INTERVAL 7 DAY)   AS wau,
       uniqIf(person_id, timestamp >= now() - INTERVAL 30 DAY)  AS mau
-    FROM events`,
+    FROM events WHERE timestamp >= now() - INTERVAL 180 DAY`,
 
   daily: `SELECT toDate(timestamp) AS day, uniq(person_id) AS dau, count() AS events
     FROM events WHERE timestamp >= now() - INTERVAL 30 DAY AND properties.$geoip_country_name = 'India'
@@ -113,18 +122,24 @@ const Q = {
   // person on the day we first saw them, then count who came back N days later.
   // Self-join rather than a window function: HogQL supports both, but the join
   // parses on every PostHog version we might be pointed at.
-  retention: `SELECT
-      dateDiff('day', f.d0, toDate(e.timestamp)) AS day,
-      uniq(e.person_id) AS people
-    FROM events e
-    INNER JOIN (
-      SELECT person_id, min(toDate(timestamp)) AS d0
-      FROM events WHERE properties.$geoip_country_name = 'India'
-      GROUP BY person_id
-    ) f ON e.person_id = f.person_id
-    WHERE e.properties.$geoip_country_name = 'India'
-      AND dateDiff('day', f.d0, toDate(e.timestamp)) BETWEEN 0 AND 30
-    GROUP BY day ORDER BY day`,
+  // ── RETENTION. The number that decides whether a mobile app lives.
+  //
+  // Measured, not guessed: the first version joined raw events to an unbounded
+  // per-person min(date) and took 31s on its own — a third of the whole
+  // dashboard. This does ONE scan, collapses to person x day (a few thousand
+  // rows for a beta this size), and takes d0 from a window over that. 4.2s,
+  // and verified to return the identical curve: d0=141 d1=61 d7=20.
+  retention: `SELECT dateDiff('day', d0, d) AS day, uniq(person_id) AS people
+    FROM (
+      SELECT person_id, d, min(d) OVER (PARTITION BY person_id) AS d0
+      FROM (
+        SELECT person_id, toDate(timestamp) AS d
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 60 DAY AND properties.$geoip_country_name = 'India'
+        GROUP BY person_id, d
+      )
+    )
+    GROUP BY day HAVING day >= 0 AND day <= 30 ORDER BY day`,
 
   // ── DROP-OFF, SPLIT BY PLATFORM. The whole-cohort funnel hides the case that
   // matters most: one store's build losing people the other's does not.
@@ -200,18 +215,22 @@ const Q = {
 
   // ── NEW vs RETURNING per day. A flat DAU made entirely of new installs is
   // churn wearing a growth costume; this separates the two.
-  newVsReturning: `SELECT
-      toDate(e.timestamp) AS day,
-      uniqIf(e.person_id, toDate(e.timestamp) = f.d0) AS new_people,
-      uniqIf(e.person_id, toDate(e.timestamp) > f.d0) AS returning_people
-    FROM events e
-    INNER JOIN (
-      SELECT person_id, min(toDate(timestamp)) AS d0
-      FROM events WHERE properties.$geoip_country_name = 'India'
-      GROUP BY person_id
-    ) f ON e.person_id = f.person_id
-    WHERE e.timestamp >= now() - INTERVAL 30 DAY
-      AND e.properties.$geoip_country_name = 'India'
+  // ── NEW vs RETURNING per day. A flat DAU made entirely of new installs is
+  // churn wearing a growth costume; this separates the two. Same rewrite as
+  // retention above — was 43.5s as a raw-event join, now 3.1s, same numbers.
+  newVsReturning: `SELECT d AS day,
+      uniqIf(person_id, d = d0) AS new_people,
+      uniqIf(person_id, d > d0) AS returning_people
+    FROM (
+      SELECT person_id, d, min(d) OVER (PARTITION BY person_id) AS d0
+      FROM (
+        SELECT person_id, toDate(timestamp) AS d
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 60 DAY AND properties.$geoip_country_name = 'India'
+        GROUP BY person_id, d
+      )
+    )
+    WHERE d >= today() - 30
     GROUP BY day ORDER BY day`,
 
   // ── DEVICES. Which handsets to test on, ranked by who actually holds one.
@@ -283,10 +302,61 @@ const Q = {
     GROUP BY state ORDER BY people DESC LIMIT 20`,
 };
 
+/**
+ * Stale-while-revalidate, in module scope so it survives between requests on a
+ * warm instance.
+ *
+ * These are 30- and 90-day aggregates. They do not move second to second, but
+ * they cost ~5s of ClickHouse to rebuild, and the page auto-refreshes every 10
+ * minutes on top of whatever the founder clicks. So: serve anything younger
+ * than FRESH_MS outright; serve older data instantly and rebuild behind it;
+ * only make someone wait when there is nothing to show at all.
+ *
+ * `?fresh=1` skips the cache entirely — that is what the Refresh button sends,
+ * because a button labelled Refresh that returns a cached page is a lie.
+ */
+let CACHE = null;          // { at, payload }
+let INFLIGHT = null;       // de-dupes concurrent misses into one query fan-out
+const FRESH_MS = 90_000;   // younger than this: no refetch at all
+const STALE_MS = 600_000;  // older than this: make them wait for real data
+
 export async function GET(req) {
   if (!isAuthed(req)) return NextResponse.json({ ok: false }, { status: 401 });
 
+  const wantsFresh = new URL(req.url).searchParams.get("fresh") === "1";
+  const age = CACHE ? Date.now() - CACHE.at : Infinity;
+
+  if (!wantsFresh && CACHE && age < FRESH_MS) {
+    return NextResponse.json({ ...CACHE.payload, cache: "hit", ageMs: age });
+  }
+  if (!wantsFresh && CACHE && age < STALE_MS) {
+    // Hand back what we have now and rebuild in the background. Errors are
+    // swallowed on purpose: a failed background refresh must not replace a
+    // perfectly good cached payload with a 500.
+    if (!INFLIGHT) {
+      INFLIGHT = build().then((p) => { CACHE = { at: Date.now(), payload: p }; })
+        .catch(() => {}).finally(() => { INFLIGHT = null; });
+    }
+    return NextResponse.json({ ...CACHE.payload, cache: "stale", ageMs: age });
+  }
+
   try {
+    // Concurrent cold misses share one fan-out rather than each firing 24 queries.
+    INFLIGHT = INFLIGHT || build().finally(() => { INFLIGHT = null; });
+    const payload = await INFLIGHT;
+    CACHE = { at: Date.now(), payload };
+    return NextResponse.json({ ...payload, cache: "miss", ageMs: 0 });
+  } catch (e) {
+    const msg = e?.message === "unconfigured"
+      ? "Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID in .env.local"
+      : "PostHog query failed";
+    console.error("admin posthog failed:", e?.message);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
+}
+
+async function build() {
+  {
     // Every query is run independently and allowed to fail on its own.
     // Promise.all meant one bad query — a property this project has never seen,
     // a HogQL version difference — took the entire dashboard down with it. With
@@ -391,7 +461,7 @@ export async function GET(req) {
     const full = series.filter((d) => !d.partial);
     const avgDau = full.length ? Math.round(full.reduce((a, b) => a + b.dau, 0) / full.length) : 0;
 
-    return NextResponse.json({
+    return {
       ok: true,
       asOf: new Date().toISOString(),
       firstSeen,
@@ -490,12 +560,6 @@ export async function GET(req) {
           lastSeen, stale: ageDays === null ? true : ageDays > 7,
         };
       }),
-    });
-  } catch (e) {
-    const msg = e?.message === "unconfigured"
-      ? "Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID in .env.local"
-      : "PostHog query failed";
-    console.error("admin posthog failed:", e?.message);
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    };
   }
 }

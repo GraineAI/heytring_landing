@@ -82,7 +82,20 @@ export async function POST(req) {
   try { body = await req.json(); } catch {}
   const summary = body.summary || {};
   const force = !!body.force;
-  const cacheKey = hash(JSON.stringify(summary));
+  // Cache on a ROUNDED view of the summary. Raw counters drift by a person or
+  // two between refreshes, which changed the key every time and made a
+  // 10-minute cache miss on almost every load — the opposite of its purpose.
+  // Strategy does not change because DAU moved from 18 to 19.
+  const bucket = (v) => {
+    if (!Number.isFinite(v) || v === 0) return v;
+    // One significant figure. DAU 18 and 19 land on 20; 60,092 and 60,310 land
+    // on 60,000. Rounding to a fixed step cannot do this — it is either far too
+    // fine for a five-digit event count or far too coarse for a two-digit DAU.
+    const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(v))));
+    return Math.round(v / mag) * mag;
+  };
+  const coarse = JSON.parse(JSON.stringify(summary), (k, v) => (typeof v === "number" ? bucket(v) : v));
+  const cacheKey = hash(JSON.stringify(coarse));
   const hit = _cache.get(cacheKey);
   if (!force && hit && Date.now() - hit.at < TTL_MS) {
     return NextResponse.json({ ok: true, cached: true, model: MODEL, insights: hit.data });

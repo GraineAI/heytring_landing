@@ -885,7 +885,22 @@ function AIStrategist({ d, tick }) {
       global_incl_test: { mau: a.globalMau },
       funnel: { installed: f.installed, opened: f.opened, signed_in: f.signedIn, activation_pct: f.activation, india: f.india, total: f.total },
       sessions: d.volume,
-      retention: d.retention,
+      // Milestones, not the whole curve. Sending 27 rows made the prompt large
+      // (slower and dearer per call) and made the server's 10-minute cache key
+      // change whenever any single day moved by one person — so the cache
+      // almost never hit and nearly every dashboard load paid for a fresh
+      // model run. D1/D7/D14/D30 is what anyone would actually read anyway.
+      retention: Object.fromEntries(
+        [1, 7, 14, 30].map((n) => [`d${n}_pct`, (d.retention || []).find((r) => r.day === n)?.pct ?? null])
+      ),
+      // Newly available and worth more to a strategist than the raw curve.
+      drop_off_by_platform: (d.funnelByOs || []).map((r) => ({
+        os: r.os, installed: r.installed, signed_in: r.signedIn,
+        sign_in_rate_pct: r.signInRate, lost_at_sign_in: r.lostAtSignIn,
+      })),
+      depth: { one_day_only: (d.depth || []).find((x) => x.daysActive === 1)?.people ?? null,
+               five_plus_days: (d.depth || []).filter((x) => x.daysActive >= 5).reduce((n, x) => n + x.people, 0) },
+      session_shape: d.sessionShape,
       lifecycle: lc,
       platform: (d.platform || []).map((p) => ({ os: p.os, people: p.people, events_per_person: p.perPerson })),
       top_states: (d.states || []).slice(0, 6).map((s) => ({ state: s.state, people: s.people })),
