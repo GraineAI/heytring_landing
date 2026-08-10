@@ -105,6 +105,172 @@ const Q = {
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
     GROUP BY country ORDER BY people DESC LIMIT 8`,
 
+  // ── RETENTION. The number that decides whether a mobile app lives. Cohort every
+  // person on the day we first saw them, then count who came back N days later.
+  // Self-join rather than a window function: HogQL supports both, but the join
+  // parses on every PostHog version we might be pointed at.
+  retention: `SELECT
+      dateDiff('day', f.d0, toDate(e.timestamp)) AS day,
+      uniq(e.person_id) AS people
+    FROM events e
+    INNER JOIN (
+      SELECT person_id, min(toDate(timestamp)) AS d0
+      FROM events WHERE properties.$geoip_country_name = 'India'
+      GROUP BY person_id
+    ) f ON e.person_id = f.person_id
+    WHERE e.properties.$geoip_country_name = 'India'
+      AND dateDiff('day', f.d0, toDate(e.timestamp)) BETWEEN 0 AND 30
+    GROUP BY day ORDER BY day`,
+
+  // ── DROP-OFF, SPLIT BY PLATFORM. The whole-cohort funnel hides the case that
+  // matters most: one store's build losing people the other's does not.
+  funnelByOs: `SELECT
+      coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+      uniqIf(person_id, event='Application Installed') AS installed,
+      uniqIf(person_id, event='Application Opened')    AS opened,
+      uniqIf(person_id, event='$identify')             AS signed_in
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
+    GROUP BY os ORDER BY installed DESC LIMIT 6`,
+
+  // ── WHERE PEOPLE GO. $screen is what the mobile SDK emits per navigation.
+  screens: `SELECT
+      coalesce(nullIf(properties.$screen_name,''), nullIf(properties.$current_url,''), '(unnamed)') AS screen,
+      uniq(person_id) AS people, count() AS views
+    FROM events
+    WHERE event = '$screen' AND timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY screen ORDER BY views DESC LIMIT 12`,
+
+  // ── WHAT PEOPLE TAP. Autocapture labels by the element's own text; anything
+  // unlabelled is grouped rather than dumped as a raw elements_chain, which is
+  // both enormous and unreadable.
+  taps: `SELECT
+      substring(coalesce(nullIf(properties.$el_text,''),'(unlabelled)'), 1, 40) AS target,
+      count() AS taps, uniq(person_id) AS people
+    FROM events
+    WHERE event = '$autocapture' AND timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY target ORDER BY taps DESC LIMIT 12`,
+
+  // ── BUILD ADOPTION. A version that stops appearing is a rollout; a version
+  // that never goes away is people stuck on an old build.
+  versions: `SELECT
+      coalesce(nullIf(properties.$app_version,''),'(unknown)') AS version,
+      coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+      uniq(person_id) AS people, max(timestamp) AS last_seen
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY version, os ORDER BY people DESC LIMIT 14`,
+
+  // ── WHAT IS BREAKING. $exception is the SDK's own; the ILIKE arms catch
+  // hand-rolled error events, which is what this app actually emits today.
+  errors: `SELECT
+      substring(coalesce(nullIf(properties.$exception_message,''), event), 1, 60) AS problem,
+      count() AS n, uniq(person_id) AS people, max(timestamp) AS last_seen
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 30 DAY
+      AND (event = '$exception' OR event ILIKE '%error%' OR event ILIKE '%fail%' OR event ILIKE '%crash%')
+    GROUP BY problem ORDER BY n DESC LIMIT 10`,
+
+  // ── SESSION SHAPE. Averages of per-session aggregates, so one very long
+  // session cannot masquerade as engagement across the whole cohort.
+  sessionShape: `SELECT
+      round(avg(n), 1) AS events_per_session,
+      round(avg(secs), 0) AS avg_secs,
+      round(median(secs), 0) AS median_secs
+    FROM (
+      SELECT $session_id AS sid, count() AS n,
+             dateDiff('second', min(timestamp), max(timestamp)) AS secs
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 30 DAY AND $session_id IS NOT NULL
+        AND properties.$geoip_country_name = 'India'
+      GROUP BY sid
+    )`,
+
+  // ── WHEN INDIA USES IT. Hour of day in IST, not UTC — a graph shifted 5.5
+  // hours tells you the opposite of the truth about an Indian audience.
+  hourly: `SELECT
+      toHour(timestamp + INTERVAL 330 MINUTE) AS hour,
+      uniq(person_id) AS people, count() AS events
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 30 DAY AND properties.$geoip_country_name = 'India'
+    GROUP BY hour ORDER BY hour`,
+
+  // ── NEW vs RETURNING per day. A flat DAU made entirely of new installs is
+  // churn wearing a growth costume; this separates the two.
+  newVsReturning: `SELECT
+      toDate(e.timestamp) AS day,
+      uniqIf(e.person_id, toDate(e.timestamp) = f.d0) AS new_people,
+      uniqIf(e.person_id, toDate(e.timestamp) > f.d0) AS returning_people
+    FROM events e
+    INNER JOIN (
+      SELECT person_id, min(toDate(timestamp)) AS d0
+      FROM events WHERE properties.$geoip_country_name = 'India'
+      GROUP BY person_id
+    ) f ON e.person_id = f.person_id
+    WHERE e.timestamp >= now() - INTERVAL 30 DAY
+      AND e.properties.$geoip_country_name = 'India'
+    GROUP BY day ORDER BY day`,
+
+  // ── DEVICES. Which handsets to test on, ranked by who actually holds one.
+  devices: `SELECT
+      substring(coalesce(nullIf(properties.$device_model,''),'(unknown)'), 1, 34) AS model,
+      coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+      uniq(person_id) AS people
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 90 DAY AND properties.$geoip_country_name = 'India'
+    GROUP BY model, os ORDER BY people DESC LIMIT 12`,
+
+  // ── FEATURE ADOPTION. Not "how often was this fired" but "what share of real
+  // signed-in people ever reached it" — the question a roadmap actually asks.
+  adoption: `SELECT
+      event,
+      uniq(person_id) AS people,
+      max(timestamp) AS last_seen
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 90 DAY
+      AND properties.$geoip_country_name = 'India'
+      AND event NOT LIKE '$%' AND event NOT LIKE 'Application %'
+    GROUP BY event ORDER BY people DESC LIMIT 16`,
+
+  // ── DEPTH OF USE. How many days each person was active, bucketed. One-day
+  // wonders vs habit is the whole story of a young app.
+  depth: `SELECT
+      days_active,
+      count() AS people
+    FROM (
+      SELECT person_id, uniq(toDate(timestamp)) AS days_active
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 30 DAY AND properties.$geoip_country_name = 'India'
+      GROUP BY person_id
+    )
+    GROUP BY days_active ORDER BY days_active`,
+
+  // FULL ACTIVATION JOURNEY — the download→onboarded funnel, India-scoped. Each step is unique
+  // people who reached it. The later steps (otp_requested, onboarding_complete, forwarding) only
+  // have data once a build carrying the new events ships; until then they read 0, which correctly
+  // shows the funnel as "instrumented, awaiting build" rather than pretending.
+  journey: `SELECT
+      uniqIf(person_id, event='Application Installed')                       AS installed,
+      uniqIf(person_id, event='Application Opened')                          AS opened,
+      uniqIf(person_id, event='login_otp_requested')                        AS otp_requested,
+      uniqIf(person_id, event IN ('login_success','$identify'))             AS signed_in,
+      uniqIf(person_id, event='onboarding_complete')                        AS onboarded,
+      uniqIf(person_id, event='activation:activate')                         AS forwarding
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
+      AND properties.$geoip_country_name='India'`,
+
+  // Lifecycle + engagement counts (India) — churn signals and feature pickup, for the journey panel.
+  lifecycle: `SELECT
+      uniqIf(person_id, event='logout')                   AS logged_out,
+      uniqIf(person_id, event='account_deleted')          AS deleted,
+      uniqIf(person_id, event='take_over_tap')            AS took_over,
+      uniqIf(person_id, event='caller_id_enable_tap')     AS caller_id,
+      uniqIf(person_id, event='favourites_saved')         AS favourites,
+      uniqIf(person_id, event IN ('referral_share','referral_copy')) AS referred,
+      uniqIf(person_id, event='call_share')               AS shared_call,
+      uniqIf(person_id, event='checkup_verify_forwarding') AS ran_checkup
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
+      AND properties.$geoip_country_name='India'`,
+
   // India state-wise (real users). subdivision_1 = state.
   states: `SELECT properties.$geoip_subdivision_1_name AS state, uniq(person_id) AS people
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
@@ -117,11 +283,27 @@ export async function GET(req) {
   if (!isAuthed(req)) return NextResponse.json({ ok: false }, { status: 401 });
 
   try {
-    const [totals, daily, sessions, platform, events, custom, funnel, countries, states] = await Promise.all([
-      hogql(Q.totals), hogql(Q.daily), hogql(Q.sessions), hogql(Q.platform), hogql(Q.events),
-      hogql(Q.custom), hogql(Q.funnel), hogql(Q.countries), hogql(Q.states),
-    ]);
-    const totalsGlobal = await hogql(Q.totalsGlobal);
+    // Every query is run independently and allowed to fail on its own.
+    // Promise.all meant one bad query — a property this project has never seen,
+    // a HogQL version difference — took the entire dashboard down with it. With
+    // 21 queries that is 21 single points of failure for one page. Now a failure
+    // costs exactly one card, and `degraded` names what is missing rather than
+    // leaving a silently empty panel looking like a real zero.
+    const degraded = [];
+    const run = async (name) => {
+      try {
+        return await hogql(Q[name]);
+      } catch (e) {
+        degraded.push(name);
+        return [];
+      }
+    };
+    const names = Object.keys(Q);
+    const settled = await Promise.all(names.map(run));
+    const R = Object.fromEntries(names.map((n, i) => [n, settled[i]]));
+
+    const { totals, daily, sessions, platform, events, custom, funnel, countries, states } = R;
+    const totalsGlobal = R.totalsGlobal;
     const [gDau = 0, gWau = 0, gMau = 0] = totalsGlobal[0] || [];
 
     const [dau = 0, wau = 0, mau = 0, allTime = 0, events30d = 0, firstSeen = null] = totals[0] || [];
@@ -200,9 +382,63 @@ export async function GET(req) {
       })),
       // Flagged stale if nothing has arrived for 7 days — that is exactly the signal that caught
       // the July regression, where every custom event simply stopped and nobody noticed.
+      journey: jSteps,
+      lifecycle: lifecycleRows,
       funnel: { installed: fInstalled, opened: fOpened, signedIn: fSignedIn, india: fIndia, total: fTotal,
                 activation: fInstalled ? Math.round((fSignedIn / fInstalled) * 1000) / 10 : 0 },
       countries: (countries || []).map(([c, p]) => ({ country: c, people: Number(p) || 0 })),
+
+      // ── the added panels ──────────────────────────────────────────────
+      // Day 0 is the cohort itself, so every later day is a share of it.
+      retention: (() => {
+        const rows = (R.retention || []).map(([d, p]) => ({ day: Number(d), people: Number(p) || 0 }));
+        const base = rows.find((r) => r.day === 0)?.people || 0;
+        return rows.map((r) => ({ ...r, pct: base ? Math.round((r.people / base) * 1000) / 10 : 0 }));
+      })(),
+      funnelByOs: (R.funnelByOs || []).map(([os, i, o, s2]) => {
+        const installed = Number(i) || 0, opened = Number(o) || 0, signedIn = Number(s2) || 0;
+        return {
+          os, installed, opened, signedIn,
+          // Drop-off is the interesting half of a funnel; compute it here so
+          // every consumer reports the same number.
+          openRate: installed ? Math.round((opened / installed) * 1000) / 10 : null,
+          signInRate: opened ? Math.round((signedIn / opened) * 1000) / 10 : null,
+          lostAtOpen: Math.max(0, installed - opened),
+          lostAtSignIn: Math.max(0, opened - signedIn),
+        };
+      }),
+      screens: (R.screens || []).map(([screen, people, views]) => ({
+        screen, people: Number(people) || 0, views: Number(views) || 0,
+      })),
+      taps: (R.taps || []).map(([target, n, people]) => ({
+        target, taps: Number(n) || 0, people: Number(people) || 0,
+      })),
+      versions: (R.versions || []).map(([version, os, people, last]) => ({
+        version, os, people: Number(people) || 0, lastSeen: last ? String(last) : null,
+      })),
+      errors: (R.errors || []).map(([problem, n, people, last]) => ({
+        problem, count: Number(n) || 0, people: Number(people) || 0, lastSeen: last ? String(last) : null,
+      })),
+      sessionShape: (() => {
+        const [ev = 0, avg = 0, med = 0] = R.sessionShape?.[0] || [];
+        return { eventsPerSession: Number(ev) || 0, avgSecs: Number(avg) || 0, medianSecs: Number(med) || 0 };
+      })(),
+      hourly: (R.hourly || []).map(([h, people, ev]) => ({
+        hour: Number(h), people: Number(people) || 0, events: Number(ev) || 0,
+      })),
+      newVsReturning: (R.newVsReturning || []).map(([day, nw, ret]) => ({
+        date: String(day).slice(0, 10), newPeople: Number(nw) || 0, returning: Number(ret) || 0,
+      })),
+      devices: (R.devices || []).map(([model, os, people]) => ({
+        model, os, people: Number(people) || 0,
+      })),
+      adoption: (R.adoption || []).map(([event, people, last]) => ({
+        event, people: Number(people) || 0, lastSeen: last ? String(last) : null,
+      })),
+      depth: (R.depth || []).map(([d, p]) => ({ daysActive: Number(d), people: Number(p) || 0 })),
+
+      // Named so a missing panel reads as "this query failed" rather than "zero".
+      degraded,
       states: stateRows,
       customEvents: custom.map(([name, n, people, last]) => {
         const lastSeen = last ? String(last) : null;

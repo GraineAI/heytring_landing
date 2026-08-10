@@ -121,7 +121,7 @@ function Chart({ series }) {
           padding: "8px 11px", fontSize: 12, color: INK, whiteSpace: "nowrap", zIndex: 2,
         }}>
           <div style={{ fontWeight: 700, marginBottom: 3 }}>{hover.date}{hover.partial ? " · in progress" : ""}</div>
-          <div><span style={{ color: DAU_C }}>●</span> {hover.dau} active · {hover.events.toLocaleString()} events</div>
+          <div><span style={{ color: DAU_C }}>●</span> {hover.dau} active · {(hover.events ?? 0).toLocaleString()} events</div>
           <div style={{ color: SUB }}><span style={{ color: AVG_C }}>●</span> {hover.avg.toFixed(1)} avg (7d)</div>
         </div>
       )}
@@ -146,7 +146,9 @@ function TrueUsers({ f }) {
   const step = (label, n, of, color) => (
     <div style={{ flex: "1 1 150px" }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", color: MUTED, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color || "#fff", marginTop: 2 }}>{n.toLocaleString()}</div>
+      {/* A missing funnel field used to throw here and blank the whole page.
+          One absent number should cost one number. */}
+      <div style={{ fontSize: 26, fontWeight: 700, color: color || "#fff", marginTop: 2 }}>{(n ?? 0).toLocaleString()}</div>
       {of != null && <div style={{ fontSize: 12, color: MUTED }}>{of}</div>}
     </div>
   );
@@ -507,11 +509,247 @@ function GeoMap({ states, countries, funnel }) {
   );
 }
 
+
+/* ─────────────────────────── shared panel primitives ─────────────────────────── */
+
+const secs = (n) => (n >= 60 ? `${Math.floor(n / 60)}m ${Math.round(n % 60)}s` : `${Math.round(n)}s`);
+const ago = (iso) => {
+  if (!iso) return "";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return days <= 0 ? "today" : days === 1 ? "1d ago" : `${days}d ago`;
+};
+
+/** A ranked bar list — the shape most of these panels want. */
+function BarList({ title, note, rows, unit = "", empty = "Nothing yet." }) {
+  const max = Math.max(1, ...rows.map((r) => r.n));
+  return (
+    <div style={{ ...CARD, flex: "1 1 320px", minWidth: 280 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{title}</div>
+      {note && <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{note}</div>}
+      <div style={{ marginTop: 12 }}>
+        {!rows.length && <div style={{ fontSize: 13, color: MUTED }}>{empty}</div>}
+        {rows.map((r) => (
+          <div key={r.label} style={{ marginBottom: 9 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+              <span style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "68%" }}>
+                {r.label}
+              </span>
+              <span style={{ color: SUB }}>{r.n.toLocaleString()}{unit}{r.sub ? ` · ${r.sub}` : ""}</span>
+            </div>
+            {/* the bar is the comparison; the number is the fact */}
+            <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.07)" }}>
+              <div style={{ width: `${(r.n / max) * 100}%`, height: "100%", borderRadius: 3, background: r.color || "#F4532E" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Retention curve. Day 0 is the cohort, every later day is the share that came
+ * back — the number that decides whether a mobile app lives.
+ */
+function Retention({ rows }) {
+  const pick = [1, 3, 7, 14, 30];
+  const by = Object.fromEntries(rows.map((r) => [r.day, r]));
+  const d0 = by[0]?.people || 0;
+  const curve = rows.filter((r) => r.day > 0 && r.day <= 30);
+  const max = Math.max(1, ...curve.map((r) => r.pct));
+  return (
+    <div style={{ ...CARD, flex: "2 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Retention</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+        India · share of {d0.toLocaleString()} people who came back N days after we first saw them
+      </div>
+      <div style={{ display: "flex", gap: 18, margin: "14px 0 12px", flexWrap: "wrap" }}>
+        {pick.map((d) => (
+          <div key={d}>
+            <div style={{ fontSize: 11, color: MUTED }}>D{d}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: by[d]?.pct >= 20 ? "#3FBF7F" : by[d]?.pct ? "#FFB454" : MUTED }}>
+              {by[d] ? `${by[d].pct}%` : "—"}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 64 }}>
+        {curve.map((r) => (
+          <div key={r.day} title={`Day ${r.day} · ${r.people} people · ${r.pct}%`}
+               style={{ flex: 1, height: `${Math.max(2, (r.pct / max) * 100)}%`, background: "#F4532E", opacity: 0.35 + 0.65 * (r.pct / max), borderRadius: 2 }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: MUTED, marginTop: 4 }}>
+        <span>day 1</span><span>day 30</span>
+      </div>
+    </div>
+  );
+}
+
+/** Install → open → sign-in, per platform, with the losses named. */
+function DropOff({ rows }) {
+  return (
+    <div style={{ ...CARD, flex: "2 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Drop-off by platform</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Installed → opened → signed in · 90 days</div>
+      {!rows.length && <div style={{ fontSize: 13, color: MUTED, marginTop: 12 }}>No install events yet.</div>}
+      {rows.map((r) => (
+        <div key={r.os} style={{ marginTop: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+            <span style={{ color: INK, fontWeight: 600 }}>{r.os}</span>
+            <span style={{ color: SUB }}>{r.installed} installed</span>
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {[["Installed", r.installed, "#F4532E"], ["Opened", r.opened, "#FFB454"], ["Signed in", r.signedIn, "#3FBF7F"]].map(([k, v, c]) => (
+              <div key={k} style={{ flex: Math.max(v, r.installed * 0.12) || 1, minWidth: 64 }}>
+                <div style={{ height: 26, borderRadius: 6, background: c, opacity: 0.85, display: "grid", placeItems: "center", color: "#0B0B0C", fontSize: 12, fontWeight: 700 }}>{v}</div>
+                <div style={{ fontSize: 10.5, color: MUTED, marginTop: 3, textAlign: "center" }}>{k}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6 }}>
+            {r.openRate == null ? "—" : `${r.openRate}% opened`}
+            {r.lostAtOpen ? ` · lost ${r.lostAtOpen} before first open` : ""}
+            {r.signInRate == null ? "" : ` · ${r.signInRate}% of openers signed in`}
+            {r.lostAtSignIn ? ` · lost ${r.lostAtSignIn} at sign-in` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** When India actually uses the app, in IST. */
+function Hourly({ rows }) {
+  const max = Math.max(1, ...rows.map((r) => r.people));
+  const peak = rows.reduce((a, b) => (b.people > (a?.people || 0) ? b : a), null);
+  return (
+    <div style={{ ...CARD, flex: "1 1 320px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Time of day</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+        IST · unique people per hour{peak ? ` · peak ${String(peak.hour).padStart(2, "0")}:00` : ""}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 70, marginTop: 12 }}>
+        {Array.from({ length: 24 }, (_, h) => {
+          const r = rows.find((x) => x.hour === h);
+          const v = r?.people || 0;
+          return <div key={h} title={`${String(h).padStart(2, "0")}:00 · ${v} people`}
+                      style={{ flex: 1, height: `${Math.max(2, (v / max) * 100)}%`, background: "#F4532E", opacity: 0.3 + 0.7 * (v / max), borderRadius: 2 }} />;
+        })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: MUTED, marginTop: 4 }}>
+        <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
+      </div>
+    </div>
+  );
+}
+
+/** New vs returning — a flat DAU made of new installs is churn in a growth costume. */
+function NewReturning({ rows }) {
+  const max = Math.max(1, ...rows.map((r) => r.newPeople + r.returning));
+  return (
+    <div style={{ ...CARD, flex: "2 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>New vs returning</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>India · daily active, split by whether we had seen them before</div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80, marginTop: 12 }}>
+        {rows.map((r) => (
+          <div key={r.date} title={`${r.date} · ${r.newPeople} new · ${r.returning} returning`}
+               style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+            <div style={{ height: `${(r.returning / max) * 100}%`, background: "#3FBF7F", borderRadius: "2px 2px 0 0" }} />
+            <div style={{ height: `${(r.newPeople / max) * 100}%`, background: "#F4532E" }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 14, fontSize: 11.5, color: MUTED, marginTop: 8 }}>
+        <span><span style={{ color: "#F4532E" }}>■</span> new</span>
+        <span><span style={{ color: "#3FBF7F" }}>■</span> returning</span>
+      </div>
+    </div>
+  );
+}
+
+/** How many distinct days each person showed up in the last 30. */
+function Depth({ rows }) {
+  const total = rows.reduce((n, r) => n + r.people, 0);
+  const oneDay = rows.find((r) => r.daysActive === 1)?.people || 0;
+  const habit = rows.filter((r) => r.daysActive >= 5).reduce((n, r) => n + r.people, 0);
+  const max = Math.max(1, ...rows.map((r) => r.people));
+  return (
+    <div style={{ ...CARD, flex: "1 1 320px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Depth of use</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Distinct active days per person · 30 days</div>
+      <div style={{ display: "flex", gap: 18, margin: "12px 0" }}>
+        <div><div style={{ fontSize: 11, color: MUTED }}>One day only</div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: "#FFB454" }}>{total ? Math.round((oneDay / total) * 100) : 0}%</div></div>
+        <div><div style={{ fontSize: 11, color: MUTED }}>5+ days</div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: "#3FBF7F" }}>{total ? Math.round((habit / total) * 100) : 0}%</div></div>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 54 }}>
+        {rows.slice(0, 30).map((r) => (
+          <div key={r.daysActive} title={`${r.daysActive} day(s) · ${r.people} people`}
+               style={{ flex: 1, height: `${Math.max(2, (r.people / max) * 100)}%`, background: r.daysActive === 1 ? "#FFB454" : "#3FBF7F", opacity: 0.8, borderRadius: 2 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Journey — the download→onboarded funnel as horizontal bars, each step's width relative to the
+ * top of the funnel, with step-to-step conversion and the drop between them. The later steps read 0
+ * until a build carrying the new events ships, which is shown as "awaiting build" rather than hidden.
+ */
+function Journey({ steps, lifecycle }) {
+  const top = Math.max(1, steps[0]?.people || 0);
+  const anyNew = steps.slice(2).some((s) => s.people > 0);   // otp_requested onward = the new events
+  return (
+    <div style={{ ...CARD, marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User journey <span style={{ color: MUTED, fontWeight: 500 }}>· install → onboarded · India · 90d</span></div>
+        {!anyNew && <div style={{ fontSize: 11.5, color: "#FFB454" }}>later steps await the next build’s events</div>}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        {steps.map((s, i) => {
+          const pct = Math.round((s.people / top) * 100);
+          const prev = i > 0 ? steps[i - 1].people : null;
+          const conv = prev ? Math.round((s.people / Math.max(1, prev)) * 100) : null;
+          return (
+            <div key={s.key} style={{ marginBottom: 9 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                <span style={{ color: INK }}>{i + 1}. {s.label}</span>
+                <span style={{ color: SUB }}>
+                  {s.people.toLocaleString()}
+                  {conv != null && <span style={{ color: conv < 50 ? "#FFB454" : MUTED }}> · {conv}% of prev</span>}
+                </span>
+              </div>
+              <div style={{ height: 22, background: "rgba(255,255,255,.05)", borderRadius: 6, overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(pct, s.people > 0 ? 2 : 0)}%`, height: "100%",
+                  background: `linear-gradient(90deg, #F4532E, ${conv != null && conv < 50 ? "#FFB454" : "#F4532E"})`,
+                  borderRadius: 6, transition: "width .4s" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "16px 0 8px" }}>Engagement & lifecycle</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {(lifecycle || []).map((l) => (
+          <div key={l.key} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, flex: "1 1 140px" }}>
+            <div style={{ color: MUTED }}>{l.label}</div>
+            <div style={{ color: l.key === "deleted" && l.people > 0 ? "#FF7B72" : INK, fontSize: 18, fontWeight: 700, marginTop: 2 }}>{l.people.toLocaleString()}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [showTable, setShowTable] = useState(false);
 
+  const [updatedAt, setUpdatedAt] = useState(null);
   const load = async () => {
     setErr("");
     const r = await fetch("/api/admin/posthog").catch(() => null);
@@ -519,8 +757,18 @@ export default function ProductMetrics() {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) return setErr(j.error || `Failed (${r?.status})`);
     setD(j);
+    setUpdatedAt(Date.now());
   };
-  useEffect(() => { load(); }, []);
+  // Near-real-time: reload every 10 minutes so /admin stays current without a manual refresh.
+  // PostHog ingestion lag is a few minutes, so a tighter interval would just re-query the same
+  // numbers and burn quota; 10 min matches how fast the figures actually move.
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 10 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === "visible") load(); };  // refresh on tab focus
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
 
   const H2 = { fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" };
 
@@ -533,9 +781,15 @@ export default function ProductMetrics() {
     <>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <h2 style={H2}>Product metrics <span style={{ fontSize: 13, fontWeight: 500, color: MUTED }}>· real users · India · last 30 days</span></h2>
-        <button onClick={load} style={{ background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-          Refresh
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 12, color: MUTED, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 7, height: 7, borderRadius: 4, background: "#3FBF7F", display: "inline-block" }} />
+            {updatedAt ? `updated ${new Date(updatedAt).toLocaleTimeString()} · auto every 10m` : "live"}
+          </span>
+          <button onClick={load} style={{ background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -544,8 +798,8 @@ export default function ProductMetrics() {
         <Tile k="MAU" v={a.mau} sub={a.globalMau != null ? `${a.globalMau} incl. test` : "last 30 days"} />
         <Tile k="Stickiness" v={`${a.stickiness}%`} sub="DAU ÷ MAU" />
         <Tile k="Avg DAU" v={a.avgDau} sub="full days only" />
-        <Tile k="Sessions" v={v.sessions.toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
-        <Tile k="Events" v={v.events30d.toLocaleString()} sub="30 days" />
+        <Tile k="Sessions" v={(v?.sessions ?? 0).toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
+        <Tile k="Events" v={(v?.events30d ?? 0).toLocaleString()} sub="30 days" />
       </div>
       <div style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>
         Headline figures are <strong style={{ color: SUB }}>real India users</strong>; the “incl. test”
@@ -554,7 +808,78 @@ export default function ProductMetrics() {
       </div>
 
       {d.funnel && <TrueUsers f={d.funnel} />}
+      {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} />}
       {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} />}
+
+      {/* A failed query returns [], which renders as a confident zero. Name the
+          casualties instead — "we could not fetch this" and "this is genuinely
+          empty" are different facts and must not look the same. */}
+      {!!d.degraded?.length && (
+        <div style={{ ...CARD, marginTop: 16, borderColor: "rgba(255,180,84,.4)", color: "#FFB454", fontSize: 13 }}>
+          {d.degraded.length} of these queries failed and are showing empty: {d.degraded.join(", ")}.
+        </div>
+      )}
+
+      <h2 style={H2}>Retention &amp; drop-off</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {!!d.retention?.length && <Retention rows={d.retention} />}
+        {!!d.funnelByOs?.length && <DropOff rows={d.funnelByOs} />}
+      </div>
+
+      <h2 style={H2}>Engagement</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {!!d.newVsReturning?.length && <NewReturning rows={d.newVsReturning} />}
+        {!!d.hourly?.length && <Hourly rows={d.hourly} />}
+        {!!d.depth?.length && <Depth rows={d.depth} />}
+        {!!d.sessionShape && (
+          <div style={{ ...CARD, flex: "1 1 280px" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Session shape</div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>India · 30 days</div>
+            <div style={{ display: "flex", gap: 20, marginTop: 14, flexWrap: "wrap" }}>
+              <div><div style={{ fontSize: 11, color: MUTED }}>Events / session</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: INK }}>{d.sessionShape.eventsPerSession}</div></div>
+              <div><div style={{ fontSize: 11, color: MUTED }}>Median length</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: INK }}>{secs(d.sessionShape.medianSecs)}</div></div>
+              <div><div style={{ fontSize: 11, color: MUTED }}>Mean length</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: SUB }}>{secs(d.sessionShape.avgSecs)}</div></div>
+            </div>
+            {/* Mean far above median means a few very long sessions, not a
+                generally engaged cohort — say so rather than let the bigger
+                number get quoted. */}
+            {d.sessionShape.medianSecs > 0 && d.sessionShape.avgSecs > d.sessionShape.medianSecs * 2 && (
+              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>
+                Mean is more than double the median — a handful of very long sessions are pulling it up. Read the median.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <h2 style={H2}>What people do</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <BarList title="Screens" note="$screen · 30 days · by views"
+          rows={(d.screens || []).map((r) => ({ label: r.screen, n: r.views, sub: `${r.people}p` }))}
+          empty="No $screen events — the SDK's screen tracking is not wired." />
+        <BarList title="Taps" note="$autocapture · 30 days"
+          rows={(d.taps || []).map((r) => ({ label: r.target, n: r.taps, sub: `${r.people}p` }))}
+          empty="No autocapture events — tap tracking is off in the app." />
+        <BarList title="Feature adoption" note="India · people who ever reached it · 90 days"
+          rows={(d.adoption || []).map((r) => ({ label: r.event, n: r.people, sub: ago(r.lastSeen), color: "#3FBF7F" }))}
+          empty="No custom events yet." />
+      </div>
+
+      <h2 style={H2}>Devices &amp; builds</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <BarList title="App versions" note="30 days · people on each build"
+          rows={(d.versions || []).map((r) => ({ label: `${r.version} · ${r.os}`, n: r.people, sub: ago(r.lastSeen) }))}
+          empty="No $app_version property on events." />
+        <BarList title="Devices" note="India · 90 days"
+          rows={(d.devices || []).map((r) => ({ label: `${r.model} · ${r.os}`, n: r.people }))}
+          empty="No $device_model property on events." />
+        <BarList title="Errors &amp; crashes" note="30 days · $exception plus error/fail/crash events"
+          rows={(d.errors || []).map((r) => ({ label: r.problem, n: r.count, sub: ago(r.lastSeen), color: "#FF7B72" }))}
+          empty="Nothing matching — either clean, or crash reporting is not wired." />
+      </div>
 
       {!a.windowIsFullMonth && (
         // Without this the MAU tile reads as a real rolling metric when it cannot be one yet.
@@ -586,7 +911,7 @@ export default function ProductMetrics() {
                   <tr key={r.date}>
                     <td style={{ padding: "6px 8px", color: INK }}>{r.date}{r.partial ? " (partial)" : ""}</td>
                     <td style={{ padding: "6px 8px", textAlign: "right", color: INK }}>{r.dau}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "right", color: SUB }}>{r.events.toLocaleString()}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "right", color: SUB }}>{(r.events ?? 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -618,7 +943,7 @@ export default function ProductMetrics() {
               {e.stale && <span style={{ fontSize: 11, color: "#FFB454" }}>stale</span>}
             </span>
             <span style={{ color: SUB, whiteSpace: "nowrap" }}>
-              {e.count.toLocaleString()} · {e.people}p
+              {(e.count ?? 0).toLocaleString()} · {e.people}p
               {e.lastSeen && <span style={{ color: MUTED }}> · {String(e.lastSeen).slice(0, 10)}</span>}
             </span>
           </div>
@@ -631,7 +956,7 @@ export default function ProductMetrics() {
           {d.platform.filter((p) => p.people > 0).map((p) => (
             <div key={p.os} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.06)", fontSize: 13 }}>
               <span style={{ color: INK }}>{p.os}</span>
-              <span style={{ color: SUB }}>{p.people} people · {p.perPerson.toLocaleString()} ev/person</span>
+              <span style={{ color: SUB }}>{p.people} people · {(p.perPerson ?? 0).toLocaleString()} ev/person</span>
             </div>
           ))}
         </div>
@@ -643,7 +968,7 @@ export default function ProductMetrics() {
             {(d.topEvents || []).map((e) => (
               <div key={e.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.06)", fontSize: 13 }}>
                 <span style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{e.name}</span>
-                <span style={{ color: SUB }}>{e.count.toLocaleString()} · {e.people}p</span>
+                <span style={{ color: SUB }}>{(e.count ?? 0).toLocaleString()} · {e.people}p</span>
               </div>
             ))}
           </div>
