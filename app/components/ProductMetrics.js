@@ -772,6 +772,102 @@ function Journey({ steps, lifecycle }) {
   );
 }
 
+/**
+ * ActionItems — "what to do next", computed live from the numbers (not written by hand, not an
+ * external model). Deterministic rules over the current payload, so it re-derives on every 10-minute
+ * refresh and always matches what's on screen. Sorted by priority; each item names the metric that
+ * triggered it and one concrete fix.
+ */
+function ActionItems({ d }) {
+  const items = [];
+  const RANK = { critical: 0, high: 1, medium: 2, low: 3 };
+  const lc = Object.fromEntries((d.lifecycle || []).map((l) => [l.key, l.people]));
+  const f = d.funnel || {}; const a = d.active || {};
+
+  // 1. Activation — the biggest lever on this app right now.
+  if (f.installed && f.activation != null && f.activation < 35) {
+    const lost = (f.installed || 0) - (f.signedIn || 0);
+    items.push({ p: "critical", t: `Fix the sign-in step — activation is only ${f.activation}%`,
+      why: `${lost} of ${f.installed} installers never signed in.`,
+      fix: "Instrument + redesign the OTP screen: pre-fill the country code, auto-read the SMS code, show progress, and let them explore before demanding a number. This is the single biggest download→user lever." });
+  }
+  // 2. Crashes — a live crash caps everything above it.
+  const err = (d.errors || [])[0];
+  if (err && (err.count || err.n)) {
+    items.push({ p: "critical", t: `Fix the recurring crash — ${(err.count || err.n)} hits`,
+      why: `"${(err.problem || err.label || "app error").slice(0, 60)}" is the top error.`,
+      fix: "Ship a patch this week. Every crash on a beta user is a user you likely won't get back." });
+  }
+  // 3. Referral engine idle — no organic loop = paid growth only.
+  const referred = (lc.referred || 0); const signed = f.signedIn || 0;
+  if (signed >= 10 && referred <= Math.max(2, signed * 0.1)) {
+    items.push({ p: "high", t: `Turn on word-of-mouth — only ${referred} referral${referred === 1 ? "" : "s"} from ${signed} users`,
+      why: "Your viral coefficient is ~0, so growth costs money for every user.",
+      fix: "Add a one-tap WhatsApp share after a successful screened call (\"Tring just handled a call for me\"), with a two-sided reward. This audience shares on WhatsApp — meet them there." });
+  }
+  // 4. Retention — do people come back?
+  const ret = d.retention || [];
+  const d7 = ret.find((r) => /d?7\b/i.test(r.day || r.label || String(r.n ?? "")));
+  const d7v = d7 ? Number(d7.pct ?? d7.value ?? d7.people) : null;
+  if (d7v != null && d7v < 20) {
+    items.push({ p: "high", t: `Give people a reason to return — D7 retention ~${d7v}%`,
+      why: "Most users don't come back after week one.",
+      fix: "Send a weekly \"here's what Tring caught for you\" summary push, and surface missed-call value on day 2–3. Retention is what makes growth compound instead of leak." });
+  }
+  // 5. Platform bias — spend where it converts.
+  const plat = (d.platform || []).filter((p) => p.people > 0);
+  const ios = plat.find((p) => /ios/i.test(p.os)); const and = plat.find((p) => /android/i.test(p.os));
+  if (ios && and && ios.perPerson > and.perPerson * 1.5) {
+    items.push({ p: "medium", t: "Bias acquisition toward iPhone + WhatsApp",
+      why: `iOS users are far more engaged (${ios.perPerson} vs ${and.perPerson} events/person).`,
+      fix: "Shift creative and spend toward iOS and the whatsapp/fnf channel that already dominates your signups; treat broad ChatGPT-link installs as top-of-funnel only." });
+  }
+  // 6. Analytics hygiene — clean the test traffic.
+  if (a.globalMau && a.mau && a.globalMau > a.mau * 1.4) {
+    items.push({ p: "medium", t: "Separate test traffic from your real numbers",
+      why: `~${a.globalMau - a.mau} of ${a.globalMau} monthly actives are CI / emulators / store review.`,
+      fix: "Disable analytics in dev/CI builds, or point them at a separate PostHog project, so nobody has to mentally subtract robots again." });
+  }
+  // 7. Geo concentration — double down where you're winning.
+  const st = (d.states || []).filter((s) => s.people > 0).slice(0, 2);
+  if (st.length === 2 && st[0].people >= 20) {
+    items.push({ p: "low", t: `Double down on ${st[0].state.replace("National Capital Territory of ", "")} & ${st[1].state}`,
+      why: "These are your strongest organic clusters — proof the product spreads there.",
+      fix: "Run referral pushes and regional-language creative in these states before opening new ones." });
+  }
+  // 8. Churn watch.
+  if ((lc.deleted || 0) > 0) {
+    items.push({ p: "low", t: `${lc.deleted} account deletion${lc.deleted === 1 ? "" : "s"} — watch the reason`,
+      why: "Deletions are your clearest dissatisfaction signal.",
+      fix: "Add a one-tap \"why are you leaving?\" on the delete screen." });
+  }
+
+  items.sort((x, y) => RANK[x.p] - RANK[y.p]);
+  const C = { critical: "#FF7B72", high: "#FFB454", medium: "#3B82F6", low: "#8C7C73" };
+  const LBL = { critical: "DO NOW", high: "HIGH", medium: "MEDIUM", low: "LATER" };
+  if (!items.length) return null;
+  return (
+    <div style={{ ...CARD, marginTop: 12, borderColor: "rgba(255,123,114,.28)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Action items <span style={{ color: MUTED, fontWeight: 500 }}>· what to do next, from the live numbers</span></div>
+        <div style={{ fontSize: 11.5, color: MUTED }}>re-computed every refresh · not a static list</div>
+      </div>
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+        {items.map((it, i) => (
+          <div key={i} style={{ display: "flex", gap: 12, padding: "12px 14px", background: "rgba(255,255,255,.03)", borderRadius: 12, borderLeft: `3px solid ${C[it.p]}` }}>
+            <div style={{ flexShrink: 0, width: 62, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", color: C[it.p], paddingTop: 2 }}>{LBL[it.p]}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{it.t}</div>
+              <div style={{ fontSize: 12.5, color: SUB, marginTop: 3 }}>{it.why}</div>
+              <div style={{ fontSize: 12.5, color: "#9FE0BC", marginTop: 5, lineHeight: 1.5 }}>→ {it.fix}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
@@ -835,6 +931,7 @@ export default function ProductMetrics() {
         MAU read ~2× the real base.
       </div>
 
+      <ActionItems d={d} />
       {d.funnel && <TrueUsers f={d.funnel} />}
       {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} />}
       {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} />}
