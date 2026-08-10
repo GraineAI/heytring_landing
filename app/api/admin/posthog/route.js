@@ -17,6 +17,10 @@ import { isAuthed } from "../../../lib/adminAuth";
  */
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+// 24 ClickHouse queries, some scanning 90 days. The platform default (10s on
+// Hobby) cuts that off mid-flight and the dashboard reports a failure that is
+// really a deadline.
+export const maxDuration = 60;
 
 const HOST = process.env.POSTHOG_API_HOST || "https://us.posthog.com";
 
@@ -290,17 +294,36 @@ export async function GET(req) {
     // costs exactly one card, and `degraded` names what is missing rather than
     // leaving a silently empty panel looking like a real zero.
     const degraded = [];
+    let firstError = null;
     const run = async (name) => {
       try {
         return await hogql(Q[name]);
       } catch (e) {
         degraded.push(name);
+        firstError = firstError || e?.message;   // kept for the all-failed case
         return [];
       }
     };
+    // Six at a time, not all 24 at once. PostHog's query API rate-limits, and a
+    // burst of 24 concurrent ClickHouse scans is exactly the shape that trips
+    // it — which is how this endpoint started failing in production while
+    // working locally against the same project. Still ~4 round trips, not 24.
     const names = Object.keys(Q);
-    const settled = await Promise.all(names.map(run));
-    const R = Object.fromEntries(names.map((n, i) => [n, settled[i]]));
+    const R = {};
+    const LANES = 6;
+    for (let i = 0; i < names.length; i += LANES) {
+      const batch = names.slice(i, i + LANES);
+      const out = await Promise.all(batch.map(run));
+      batch.forEach((n, j) => { R[n] = out[j]; });
+    }
+
+    // Isolation is right for ONE broken query. It is wrong for all of them:
+    // an unreachable PostHog would otherwise return a confident page of zeros,
+    // which reads as "you have no users" rather than "this is down". Losing
+    // everything is an outage, so say so.
+    if (degraded.length === names.length) {
+      throw new Error(firstError || "posthog unreachable");
+    }
 
     const { totals, daily, sessions, platform, events, custom, funnel, countries, states } = R;
     const totalsGlobal = R.totalsGlobal;
@@ -346,9 +369,13 @@ export async function GET(req) {
     });
     const [fInstalled=0, fOpened=0, fSignedIn=0, fIndia=0, fTotal=0] = funnel[0] || [];
 
-    // Full activation journey + lifecycle (India). Fetched here rather than in the main Promise.all
-    // so this stays additive to whatever else edits that fan-out.
-    const [journey, lifecycle] = await Promise.all([hogql(Q.journey), hogql(Q.lifecycle)]);
+    // Full activation journey + lifecycle (India). Both live in Q, so the
+    // resilient loop above has already fetched them — this used to re-fetch
+    // them in a bare Promise.all, which meant two things at once: every
+    // dashboard load ran these two queries twice, and because that call sat
+    // outside the per-query catch, a single 403 from either one threw past all
+    // the isolation and 500'd the whole endpoint. Read the results instead.
+    const journey = R.journey, lifecycle = R.lifecycle;
     const jr = journey[0] || []; const lc = lifecycle[0] || [];
     const jSteps = [
       { key: "installed", label: "Installed" }, { key: "opened", label: "Opened" },
