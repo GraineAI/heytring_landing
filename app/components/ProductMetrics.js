@@ -256,20 +256,25 @@ export default function ProductMetrics() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <h2 style={H2}>Product metrics <span style={{ fontSize: 13, fontWeight: 500, color: MUTED }}>· app, last 30 days</span></h2>
+        <h2 style={H2}>Product metrics <span style={{ fontSize: 13, fontWeight: 500, color: MUTED }}>· real users · India · last 30 days</span></h2>
         <button onClick={load} style={{ background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
           Refresh
         </button>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Tile k="DAU" v={a.dau} sub="last 24h" accent={DAU_C} />
-        <Tile k="WAU" v={a.wau} sub="last 7 days" />
-        <Tile k="MAU" v={a.mau} sub="last 30 days" />
+        <Tile k="DAU" v={a.dau} sub={a.globalDau != null ? `${a.globalDau} incl. test` : "last 24h"} accent={DAU_C} />
+        <Tile k="WAU" v={a.wau} sub={a.globalWau != null ? `${a.globalWau} incl. test` : "last 7 days"} />
+        <Tile k="MAU" v={a.mau} sub={a.globalMau != null ? `${a.globalMau} incl. test` : "last 30 days"} />
         <Tile k="Stickiness" v={`${a.stickiness}%`} sub="DAU ÷ MAU" />
         <Tile k="Avg DAU" v={a.avgDau} sub="full days only" />
         <Tile k="Sessions" v={v.sessions.toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
         <Tile k="Events" v={v.events30d.toLocaleString()} sub="30 days" />
+      </div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>
+        Headline figures are <strong style={{ color: SUB }}>real India users</strong>; the “incl. test”
+        number under each is the raw global count (CI, emulators, store-review). That gap is why the old
+        MAU read ~2× the real base.
       </div>
 
       {d.funnel && <TrueUsers f={d.funnel} />}

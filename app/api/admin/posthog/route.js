@@ -50,15 +50,24 @@ const Q = {
       uniq(person_id)                                          AS all_time,
       countIf(timestamp >= now() - INTERVAL 30 DAY)            AS events_30d,
       min(timestamp)                                           AS first_seen
+    FROM events WHERE properties.$geoip_country_name = 'India'`,
+
+  // Global (unfiltered) active users — shown small beside the India headline so the exclusion is
+  // explicit. The gap is CI / emulators / App Store review, not users.
+  totalsGlobal: `SELECT
+      uniqIf(person_id, timestamp >= now() - INTERVAL 1 DAY)   AS dau,
+      uniqIf(person_id, timestamp >= now() - INTERVAL 7 DAY)   AS wau,
+      uniqIf(person_id, timestamp >= now() - INTERVAL 30 DAY)  AS mau
     FROM events`,
 
   daily: `SELECT toDate(timestamp) AS day, uniq(person_id) AS dau, count() AS events
-    FROM events WHERE timestamp >= now() - INTERVAL 30 DAY
+    FROM events WHERE timestamp >= now() - INTERVAL 30 DAY AND properties.$geoip_country_name = 'India'
     GROUP BY day ORDER BY day`,
 
   sessions: `SELECT uniq($session_id) AS sessions
     FROM events
-    WHERE timestamp >= now() - INTERVAL 30 DAY AND $session_id IS NOT NULL`,
+    WHERE timestamp >= now() - INTERVAL 30 DAY AND $session_id IS NOT NULL
+      AND properties.$geoip_country_name = 'India'`,
 
   platform: `SELECT properties.$os AS os, uniq(person_id) AS people, count() AS events
     FROM events WHERE timestamp >= now() - INTERVAL 30 DAY
@@ -112,6 +121,8 @@ export async function GET(req) {
       hogql(Q.totals), hogql(Q.daily), hogql(Q.sessions), hogql(Q.platform), hogql(Q.events),
       hogql(Q.custom), hogql(Q.funnel), hogql(Q.countries), hogql(Q.states),
     ]);
+    const totalsGlobal = await hogql(Q.totalsGlobal);
+    const [gDau = 0, gWau = 0, gMau = 0] = totalsGlobal[0] || [];
 
     const [dau = 0, wau = 0, mau = 0, allTime = 0, events30d = 0, firstSeen = null] = totals[0] || [];
     const sessionCount = sessions[0]?.[0] ?? 0;
@@ -166,6 +177,8 @@ export async function GET(req) {
         windowIsFullMonth: firstSeen
           ? (Date.now() - new Date(firstSeen).getTime()) / 86400000 >= 30
           : false,
+        scope: "India",
+        globalDau: gDau, globalWau: gWau, globalMau: gMau,
       },
       volume: {
         events30d,
