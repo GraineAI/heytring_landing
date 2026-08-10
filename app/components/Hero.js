@@ -168,8 +168,17 @@ export default function Hero() {
           <StoreButtons placement="hero" />
         </div>
 
+        {/* Was "Closed beta · Free · 12+ Indian languages · Made for India".
+            Two problems with that, both visible in the funnel:
+
+            1. It sold to "India" — 1.4bn people. That is 1→n framing for a
+               product with 140 users. Thiel's point is to own a small market
+               first; ours is people drowning in spam calls, mostly North India.
+            2. It promised nothing about setup, and 85% of installs die at the
+               OTP screen (260 installed → 47 signed in). People abandon at a
+               step they did not know was coming. Say it up front. */}
         <p className="hero__trust">
-          Closed beta · Free · 12+ Indian languages · Made for India <IndiaFlag />
+          Free while in beta · Works on the SIM you already have · About two minutes to set up <IndiaFlag />
         </p>
 
         <Surfer />

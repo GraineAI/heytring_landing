@@ -34,6 +34,19 @@ export function ensureSchema() {
         )`;
       await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS landing text`;
       await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS contacted boolean NOT NULL DEFAULT false`;
+      // ── user-research columns ────────────────────────────────────────────
+      // "Talk to your users" only compounds if the answers are written down
+      // somewhere the whole team can read. Notes live next to the person, not
+      // in someone's inbox.
+      //
+      // `outcome` is deliberately a small vocabulary rather than free text:
+      // reached / no_answer / wrong_number / refused / churned / activated.
+      // Counting "how many did we actually reach" is the point, and free text
+      // cannot be counted.
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS notes text`;
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS outcome text`;
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS tags text[]`;
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS called_at timestamptz`;
       // one row per (email, device): the same email may join for Android AND iPhone
       await q`DROP INDEX IF EXISTS waitlist_email_uq`;
       await q`CREATE UNIQUE INDEX IF NOT EXISTS waitlist_email_device_uq ON waitlist ((lower(email)), device)`;

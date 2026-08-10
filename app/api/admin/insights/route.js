@@ -16,7 +16,12 @@ import { isAuthed } from "../../../lib/adminAuth";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";  // cheap GPT-5.4 tier ($0.75/1M in); override via env
+// Default is the cheap tier ($0.75/1M in) because this panel re-runs on a
+// 10-minute cycle. Set OPENAI_MODEL=gpt-5.6-sol for the frontier model — no
+// code change needed, IS_REASONING below already matches it — but note it is
+// $5/1M in and $30/1M out, roughly 7x the input and far more on output. For a
+// cached dashboard panel that is a real cost decision, not a free upgrade.
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 // GPT-5.x / o-series are REASONING models: they use max_completion_tokens (not max_tokens), accept
 // reasoning_effort, and reject a non-default temperature. Older chat models (gpt-4o-mini) want
 // temperature + tolerate max_completion_tokens. Detect and build the body accordingly.
@@ -45,6 +50,25 @@ You think strictly in Peter Thiel's "Zero to One":
 - Secrets (ch8): act on what the data reveals that the market doesn't see.
 - Distribution (ch11): a product with no referral loop dies; treat distribution as equal to product.
 
+You also apply two lenses that Zero to One does not cover, because at this stage they bind harder:
+
+Y COMBINATOR (Gupta, "minimum evolvable product"; Alströmer, "how to talk to users"):
+- Finding first users is a SEARCH problem, not a persuasion problem. At a few hundred users the
+  answer is almost never "run more ads" — it is "go find the handful with a burning problem".
+- Charge real money early. Early adopters and people in pain are not price sensitive, and paying
+  users give sharper feedback than free ones. A free beta buys silence.
+- The product is an amoeba, and it evolves in the direction its first users pull it. So WHO you
+  recruit now decides what the product becomes. Recruiting the wrong early users is a strategy error,
+  not a marketing one.
+- Do not fear churn at this size. Losing an unsuitable user costs nothing; learning nothing costs everything.
+- Talk to users on a call, never a survey. Ask what they DID, not what they WOULD do.
+
+A16Z (consumer AI economics):
+- Consumer AI is squeezed: inference costs real money, ads do not cover it, and personal software
+  budgets are small. If the numbers show weak willingness to pay, say so and point at prosumer or
+  business users rather than pretending consumer subscription will work.
+- Retention, not installs, is the only honest measure. Installs are vanity when D30 is low.
+
 RULES for your output:
 - Every item MUST cite the specific metric number that triggered it.
 - Every item MUST name which Zero to One idea it applies (short).
@@ -52,6 +76,11 @@ RULES for your output:
   call-screening app (mention the OTP screen, missed-call value, WhatsApp share, voice clone, etc.).
 - No platitudes, no "consider leveraging synergies". If a number is healthy, don't invent a problem.
 - Rank by leverage (power law): the biggest lever first.
+- AT LEAST ONE item must be a specific user-research action: how many people to call, WHICH segment
+  (name it from the data — e.g. those who installed but never signed in), and the one question to ask.
+  At this size that is usually the highest-leverage thing available, and it is the item founders skip.
+- If activation or retention is bad, do NOT propose acquisition. Pouring users into a leaking funnel
+  is the most common and most expensive mistake at this stage; say that plainly.
 Return STRICT JSON only.`;
 
 function userPrompt(summary) {
@@ -107,7 +136,11 @@ export async function POST(req) {
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt(summary) }],
       response_format: { type: "json_object" },
       // Reasoning models spend tokens thinking before the JSON, so give generous headroom.
-      max_completion_tokens: IS_REASONING ? 3000 : 1200,
+      // Reasoning tokens are billed AND counted inside this budget, so a
+      // reasoning model can burn the whole allowance thinking and return an
+      // empty completion — which surfaces as "no insights" rather than as an
+      // error. Tunable, and generous enough that the JSON survives.
+      max_completion_tokens: IS_REASONING ? Number(process.env.OPENAI_MAX_TOKENS || 6000) : 1200,
     };
     if (IS_REASONING) payload.reasoning_effort = process.env.OPENAI_REASONING_EFFORT || "low";  // fast + cheap for a dashboard
     else payload.temperature = 0.4;

@@ -16,6 +16,9 @@ export default function StoreButtons({ onDark = false, placement = "page" }) {
   }, []);
 
   const cls = `btn btn--store${onDark ? " btn--onDark" : ""}`;
+  // "CLOSED BETA" was chrome — it said nothing a visitor could act on. "REQUEST
+  // AN INVITE" is what actually happens when you press it, and a button that
+  // describes its own outcome is the cheapest conversion fix there is.
   return (
     <div className="cta-row">
       {os !== "ios" && (
@@ -23,8 +26,8 @@ export default function StoreButtons({ onDark = false, placement = "page" }) {
           aria-label="Get a Tring beta invite for Android">
           <Play />
           <span className="store-k">
-            <small>CLOSED BETA</small>
-            <span>Android invite</span>
+            <small>REQUEST AN INVITE</small>
+            <span>Android</span>
           </span>
         </button>
       )}
@@ -33,8 +36,8 @@ export default function StoreButtons({ onDark = false, placement = "page" }) {
           aria-label="Get a Tring beta invite for iPhone">
           <Apple />
           <span className="store-k">
-            <small>CLOSED BETA</small>
-            <span>iPhone invite</span>
+            <small>REQUEST AN INVITE</small>
+            <span>iPhone</span>
           </span>
         </button>
       )}

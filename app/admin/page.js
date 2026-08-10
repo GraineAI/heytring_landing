@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import ProductMetrics from "../components/ProductMetrics";
+import UserResearch from "../components/UserResearch";
 
 const S = {
   page: { minHeight: "100vh", background: "#000000", color: "#FFF0EB", padding: "48px 20px", fontFamily: "inherit" },
@@ -173,6 +174,15 @@ export default function Admin() {
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
         <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
+          {/* The call queue sits ABOVE the raw table on purpose: the table is a
+              record, this is the work. */}
+          <UserResearch
+            rows={waitlist}
+            onSaved={(id, patch) =>
+              setData((d) => ({ ...d, waitlist: d.waitlist.map((r) => (r.id === id ? { ...r, ...patch } : r)) }))
+            }
+          />
+
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
             <thead><tr>
               <th style={S.th}>✓</th>
