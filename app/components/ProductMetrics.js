@@ -868,6 +868,88 @@ function ActionItems({ d }) {
   );
 }
 
+/**
+ * AIStrategist — OpenAI-written strategy over the same live numbers, framed in Zero to One.
+ * The key stays server-side (/api/admin/insights); this only posts the compact summary it already
+ * has and renders the JSON back. Regenerates with the 10-minute cycle; server caches to that window.
+ */
+function AIStrategist({ d, tick }) {
+  const [ins, setIns] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const summary = () => {
+    const a = d.active || {}, f = d.funnel || {};
+    const lc = Object.fromEntries((d.lifecycle || []).map((l) => [l.key, l.people]));
+    return {
+      real_users_india: { dau: a.dau, wau: a.wau, mau: a.mau, stickiness_pct: a.stickiness, avg_dau: a.avgDau },
+      global_incl_test: { mau: a.globalMau },
+      funnel: { installed: f.installed, opened: f.opened, signed_in: f.signedIn, activation_pct: f.activation, india: f.india, total: f.total },
+      sessions: d.volume,
+      retention: d.retention,
+      lifecycle: lc,
+      platform: (d.platform || []).map((p) => ({ os: p.os, people: p.people, events_per_person: p.perPerson })),
+      top_states: (d.states || []).slice(0, 6).map((s) => ({ state: s.state, people: s.people })),
+      countries: d.countries,
+      top_error: (d.errors || [])[0] || null,
+    };
+  };
+  const run = async (force) => {
+    setBusy(true); setErr("");
+    const r = await fetch("/api/admin/insights", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ summary: summary(), force: !!force }),
+    }).catch(() => null);
+    setBusy(false);
+    if (!r) return setErr("Network error");
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) return setErr(j.error || "Failed");
+    setIns(j.insights);
+  };
+  useEffect(() => { if (d) run(false); /* re-runs on the 10-min tick */ }, [tick]); // eslint-disable-line
+
+  const C = { critical: "#FF7B72", high: "#FFB454", medium: "#3B82F6" };
+  const LBL = { critical: "DO NOW", high: "HIGH", medium: "MEDIUM" };
+  return (
+    <div style={{ ...CARD, marginTop: 12, borderColor: "rgba(159,224,188,.28)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+          AI strategist <span style={{ color: MUTED, fontWeight: 500 }}>· OpenAI · framed in Zero to One · live</span>
+        </div>
+        <button onClick={() => run(true)} disabled={busy} style={{ background: "transparent", color: "#9FE0BC", border: "1.5px solid rgba(159,224,188,.4)", borderRadius: 10, padding: "6px 14px", fontWeight: 700, fontSize: 12.5, cursor: busy ? "default" : "pointer" }}>
+          {busy ? "Thinking…" : "Regenerate"}
+        </button>
+      </div>
+      {err && <div style={{ fontSize: 13, color: "#FFB454", marginTop: 10 }}>{err}</div>}
+      {!err && !ins && <div style={{ fontSize: 13, color: MUTED, marginTop: 10 }}>{busy ? "Asking the model…" : "—"}</div>}
+      {ins && (
+        <>
+          {ins.headline && <div style={{ fontSize: 14.5, color: INK, marginTop: 10, lineHeight: 1.5, fontWeight: 600 }}>{ins.headline}</div>}
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            {(ins.items || []).map((it, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, padding: "11px 14px", background: "rgba(255,255,255,.03)", borderRadius: 12, borderLeft: `3px solid ${C[it.priority] || MUTED}` }}>
+                <div style={{ flexShrink: 0, width: 60, fontSize: 10, fontWeight: 800, letterSpacing: ".05em", color: C[it.priority] || MUTED, paddingTop: 2 }}>{LBL[it.priority] || "NOTE"}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{it.title}</div>
+                  <div style={{ fontSize: 12, color: MUTED, marginTop: 3 }}>
+                    {it.metric && <span style={{ color: SUB }}>{it.metric}</span>}
+                    {it.principle && <span style={{ color: "#9FB8F5" }}>{it.metric ? "  ·  " : ""}{it.principle}</span>}
+                  </div>
+                  {it.action && <div style={{ fontSize: 12.5, color: "#9FE0BC", marginTop: 5, lineHeight: 1.5 }}>→ {it.action}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {ins.one_bet && (
+            <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(159,224,188,.08)", borderRadius: 10, fontSize: 13.5, color: INK, lineHeight: 1.55 }}>
+              <strong style={{ color: "#9FE0BC" }}>The one bet:</strong> {ins.one_bet}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
@@ -931,6 +1013,7 @@ export default function ProductMetrics() {
         MAU read ~2× the real base.
       </div>
 
+      <AIStrategist d={d} tick={updatedAt} />
       <ActionItems d={d} />
       {d.funnel && <TrueUsers f={d.funnel} />}
       {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} />}
