@@ -24,23 +24,31 @@ const SITE = "https://heytring.com";
 
 export const metadata = {
   metadataBase: new URL(SITE),
-  title: "Tring — the AI that answers the calls you'd rather skip",
+  title: "Tring: AI Call Assistant — Answer Missed Calls, Block Spam",
   description:
-    "Tring is a personal AI phone assistant for India. Ring answers spam, deliveries and vendor calls in their language, hands you a note, and can even answer in your own voice. Free. 18+.",
+    "Tring answers the calls you miss — in Hindi, Hinglish and Indian languages — and blocks spam before your phone rings. Caller ID, live transcripts, dual-SIM. Works on your existing SIM. Free.",
   keywords: [
     "AI call assistant",
     "AI phone assistant India",
     "call screening app",
-    "voice cloning call assistant",
     "spam call blocker",
-    "Ring assistant",
+    "missed call assistant",
+    "caller ID app India",
+    "AI call answering app",
+    "Hindi AI assistant",
+    "dual SIM call forwarding",
+    "voice cloning call assistant",
     "Tring",
+    "Tring app",
   ],
+  applicationName: "Tring",
+  category: "productivity",
   authors: [{ name: "Mavrix AI Private Limited" }],
+  publisher: "Mavrix AI Private Limited",
   openGraph: {
-    title: "Tring — don't pick up, don't dial, Tring.",
+    title: "Tring: AI Call Assistant — the calls you miss, answered for you",
     description:
-      "Ring answers the calls you'd rather skip and hands you a note — in your own voice if you want. Free personal AI phone assistant for India.",
+      "Tring answers your missed calls in your language, blocks spam before it rings, and hands you a note. Ask it to schedule and make calls too. Free · Made for India.",
     url: SITE,
     siteName: "Tring",
     type: "website",
@@ -48,9 +56,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tring — the AI that answers your calls",
+    title: "Tring: AI Call Assistant for India",
     description:
-      "Ring screens spam, deliveries and vendors, and answers in your own voice. Free. Made for India.",
+      "Answers the calls you miss in your language, blocks spam before it rings, shows caller ID. Works on your SIM. Free.",
   },
   robots: { index: true, follow: true },
   alternates: { canonical: SITE },
@@ -79,6 +87,26 @@ export default function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem("tring_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
+        {/* Structured data — lets Google show a rich app result (name, category, free, publisher).
+            No aggregateRating: faking reviews violates Google's guidelines and we have none yet. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MobileApplication",
+              name: "Tring: AI Call Assistant",
+              operatingSystem: "ANDROID, IOS",
+              applicationCategory: "UtilitiesApplication",
+              url: SITE,
+              description:
+                "Tring answers the calls you miss — in Hindi, Hinglish and Indian languages — and blocks spam before your phone rings. Caller ID, live transcripts and dual-SIM support, on the SIM you already have.",
+              inLanguage: ["en-IN", "hi-IN"],
+              offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+              publisher: { "@type": "Organization", name: "Mavrix AI Private Limited", url: SITE },
+            }),
           }}
         />
       </head>
