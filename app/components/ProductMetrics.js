@@ -956,13 +956,27 @@ export default function ProductMetrics() {
   const [showTable, setShowTable] = useState(false);
 
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [softErr, setSoftErr] = useState("");   // a failed REFRESH when we already have data
+  const dRef = useRef(null);                     // read current data inside the interval closure
+  const retryRef = useRef(null);                 // one pending short-retry at a time
+  useEffect(() => { dRef.current = d; }, [d]);
   const load = async () => {
-    setErr("");
+    // A failed refresh must NOT blank the dashboard. If we already have numbers on screen, keep them,
+    // show a small notice, and retry once in 20s (well before the next 10-min cycle). Only surface
+    // the full error card on the very first load, when there's nothing to fall back to.
+    const fail = (msg) => {
+      if (dRef.current) {
+        setSoftErr(msg);
+        if (!retryRef.current) retryRef.current = setTimeout(() => { retryRef.current = null; load(); }, 20000);
+      } else setErr(msg);
+    };
     const r = await fetch("/api/admin/posthog").catch(() => null);
-    if (!r) return setErr("Network error");
+    if (!r) return fail("Network error");
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) return setErr(j.error || `Failed (${r?.status})`);
+    if (!r.ok || !j.ok) return fail(j.error || `Refresh failed (${r?.status})`);
+    if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null; }
     setD(j);
+    setErr(""); setSoftErr("");
     setUpdatedAt(Date.now());
   };
   // Near-real-time: reload every 10 minutes so /admin stays current without a manual refresh.
@@ -978,7 +992,7 @@ export default function ProductMetrics() {
 
   const H2 = { fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" };
 
-  if (err) return (<><h2 style={H2}>Product metrics</h2><div style={{ ...CARD, color: "#FF7B72" }}>{err}</div></>);
+  if (err && !d) return (<><h2 style={H2}>Product metrics</h2><div style={{ ...CARD, color: "#FF7B72" }}>{err}</div></>);
   if (!d) return (<><h2 style={H2}>Product metrics</h2><div style={{ ...CARD, color: MUTED }}>Loading from PostHog…</div></>);
 
   const a = d.active, v = d.volume;
@@ -990,7 +1004,9 @@ export default function ProductMetrics() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 12, color: MUTED, display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 7, height: 7, borderRadius: 4, background: "#3FBF7F", display: "inline-block" }} />
-            {updatedAt ? `updated ${new Date(updatedAt).toLocaleTimeString()} · auto every 10m` : "live"}
+            {softErr
+              ? <span style={{ color: "#FFB454" }}>⚠ {new Date(updatedAt).toLocaleTimeString()} data · retrying</span>
+              : (updatedAt ? `updated ${new Date(updatedAt).toLocaleTimeString()} · auto every 10m` : "live")}
           </span>
           <button onClick={load} style={{ background: "transparent", color: "#F6EEE8", border: "1.5px solid rgba(255,255,255,.18)", borderRadius: 12, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
             Refresh
