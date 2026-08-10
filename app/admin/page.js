@@ -143,7 +143,8 @@ export default function Admin() {
       <div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Beta waitlist</h1>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <a href="/admin/guide" style={{ textDecoration: "none" }}><button style={{ ...S.ghost, borderColor: "rgba(244,83,46,.5)", color: "#F4532E" }}>Guide: how to read these</button></a>
             <button style={S.ghost} onClick={load}>Refresh</button>
             <a href="/api/admin/export?table=waitlist"><button style={S.btn}>Export CSV</button></a>
             <a href="/api/admin/export?table=clicks"><button style={S.ghost}>Clicks CSV</button></a>
