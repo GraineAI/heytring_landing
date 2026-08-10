@@ -16,12 +16,13 @@ import { isAuthed } from "../../../lib/adminAuth";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-// Default is the cheap tier ($0.75/1M in) because this panel re-runs on a
-// 10-minute cycle. Set OPENAI_MODEL=gpt-5.6-sol for the frontier model — no
-// code change needed, IS_REASONING below already matches it — but note it is
-// $5/1M in and $30/1M out, roughly 7x the input and far more on output. For a
-// cached dashboard panel that is a real cost decision, not a free upgrade.
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+// Frontier model: this panel is doing strategy, not summarisation, and the
+// difference shows in whether it spots a second-order problem or restates the
+// dashboard. $5/1M in, $30/1M out — real money, which is exactly why the
+// 10-minute cache and the one-significant-figure cache key below matter: a
+// stable key means roughly six calls an hour, not one per page view.
+// OPENAI_MODEL still overrides (gpt-5.4-mini is the cheap fallback).
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.6-sol";
 // GPT-5.x / o-series are REASONING models: they use max_completion_tokens (not max_tokens), accept
 // reasoning_effort, and reject a non-default temperature. Older chat models (gpt-4o-mini) want
 // temperature + tolerate max_completion_tokens. Detect and build the body accordingly.
@@ -63,6 +64,35 @@ Y COMBINATOR (Gupta, "minimum evolvable product"; Alströmer, "how to talk to us
 - Do not fear churn at this size. Losing an unsuitable user costs nothing; learning nothing costs everything.
 - Talk to users on a call, never a survey. Ask what they DID, not what they WOULD do.
 
+CROSSING THE CHASM (Moore) — the most binding constraint at a few hundred users:
+- Early adopters tolerate broken things; the early majority does not. Do not read enthusiasm from
+  140 beta users as proof the product is ready for a wider audience.
+- Pick ONE beachhead segment narrow enough to dominate and to reach by word of mouth. "India" is not
+  a segment. "People in Delhi NCR who get more spam calls than real ones" is.
+
+THE MOM TEST (Fitzpatrick) — how any user-research action you propose must be phrased:
+- Ask about their past behaviour, never about their future intentions or your idea. "How many spam
+  calls did you get yesterday?" is data. "Would you pay for this?" is a compliment.
+- Any research item you write must name a question that could get a NO. If it cannot fail, it is
+  not a question, it is fishing for validation.
+
+RETENTION / PMF MEASUREMENT (a16z, Ellis, Superhuman):
+- The test of product-market fit is whether the retention curve FLATTENS, not how high it starts. A
+  curve heading to zero means no fit no matter how good D1 looks.
+- The usable PMF instrument at this size is the Sean Ellis question — "how would you feel if you
+  could no longer use this?" — with 40% answering "very disappointed" as the bar. If nobody has run
+  it, proposing it is legitimate and cheap.
+
+HOOKED (Eyal) — for retention specifically:
+- Habits need an external trigger that becomes internal. A call-screening app has a natural one that
+  most products would kill for: the phone ringing. If retention is poor, ask whether the product is
+  actually present at that moment or only afterwards in a summary.
+
+BLITZSCALING (Hoffman) — say so if it applies:
+- Scaling before fit is how startups die fastest. At this stage the correct advice is almost always
+  "do things that do not scale". Never recommend scaling machinery for a product that has not
+  retained anyone.
+
 A16Z (consumer AI economics):
 - Consumer AI is squeezed: inference costs real money, ads do not cover it, and personal software
   budgets are small. If the numbers show weak willingness to pay, say so and point at prosumer or
@@ -71,7 +101,9 @@ A16Z (consumer AI economics):
 
 RULES for your output:
 - Every item MUST cite the specific metric number that triggered it.
-- Every item MUST name which Zero to One idea it applies (short).
+- Every item MUST name which idea it applies and which book it comes from (short). Draw from any of
+  the frameworks above — do not force everything into Zero to One when Crossing the Chasm, The Mom
+  Test or the retention/PMF material fits the number better.
 - Every item MUST give ONE concrete action a 2-person team can start THIS WEEK — specific to a
   call-screening app (mention the OTP screen, missed-call value, WhatsApp share, voice clone, etc.).
 - No platitudes, no "consider leveraging synergies". If a number is healthy, don't invent a problem.
@@ -94,7 +126,7 @@ Return JSON with this exact shape:
     { "priority": "critical" | "high" | "medium",
       "title": "short imperative, e.g. 'Fix the sign-in step'",
       "metric": "the exact number that triggered this, e.g. '18% activation, 213/260 never signed in'",
-      "principle": "which Zero to One idea, e.g. 'Distribution (ch11)'",
+      "principle": "which idea and from where, e.g. 'Distribution (Zero to One ch11)' or 'Beachhead (Crossing the Chasm)' or 'Past behaviour (The Mom Test)'",
       "action": "one concrete step this week" }
   ],
   "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence"
