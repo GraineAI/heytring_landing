@@ -240,11 +240,12 @@ export default function BetaModal() {
           </div>
         ) : (
           <>
-            <span className="bmodal__tag"><i className="dot" /> Closed beta</span>
-            <h3>Get your Tring invite</h3>
+            <span className="bmodal__tag"><i className="dot" /> {device === "android" ? "Live on Android" : "iPhone · invite only"}</span>
+            <h3>{device === "android" ? "Get Tring" : "Get your Tring invite"}</h3>
             <p className="bmodal__sub">
-              Tring is invite-only right now. Tell us where to reach you and
-              we&rsquo;ll onboard you personally.
+              {device === "android"
+                ? "Tring is live on Google Play — install it and you're in. No invite, no waiting."
+                : "iPhone is still TestFlight, which we approve by hand. Tell us where to reach you and we'll onboard you personally."}
             </p>
 
             <form onSubmit={submit}>
@@ -261,30 +262,40 @@ export default function BetaModal() {
                 </button>
               </div>
 
-              <input
-                className="bm-in" type="text" placeholder="Your name"
-                value={name} onChange={(e) => setName(e.target.value)}
-                required minLength={2} maxLength={80} autoFocus
-              />
-              <input
-                className="bm-in" type="email" placeholder="you@example.com"
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                required maxLength={160}
-              />
+              {/* Android needs nothing from us any more, so it asks for nothing.
+                  Keeping the email form here would be collecting addresses for
+                  a step that no longer exists. */}
+              {device === "android" ? (
+                <a className="btn btn--coral bm-go" href="/go/play?p=modal" style={{ justifyContent: "center" }}>
+                  Install from Google Play
+                </a>
+              ) : (
+                <>
+                  <input
+                    className="bm-in" type="text" placeholder="Your name"
+                    value={name} onChange={(e) => setName(e.target.value)}
+                    required minLength={2} maxLength={80} autoFocus
+                  />
+                  <input
+                    className="bm-in" type="email" placeholder="you@example.com"
+                    value={email} onChange={(e) => setEmail(e.target.value)}
+                    required maxLength={160}
+                  />
 
-              {phase === "error" && (
-                <p className="bm-err">That didn&rsquo;t go through — mind trying again?</p>
+                  {phase === "error" && (
+                    <p className="bm-err">That didn&rsquo;t go through — mind trying again?</p>
+                  )}
+
+                  <button className="btn btn--coral bm-go" type="submit" disabled={phase === "sending"}>
+                    {phase === "sending" ? "Sending…" : "Get my invite"}
+                  </button>
+                </>
               )}
-
-              <button className="btn btn--coral bm-go" type="submit" disabled={phase === "sending"}>
-                {phase === "sending" ? "Sending…" : "Get my invite"}
-              </button>
             </form>
 
             <p className="bmodal__foot">
-              Already invited?{" "}
-              <a href="/go/play?p=modal">Google Play</a> ·{" "}
-              <a href="/go/ios?p=modal">App Store</a>
+              On Android? <a href="/go/play?p=modal">Install now</a> ·{" "}
+              Already have a TestFlight invite? <a href="/go/ios?p=modal">Open it</a>
             </p>
           </>
         )}

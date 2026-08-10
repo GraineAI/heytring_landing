@@ -17,7 +17,7 @@ export default function FinalCta() {
         </p>
         <StoreButtons onDark placement="final" />
         <p className="final__tiny">
-          Closed beta · we onboard people by hand, so tell us how bad your call problem is
+          Live on Google Play · iPhone still invite-only, and we onboard those by hand
         </p>
       </div>
     </section>

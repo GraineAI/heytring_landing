@@ -67,11 +67,10 @@ function GetTheApp() {
       </p>
       <StoreButtons onDark placement="share" />
       <div className="share__direct">
-        Already invited?{" "}
-        <a href="/go/play?p=share">Google Play</a> ·{" "}
-        <a href="/go/ios?p=share">TestFlight</a>
+        <a href="/go/play?p=share">Get it on Google Play</a> ·{" "}
+        iPhone? <a href="/go/ios?p=share">TestFlight</a>
       </div>
-      <span className="share__ctatiny">Closed beta · free · works on the SIM you already have</span>
+      <span className="share__ctatiny">Live on Google Play · free · works on the SIM you already have</span>
     </section>
   );
 }

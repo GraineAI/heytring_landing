@@ -16,20 +16,23 @@ export default function StoreButtons({ onDark = false, placement = "page" }) {
   }, []);
 
   const cls = `btn btn--store${onDark ? " btn--onDark" : ""}`;
-  // "CLOSED BETA" was chrome — it said nothing a visitor could act on. "REQUEST
-  // AN INVITE" is what actually happens when you press it, and a button that
-  // describes its own outcome is the cheapest conversion fix there is.
+  // Each button says what pressing it actually does, and the two platforms no
+  // longer do the same thing: Android installs immediately from open testing,
+  // iPhone still requests a TestFlight invite. Labelling both "Get the app"
+  // would be a small lie to half the visitors.
   return (
     <div className="cta-row">
+      {/* Android is open testing — a real link, not a modal. Routed through
+          /go/play so the click is still logged and attribution survives. */}
       {os !== "ios" && (
-        <button className={cls} data-beta="android" data-beta-placement={placement}
-          aria-label="Get a Tring beta invite for Android">
+        <a className={cls} href={`/go/play?p=${encodeURIComponent(placement)}`}
+          aria-label="Download Tring for Android on Google Play">
           <Play />
           <span className="store-k">
-            <small>REQUEST AN INVITE</small>
-            <span>Android</span>
+            <small>OPEN BETA · GET IT ON</small>
+            <span>Google Play</span>
           </span>
-        </button>
+        </a>
       )}
       {os !== "android" && (
         <button className={cls} data-beta="ios" data-beta-placement={placement}

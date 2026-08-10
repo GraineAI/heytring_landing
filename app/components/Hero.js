@@ -178,7 +178,7 @@ export default function Hero() {
                OTP screen (260 installed → 47 signed in). People abandon at a
                step they did not know was coming. Say it up front. */}
         <p className="hero__trust">
-          Free while in beta · Works on the SIM you already have · About two minutes to set up <IndiaFlag />
+          Live on Google Play · Works on the SIM you already have · About two minutes to set up <IndiaFlag />
         </p>
 
         <Surfer />

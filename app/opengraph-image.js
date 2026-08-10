@@ -62,7 +62,7 @@ export default async function Image() {
 
         {/* footer */}
         <div style={{ display: "flex", fontSize: 24, fontWeight: 600, color: "#8C7C73" }}>
-          heytring.com · Free in beta · Works on your current SIM · Two minutes to set up
+          heytring.com · Live on Google Play · Works on your current SIM · Two minutes to set up
         </div>
       </div>
     ),
