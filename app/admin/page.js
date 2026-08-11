@@ -57,6 +57,13 @@ export default function Admin() {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [data, setData] = useState(null);
+  // App lifecycle, from Apollo. Separate from the waitlist: the waitlist knows who ASKED for an
+  // invite, this knows who installed, who stalled at the OTP, and who Tring has actually answered
+  // a call for. Loaded on demand so a slow Apollo never blocks the waitlist table.
+  const [lifecycle, setLifecycle] = useState(null);
+  const [lcErr, setLcErr] = useState("");
+  const [lcStage, setLcStage] = useState("");
+  const [lcBusy, setLcBusy] = useState(false);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -118,6 +125,22 @@ export default function Admin() {
     ios_clicks: clicks.filter((r) => r.kind === "ios").length,
   };
 
+  const loadLifecycle = async (stage) => {
+    setLcBusy(true); setLcErr("");
+    try {
+      const qs = new URLSearchParams({ view: "users", limit: "500" });
+      if (stage) qs.set("stage", stage);
+      const res = await fetch(`/api/admin/users?${qs}`, { cache: "no-store" });
+      const j = await res.json().catch(() => ({}));
+      // Surface WHY. "failed to load" sends someone into the network tab to rediscover an
+      // unset environment variable.
+      if (!res.ok || !j.ok) { setLcErr(j.error || `apollo returned ${res.status}`); setLifecycle(null); }
+      else setLifecycle(j);
+    } catch (e) {
+      setLcErr("could not reach the server");
+    } finally { setLcBusy(false); }
+  };
+
   const toggleContacted = async (row) => {
     const next = !row.contacted;
     // optimistic update
@@ -174,6 +197,71 @@ export default function Admin() {
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
         <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
+        {/* ── App lifecycle: who to call, and about what ───────────────────────────── */}
+        <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>App users — where each one stopped</h2>
+            <div style={{ flex: 1 }} />
+            {["", "code_requested", "signed_in", "activated", "retained"].map((st) => (
+              <button key={st || "all"}
+                style={lcStage === st ? S.btn : S.ghost}
+                onClick={() => { setLcStage(st); loadLifecycle(st); }}>
+                {st === "" ? "All" : st.replace("_", " ")}
+              </button>
+            ))}
+          </div>
+          <p style={{ color: "#9aa4b2", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
+            <b>code requested</b> asked for an OTP and never entered it — the biggest leak.{" "}
+            <b>signed in</b> verified but Tring has never answered a call for them.{" "}
+            <b>activated</b> at least one answered call. <b>retained</b> answered calls on 5+ days —
+            the only people whose opinion on the product is worth weighting.
+          </p>
+          {lcErr && <div style={{ color: "#FF7B72", fontSize: 13.5, marginTop: 12 }}>{lcErr}</div>}
+          {lcBusy && <div style={{ color: "#9aa4b2", fontSize: 13.5, marginTop: 12 }}>Loading…</div>}
+          {lifecycle?.funnel && (
+            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+              {Object.entries(lifecycle.funnel).map(([k, v]) => (
+                <div key={k} style={{ ...S.card, padding: "10px 14px", minWidth: 120 }}>
+                  <div style={{ color: "#9aa4b2", fontSize: 12 }}>{k.replace("_", " ")}</div>
+                  <div style={{ color: "#fff", fontSize: 22, fontWeight: 700 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {lifecycle?.users?.length > 0 && (
+            <div style={{ overflowX: "auto", marginTop: 14 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
+                <thead><tr>
+                  {["Phone", "Stage", "Platform", "Asked for code", "Calls", "Days", "Nudges", "Push?"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", color: "#9aa4b2", fontSize: 12, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {lifecycle.users.map((u) => (
+                    <tr key={u.phone}>
+                      <td style={{ padding: "8px 10px", color: "#fff", fontSize: 13.5 }}>
+                        <a href={`tel:${u.phone}`} style={{ color: "#F4532E", textDecoration: "none" }}>{u.phone}</a>
+                      </td>
+                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.stage?.replace("_", " ")}</td>
+                      <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 13 }}>{u.platform || "—"}</td>
+                      <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 12.5 }}>{u.code_requested_at ? new Date(u.code_requested_at).toLocaleDateString() : "—"}</td>
+                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.calls_answered}</td>
+                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.active_days}</td>
+                      <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 13 }}>{u.nudges_sent}</td>
+                      <td style={{ padding: "8px 10px", fontSize: 13, color: u.reachable_by_push ? "#5CD98A" : "#FF7B72" }}>
+                        {u.reachable_by_push ? "yes" : "no"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {!lifecycle && !lcBusy && !lcErr && (
+            <button style={{ ...S.btn, marginTop: 14 }} onClick={() => loadLifecycle(lcStage)}>Load app users</button>
+          )}
+        </div>
+
           {/* The call queue sits ABOVE the raw table on purpose: the table is a
               record, this is the work. */}
           <UserResearch
