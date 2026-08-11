@@ -218,6 +218,27 @@ export default function Admin() {
           </p>
           {lcErr && <div style={{ color: "#FF7B72", fontSize: 13.5, marginTop: 12 }}>{lcErr}</div>}
           {lcBusy && <div style={{ color: "#9aa4b2", fontSize: 13.5, marginTop: 12 }}>Loading…</div>}
+          {/* Whether the abandoned-signup reminder can actually be DELIVERED. Scheduling, firing
+              and "sending" all succeed even with no device attached, so an inert ladder looks
+              identical to a working one everywhere except this number. */}
+          {lifecycle?.ladder_health?.pending_signups > 0 && (
+            <div style={{ ...S.card, marginTop: 14, padding: "12px 16px",
+                          borderColor: (lifecycle.ladder_health.reachable_pct ?? 0) < 50
+                            ? "rgba(255,123,114,.45)" : "rgba(92,217,138,.35)" }}>
+              <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>
+                Reminder ladder: {lifecycle.ladder_health.reachable_by_push} of{" "}
+                {lifecycle.ladder_health.pending_signups} stalled signups can be reached
+                {lifecycle.ladder_health.reachable_pct != null && ` (${lifecycle.ladder_health.reachable_pct}%)`}
+              </div>
+              {(lifecycle.ladder_health.reachable_pct ?? 100) < 50 && (
+                <div style={{ color: "#FF7B72", fontSize: 12.5, marginTop: 6 }}>
+                  Most stalled signups have no push subscription, so the reminder is running and
+                  delivering nothing — notification permission is not being granted before people
+                  walk away.
+                </div>
+              )}
+            </div>
+          )}
           {lifecycle?.funnel && (
             <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
               {Object.entries(lifecycle.funnel).map(([k, v]) => (
