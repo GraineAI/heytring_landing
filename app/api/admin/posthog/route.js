@@ -291,7 +291,7 @@ const Q = {
       uniqIf(person_id, event='take_over_tap')            AS took_over,
       uniqIf(person_id, event='caller_id_enable_tap')     AS caller_id,
       uniqIf(person_id, event='favourites_saved')         AS favourites,
-      uniqIf(person_id, event IN ('referral_share','referral_copy')) AS referred,
+      uniqIf(person_id, event IN ('referral_share_completed','referral_copy')) AS referred,
       uniqIf(person_id, event IN ('call_share','share_call_completed')) AS shared_call,
       uniqIf(person_id, event='screened_call_viewed')     AS viewed_call,
       uniqIf(person_id, event='weekly_summary_opened')    AS weekly_open,
@@ -305,7 +305,7 @@ const Q = {
   shareLoop: `SELECT
       uniqIf(person_id, event='share_call_tapped')        AS tapped,
       uniqIf(person_id, event='share_call_completed')     AS completed,
-      uniqIf(person_id, event IN ('referral_share','referral_copy')) AS referred,
+      uniqIf(person_id, event IN ('referral_share_completed','referral_copy')) AS referred,
       uniqIf(person_id, event='referral_redeemed')        AS redeemed
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
       AND properties.$geoip_country_name='India'`,
