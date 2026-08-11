@@ -267,17 +267,20 @@ const Q = {
     )
     GROUP BY days_active ORDER BY days_active`,
 
-  // FULL ACTIVATION JOURNEY — the download→onboarded funnel, India-scoped. Each step is unique
-  // people who reached it. The later steps (otp_requested, onboarding_complete, forwarding) only
-  // have data once a build carrying the new events ships; until then they read 0, which correctly
-  // shows the funnel as "instrumented, awaiting build" rather than pretending.
+  // FULL ACTIVATION JOURNEY — the download→activated funnel, India-scoped. Each step is unique
+  // people who reached it. The granular middle steps (signin_started, otp_shown, otp_submitted,
+  // activated) ship over OTA — the SDK is already in the binary — so they populate as that update
+  // reaches devices, not after a native build. They read 0 only until the OTA propagates.
   journey: `SELECT
-      uniqIf(person_id, event='Application Installed')                       AS installed,
-      uniqIf(person_id, event='Application Opened')                          AS opened,
-      uniqIf(person_id, event='login_otp_requested')                        AS otp_requested,
+      uniqIf(person_id, event IN ('Application Installed','app_first_open')) AS installed,
+      uniqIf(person_id, event IN ('Application Opened','app_first_open'))    AS opened,
+      uniqIf(person_id, event='signin_started')                             AS signin_started,
+      uniqIf(person_id, event='otp_screen_shown')                           AS otp_shown,
+      uniqIf(person_id, event='otp_submitted')                              AS otp_submitted,
       uniqIf(person_id, event IN ('login_success','$identify'))             AS signed_in,
       uniqIf(person_id, event='onboarding_complete')                        AS onboarded,
-      uniqIf(person_id, event='activation:activate')                         AS forwarding
+      uniqIf(person_id, event IN ('activated','activation:activate'))       AS activated,
+      uniqIf(person_id, event='otp_autofilled')                            AS otp_autofilled
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
       AND properties.$geoip_country_name='India'`,
 
@@ -289,8 +292,21 @@ const Q = {
       uniqIf(person_id, event='caller_id_enable_tap')     AS caller_id,
       uniqIf(person_id, event='favourites_saved')         AS favourites,
       uniqIf(person_id, event IN ('referral_share','referral_copy')) AS referred,
-      uniqIf(person_id, event='call_share')               AS shared_call,
+      uniqIf(person_id, event IN ('call_share','share_call_completed')) AS shared_call,
+      uniqIf(person_id, event='screened_call_viewed')     AS viewed_call,
+      uniqIf(person_id, event='weekly_summary_opened')    AS weekly_open,
       uniqIf(person_id, event='checkup_verify_forwarding') AS ran_checkup
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
+      AND properties.$geoip_country_name='India'`,
+
+  // WORD-OF-MOUTH LOOP — the K-factor funnel. tapped (opened the share sheet) → completed (actually
+  // sent, only on Share.sharedAction) → referred → redeemed. Viral coefficient is ~0 today, so this
+  // is the panel that tells you whether the post-call WhatsApp share is moving it.
+  shareLoop: `SELECT
+      uniqIf(person_id, event='share_call_tapped')        AS tapped,
+      uniqIf(person_id, event='share_call_completed')     AS completed,
+      uniqIf(person_id, event IN ('referral_share','referral_copy')) AS referred,
+      uniqIf(person_id, event='referral_redeemed')        AS redeemed
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
       AND properties.$geoip_country_name='India'`,
 
@@ -447,16 +463,34 @@ async function build() {
     // the isolation and 500'd the whole endpoint. Read the results instead.
     const journey = R.journey, lifecycle = R.lifecycle;
     const jr = journey[0] || []; const lc = lifecycle[0] || [];
+    // The granular activation funnel — each new micro-step makes the 17%-activation leak visible at
+    // the exact stage it happens (started sign-in → saw the OTP screen → entered a code → verified),
+    // instead of one "requested OTP → signed in" jump that hides where people give up.
     const jSteps = [
       { key: "installed", label: "Installed" }, { key: "opened", label: "Opened" },
-      { key: "otp_requested", label: "Requested OTP" }, { key: "signed_in", label: "Signed in" },
-      { key: "onboarded", label: "Onboarded" }, { key: "forwarding", label: "Forwarding on" },
+      { key: "signin_started", label: "Started sign-in" }, { key: "otp_shown", label: "Saw OTP screen" },
+      { key: "otp_submitted", label: "Entered code" }, { key: "signed_in", label: "Signed in" },
+      { key: "onboarded", label: "Onboarded" }, { key: "activated", label: "Activated" },
     ].map((st, i) => ({ ...st, people: Number(jr[i]) || 0 }));
-    const lcKeys = ["logged_out","deleted","took_over","caller_id","favourites","referred","shared_call","ran_checkup"];
+    // Auto-read effectiveness — share of people who saw the OTP screen and had the code fill itself
+    // from the SMS. A low number (esp. on Android) is the data that justifies the SMS-Retriever
+    // native build rather than guessing the auto-read "works".
+    const otpShown = Number(jr[3]) || 0, otpAutofilled = Number(jr[8]) || 0;
+    const otpAutofillRate = otpShown ? Math.round((otpAutofilled / otpShown) * 1000) / 10 : 0;
+    const lcKeys = ["logged_out","deleted","took_over","caller_id","favourites","referred","shared_call","viewed_call","weekly_open","ran_checkup"];
     const lcLabels = { logged_out:"Logged out", deleted:"Deleted account", took_over:"Took over a call",
       caller_id:"Enabled caller ID", favourites:"Saved a favourite", referred:"Referred a friend",
-      shared_call:"Shared a call", ran_checkup:"Ran checkup" };
+      shared_call:"Shared a call", viewed_call:"Viewed a handled call", weekly_open:"Opened weekly summary",
+      ran_checkup:"Ran checkup" };
     const lifecycleRows = lcKeys.map((k, i) => ({ key: k, label: lcLabels[k], people: Number(lc[i]) || 0 }));
+    // Word-of-mouth loop counts.
+    const sl = (R.shareLoop && R.shareLoop[0]) || [];
+    const shareLoop = {
+      tapped: Number(sl[0]) || 0, completed: Number(sl[1]) || 0,
+      referred: Number(sl[2]) || 0, redeemed: Number(sl[3]) || 0,
+      // Completion rate of the share sheet, and a crude single-hop K proxy (redeemed per completed).
+      completionRate: Number(sl[0]) ? Math.round((Number(sl[1]) / Number(sl[0])) * 1000) / 10 : 0,
+    };
 
     const full = series.filter((d) => !d.partial);
     const avgDau = full.length ? Math.round(full.reduce((a, b) => a + b.dau, 0) / full.length) : 0;
@@ -495,6 +529,8 @@ async function build() {
       // Flagged stale if nothing has arrived for 7 days — that is exactly the signal that caught
       // the July regression, where every custom event simply stopped and nobody noticed.
       journey: jSteps,
+      otpAutofillRate,
+      shareLoop,
       lifecycle: lifecycleRows,
       funnel: { installed: fInstalled, opened: fOpened, signedIn: fSignedIn, india: fIndia, total: fTotal,
                 activation: fInstalled ? Math.round((fSignedIn / fInstalled) * 1000) / 10 : 0 },

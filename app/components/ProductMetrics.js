@@ -699,10 +699,12 @@ function Depth({ rows }) {
  * top of the funnel, with step-to-step conversion and the drop between them. The later steps read 0
  * until a build carrying the new events ships, which is shown as "awaiting build" rather than hidden.
  */
-function Journey({ steps, lifecycle }) {
-  // Steps that ship their event in the NEXT app release — a 0 here is "not measured yet", NOT a
-  // drop-off, so it must not be drawn as an empty bar with "0% of prev" (which reads as a cliff).
-  const PENDING = new Set(["otp_requested", "onboarded", "forwarding"]);
+function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
+  // The PostHog SDK is already in the shipped binary, so the granular activation events flow over
+  // OTA — they are NOT waiting on a native build. They begin at 0 only until the OTA that carries
+  // them propagates to installed devices (a day or so as apps reopen), then self-populate. Nothing
+  // is "pending a build" anymore, so no step is drawn as a permanent dashed placeholder.
+  const PENDING = new Set([]);
   const top = Math.max(1, steps[0]?.people || 0);
   const anyPending = steps.some((s) => PENDING.has(s.key) && s.people === 0);
   let lastMeasured = null;   // carry the previous step that actually had data, to skip pending gaps
@@ -759,6 +761,44 @@ function Journey({ steps, lifecycle }) {
           );
         })()}
       </div>
+      {/* SMS auto-read effectiveness — the fix for the OTP-screen leak. Reads 0% until the OTA that
+          carries the event reaches users; a low Android rate afterwards is the case for the
+          SMS-Retriever native path (that part IS a native build). */}
+      <div style={{ marginTop: 10, padding: "10px 14px", background: "rgba(255,255,255,.04)", borderRadius: 10, fontSize: 12.5, color: INK, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ color: MUTED }}>OTP auto-read from SMS</span>
+        <span>
+          <strong style={{ fontSize: 16, color: (otpAutofillRate || 0) >= 60 ? "#3FBF7F" : "#FFB454" }}>{otpAutofillRate != null ? `${otpAutofillRate}%` : "—"}</strong>
+          <span style={{ color: MUTED }}> of people who saw the code screen</span>
+        </span>
+      </div>
+
+      {/* WORD-OF-MOUTH LOOP — the K-factor funnel. Shared-sheet opened → actually sent → referred →
+          redeemed. This is the panel that shows whether the post-call WhatsApp share moves virality
+          off ~0. Pending until the granular build ships. */}
+      {shareLoop && (
+        <>
+          <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "16px 0 8px" }}>Word-of-mouth loop <span style={{ color: MUTED, fontWeight: 500 }}>· post-call WhatsApp share · 90d</span></div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {[
+              ["Opened share sheet", shareLoop.tapped, MUTED],
+              ["Actually sent", shareLoop.completed, "#3FBF7F"],
+              ["Referred a friend", shareLoop.referred, MUTED],
+              ["Redeemed", shareLoop.redeemed, "#FFB454"],
+            ].map(([label, n, c]) => (
+              <div key={label} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, flex: "1 1 140px" }}>
+                <div style={{ color: MUTED }}>{label}</div>
+                <div style={{ color: c, fontSize: 18, fontWeight: 700, marginTop: 2 }}>{Number(n || 0).toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11.5, color: "#8C7C73" }}>
+            {shareLoop.tapped > 0
+              ? `${shareLoop.completionRate}% of opened shares were actually sent.`
+              : "fills in as the OTA reaches users — then this measures whether the WhatsApp share moves K off ~0."}
+          </div>
+        </>
+      )}
+
       <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "16px 0 8px" }}>Engagement & lifecycle</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(lifecycle || []).map((l) => (
@@ -1155,7 +1195,7 @@ export default function ProductMetrics() {
       <AIStrategist d={d} tick={updatedAt} />
       <ActionItems d={d} />
       {d.funnel && <TrueUsers f={d.funnel} />}
-      {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} />}
+      {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} otpAutofillRate={d.otpAutofillRate} shareLoop={d.shareLoop} />}
       {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} />}
 
       {/* A failed query returns [], which renders as a confident zero. Name the
