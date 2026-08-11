@@ -38,6 +38,7 @@ export default function Footer() {
             <h5>Legal</h5>
             <a href="/privacy">Privacy Policy</a>
             <a href="/terms">Terms of Service</a>
+            <a href="/eula">EULA</a>
             <a href="/privacy#rights">Your rights</a>
             <a href="/privacy#recording">Call-recording notice</a>
           </div>

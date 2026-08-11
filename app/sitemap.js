@@ -5,5 +5,6 @@ export default function sitemap() {
     { url: `${base}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/terms`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/eula`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 }
