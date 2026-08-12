@@ -8,6 +8,7 @@
 // React (not just the hooks): the cohort table renders TWO <tr> per cohort — answered and
 // opened — which needs a keyed <React.Fragment>. The <> shorthand cannot take a key.
 import React, { useEffect, useState } from "react";
+import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
@@ -356,11 +357,20 @@ export default function Admin() {
                   const kept = prev > 0 ? (100 * n) / prev : 0;
                   const width = top > 0 ? Math.max(2, (100 * n) / top) : 0;
                   const bad = i > 0 && kept < 50;
+                  // THE CONSTRAINT (Goldratt): the single worst conversion, not every bad one.
+                  // If more than one thing on a screen pulses, nothing does.
+                  const worst = order.reduce((acc, kk, ii) => {
+                    if (ii === 0) return acc;
+                    const p = cum[order[ii - 1]], c = cum[kk];
+                    const r = p > 0 ? c / p : 1;
+                    return r < acc.r ? { k: kk, r } : acc;
+                  }, { k: null, r: 2 });
                   return (
-                    <div key={k} style={{ marginBottom: 10 }}>
+                    <Pulse key={k} active={worst.k === k} >
+                    <div style={{ marginBottom: 10 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13 }}>
                         <span style={{ color: "#e6edf3", minWidth: 168 }}>{labels[k]}</span>
-                        <span style={{ color: "#fff", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{n}</span>
+                        <span style={{ color: "#fff", fontWeight: 700 }}><CountUp value={n} /></span>
                         {i > 0 && prev > 0 && (
                           <span style={{ color: bad ? "#FF7B72" : "#9aa4b2", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
                             {kept.toFixed(0)}% of previous · {(prev - n)} lost here
@@ -370,11 +380,13 @@ export default function Admin() {
                           <span style={{ color: "#5b6673", fontSize: 12 }}>no one reached this step yet</span>
                         )}
                       </div>
-                      <div style={{ height: 8, borderRadius: 6, background: "rgba(255,255,255,.07)", marginTop: 4 }}>
-                        <div style={{ width: `${width}%`, height: "100%", borderRadius: 6,
-                                      background: bad ? "#FF7B72" : "#F4532E", opacity: bad ? 0.85 : 0.9 }} />
+                      {/* Staggered by stage so the funnel resolves top-to-bottom: the step where
+                          the bar suddenly shortens is FELT rather than calculated. */}
+                      <div style={{ marginTop: 4 }}>
+                        <GrowBar pct={width} delay={i * 110} color={bad ? "#FF7B72" : "#F4532E"} />
                       </div>
                     </div>
+                    </Pulse>
                   );
                 })}
               </div>
