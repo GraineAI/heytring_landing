@@ -25,6 +25,7 @@ const VIEWS = {
   referrals: "/api/v1/calls/admin/referrals",
   carriers: "/api/v1/calls/admin/carriers",
   revenue: "/api/v1/calls/admin/revenue",
+  delivery_health: "/api/v1/calls/admin/delivery_health",
 };
 
 export async function GET(req) {

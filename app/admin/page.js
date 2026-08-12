@@ -92,6 +92,7 @@ export default function Admin() {
   const [rev, setRev] = useState(null);
   const [days, setDays] = useState(90);
   const [why, setWhy] = useState(null);
+  const [health, setHealth] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -239,6 +240,15 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadHealth = async (d = days) => {
+    try {
+      const r = await fetch(withRange("/api/admin/churn?view=delivery_health", "delivery_health", d),
+                            { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setHealth(j);
+    } catch {}
+  };
+
   const loadSeries = async () => {
     try {
       const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
@@ -311,7 +321,7 @@ export default function Admin() {
                     // reading `days` from the closure here would fetch the previously-selected
                     // window — the picker would appear to work and be exactly one click behind.
                     setDays(r.days);
-                    loadPower(r.days); loadRef(r.days); loadCarriers(r.days); loadRevenue(r.days);
+                    loadPower(r.days); loadRef(r.days); loadCarriers(r.days); loadRevenue(r.days); loadHealth(r.days);
                   }}
                   style={{ ...S.ghost, padding: "5px 9px", fontSize: 11.5,
                            color: days === r.days ? "#fff" : "#9aa4b2",
@@ -371,7 +381,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); loadRevenue(); loadWhy(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); loadRevenue(); loadWhy(); loadHealth(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -604,6 +614,48 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* DID WE ACTUALLY SEND IT. Every failure in this chain is invisible from outside: a
+              reminder that reached zero devices is flagged `undelivered` and never mentioned
+              again, and a queued push past its shelf life is logged once, on one container, at
+              INFO. "My reminder never came" was unanswerable — which is how it got reported. */}
+          {health && (health.reminders?.fired > 0 || health.retry_queue?.expired > 0) && (
+            <div style={{ ...S.card, padding: 16, marginTop: 20,
+                          borderColor: health.reminders?.undelivered > 0
+                            ? "rgba(244,83,46,.4)" : "rgba(255,255,255,.10)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Did it actually arrive</span>
+                <span style={{ color: "#5b6673", fontSize: 11.5 }}>
+                  reminders and queued pushes · last {health.window_days} days
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 12 }}>
+                {[
+                  ["reminders fired", health.reminders?.fired,
+                   health.reminder_delivered_pct != null ? `${health.reminder_delivered_pct}% reached a device` : ""],
+                  ["reached nobody", health.reminders?.undelivered,
+                   health.reminders?.undelivered > 0 ? "promised a nudge, got nothing" : "none"],
+                  ["still scheduled", health.reminders?.scheduled, "waiting for their moment"],
+                  ["pushes recovered", health.retry_queue?.sent,
+                   health.retry_recovered_pct != null ? `${health.retry_recovered_pct}% of retries landed` : ""],
+                  ["expired unsent", health.retry_queue?.expired, "phone was off past the shelf life"],
+                ].map(([label, val, sub]) => (
+                  <div key={label}>
+                    <div style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase",
+                                  letterSpacing: .7 }}>{label}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15,
+                                  color: label === "reached nobody" && val > 0 ? "#F4532E" : "#fff" }}>
+                      {val ?? "—"}
+                    </div>
+                    <div style={{ color: "#9aa4b2", fontSize: 11 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ color: "#9aa4b2", fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+                {health.note}
+              </div>
+            </div>
+          )}
 
           {/* WHY PEOPLE LEAVE, IN THEIR OWN WORDS — the clearest dissatisfaction signal there is,
               because it is the one moment someone is willing to say it. Split by what they did

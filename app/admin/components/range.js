@@ -34,6 +34,7 @@ const BOUNDS = {
   carriers: { min: 7, max: 365 },
   revenue: { min: 7, max: 365 },
   intel: { min: 1, max: 90 },
+  delivery_health: { min: 1, max: 90 },
   // Declared with no window at all — a picker cannot touch these and must not imply otherwise.
   autopsy: null,
   feed: null,
