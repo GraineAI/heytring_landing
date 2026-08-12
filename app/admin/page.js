@@ -79,6 +79,7 @@ export default function Admin() {
   const [power, setPower] = useState(null);
   const [alerts, setAlerts] = useState(0);
   const [ref, setRef] = useState(null);
+  const [carr, setCarr] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -194,6 +195,14 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadCarriers = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=carriers&days=90", { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setCarr(j);
+    } catch {}
+  };
+
   const loadSeries = async () => {
     try {
       const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
@@ -305,7 +314,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -538,6 +547,75 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* FORWARDING, PER CARRIER. The whole product depends on one MMI code being accepted by
+              the user's operator, and operators do not behave alike. A blended activation rate
+              averages a carrier that works with one that does not and describes neither. */}
+          {carr?.carriers?.length > 0 && (
+            <div style={{ ...S.card, padding: 16, marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Forwarding by carrier</span>
+                <span style={{ color: "#5b6673", fontSize: 11.5 }}>
+                  {carr.attempts} attempts · last {carr.window_days} days
+                  {carr.spread_pct != null && ` · ${carr.spread_pct} points between best and worst`}
+                </span>
+              </div>
+              <div style={{ overflowX: "auto", marginTop: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 560 }}>
+                  <thead>
+                    <tr style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase", letterSpacing: .6 }}>
+                      {["carrier", "users", "registered", "partial", "rejected", "manual", "dial success", "actually screened"]
+                        .map((h, i) => (
+                        <th key={h} style={{ textAlign: i === 0 ? "left" : "right", padding: "6px 8px",
+                                             fontWeight: 600, borderBottom: "1px solid rgba(255,255,255,.10)" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {carr.carriers.map((c) => {
+                      const bad = c.success_pct != null && c.success_pct < 60;
+                      // The two numbers disagreeing is the finding, not a rendering detail: an MMI
+                      // that reported OK and never diverted a call looks perfect in the first.
+                      const lying = c.success_pct != null && c.confirmed_pct != null
+                                    && c.success_pct - c.confirmed_pct > 30;
+                      return (
+                        <tr key={c.carrier} style={{ borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+                          <td style={{ padding: "7px 8px", color: "#fff", fontWeight: 600 }}>
+                            {c.carrier}
+                            {c.ios > 0 && c.android > 0 && (
+                              <span style={{ color: "#5b6673", fontWeight: 400, fontSize: 10.5 }}>
+                                {" "}· {c.ios} iOS / {c.android} Android
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "7px 8px", textAlign: "right" }}>{c.users}</td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", color: "#5FB07A" }}>{c.full}</td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", color: "#E7B75A" }}>{c.partial}</td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", color: "#F4532E" }}>{c.failed}</td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", color: "#6b7684" }}>{c.manual}</td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", fontWeight: 700,
+                                       color: c.success_pct == null ? "#5b6673" : bad ? "#F4532E" : "#e6edf3" }}>
+                            {c.success_pct == null ? "—" : `${c.success_pct}%`}
+                          </td>
+                          <td style={{ padding: "7px 8px", textAlign: "right", fontWeight: 700,
+                                       color: lying ? "#F4532E" : "#e6edf3" }}>
+                            {c.confirmed_pct == null ? "—" : `${c.confirmed_pct}%`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ color: "#9aa4b2", fontSize: 11.5, marginTop: 10, lineHeight: 1.55 }}>
+                <b style={{ color: "#e6edf3" }}>manual</b> is excluded from dial success — on iOS and
+                pre-Android-8 nothing is dialled automatically, so those were never attempted rather
+                than failed. <b style={{ color: "#e6edf3" }}>Actually screened</b> is the number to
+                trust: it asks whether a call ever really got diverted, which an MMI that returned
+                OK and quietly forwarded nothing cannot fake.
+              </div>
+            </div>
+          )}
 
           {/* THE REFERRAL ENGINE. With referral the only acquisition channel, two numbers decide
               everything and neither is the one usually quoted: k sets whether growth compounds at

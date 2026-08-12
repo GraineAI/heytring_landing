@@ -23,6 +23,7 @@ const VIEWS = {
   power_users: "/api/v1/calls/admin/power_users",
   utility: "/api/v1/calls/admin/utility",
   referrals: "/api/v1/calls/admin/referrals",
+  carriers: "/api/v1/calls/admin/carriers",
 };
 
 export async function GET(req) {
