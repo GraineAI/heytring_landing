@@ -968,7 +968,7 @@ function AIStrategist({ d, tick }) {
     <div style={{ ...CARD, marginTop: 12, borderColor: "rgba(159,224,188,.28)" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
-          AI strategist <span style={{ color: MUTED, fontWeight: 500 }}>· OpenAI · framed in Zero to One · live</span>
+          AI strategist <span style={{ color: MUTED, fontWeight: 500 }}>· Thiel · Bezos · Christensen · Grove · Collins · Goldratt · live</span>
         </div>
         <button onClick={() => run(true)} disabled={busy} style={{ background: "transparent", color: "#9FE0BC", border: "1.5px solid rgba(159,224,188,.4)", borderRadius: 10, padding: "6px 14px", fontWeight: 700, fontSize: 12.5, cursor: busy ? "default" : "pointer" }}>
           {busy ? "Thinking…" : "Regenerate"}
@@ -990,10 +990,67 @@ function AIStrategist({ d, tick }) {
                     {it.principle && <span style={{ color: "#9FB8F5" }}>{it.metric ? "  ·  " : ""}{it.principle}</span>}
                   </div>
                   {it.action && <div style={{ fontSize: 12.5, color: "#9FE0BC", marginTop: 5, lineHeight: 1.5 }}>→ {it.action}</div>}
+
+                  {/* THE PLAYBOOK. Advice that stops at "improve onboarding" has told the founder
+                      nothing they did not already know — the value is entirely in the steps, so
+                      they get the room. Numbered and ordered because they are meant to be worked
+                      through in sequence, and the last one is always the check that proves it. */}
+                  {Array.isArray(it.how) && it.how.length > 0 && (
+                    <ol style={{ margin: "9px 0 0", paddingLeft: 0, listStyle: "none" }}>
+                      {it.how.map((step, si) => (
+                        <li key={si} style={{ display: "flex", gap: 9, alignItems: "flex-start",
+                                              padding: "5px 0",
+                                              borderTop: si ? "1px solid rgba(255,255,255,.05)" : "none" }}>
+                          <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5,
+                                         background: si === it.how.length - 1 ? "rgba(159,224,188,.18)" : "rgba(255,255,255,.07)",
+                                         color: si === it.how.length - 1 ? "#9FE0BC" : MUTED,
+                                         fontSize: 10, fontWeight: 700, display: "flex",
+                                         alignItems: "center", justifyContent: "center", marginTop: 1 }}>
+                            {si === it.how.length - 1 ? "✓" : si + 1}
+                          </span>
+                          <span style={{ fontSize: 12.5, color: SUB, lineHeight: 1.5 }}>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+
+                  {/* The metadata a decision needs, on one line: who does it, how big, how sure we
+                      are, whether it is reversible, and what would prove it wrong. */}
+                  {(it.owner || it.effort || it.door || it.confidence || it.falsifier) && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+                      {it.owner && <Chip>{it.owner}</Chip>}
+                      {it.effort && <Chip>{it.effort}</Chip>}
+                      {it.door && <Chip tone={it.door === "one-way" ? "warn" : "ok"}>
+                        {it.door === "one-way" ? "one-way door" : "reversible"}
+                      </Chip>}
+                      {it.confidence && <Chip tone={it.confidence === "low" ? "warn" : undefined}>
+                        {it.confidence} confidence
+                      </Chip>}
+                      {it.falsifier && (
+                        <span style={{ fontSize: 11, color: MUTED, fontStyle: "italic" }}>
+                          wrong if: {it.falsifier}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+          {ins.constraint && (
+            <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(255,123,114,.09)",
+                          borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.55,
+                          border: "1px solid rgba(255,123,114,.25)" }}>
+              <strong style={{ color: "#FF7B72" }}>The constraint:</strong> {ins.constraint}
+            </div>
+          )}
+          {ins.disagreement && String(ins.disagreement).trim() && (
+            <div style={{ marginTop: 10, padding: "12px 14px", background: "rgba(231,183,90,.09)",
+                          borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.55,
+                          border: "1px solid rgba(231,183,90,.25)" }}>
+              <strong style={{ color: "#E7B75A" }}>A number and a story disagree:</strong> {ins.disagreement}
+            </div>
+          )}
           {ins.one_bet && (
             <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(159,224,188,.08)", borderRadius: 10, fontSize: 13.5, color: INK, lineHeight: 1.55 }}>
               <strong style={{ color: "#9FE0BC" }}>The one bet:</strong> {ins.one_bet}
@@ -1005,6 +1062,15 @@ function AIStrategist({ d, tick }) {
   );
 }
 
+
+/** Small metadata pill. Local on purpose — one shape, used only here. */
+function Chip({ children, tone }) {
+  const col = tone === "warn" ? "#E7B75A" : tone === "ok" ? "#9FE0BC" : MUTED;
+  return (
+    <span style={{ fontSize: 10.5, fontWeight: 600, color: col, padding: "2px 7px",
+                   borderRadius: 5, background: "rgba(255,255,255,.06)" }}>{children}</span>
+  );
+}
 
 /* ─────────────────────────── loading skeleton ─────────────────────────── */
 

@@ -184,13 +184,28 @@ Return JSON with this exact shape:
       "principle": "which idea and from where, e.g. 'Distribution (Zero to One ch11)', 'Jobs to be done (Christensen)', 'Dive deep (Bezos)', 'The constraint (Goldratt)'",
       "door": "one-way" | "two-way",
       "falsifier": "the number that would prove this recommendation WRONG, and by when",
-      "action": "one concrete step this week, with the expected result and a date" }
+      "action": "one concrete step this week, with the expected result and a date",
+      "how": [
+        "3 to 6 ordered steps a person could execute TOMORROW without asking a follow-up question.",
+        "Name the screen, the file, the query, the exact words to say on a call — whatever the step needs.",
+        "Each step must be finishable in a day or less. If it is not, split it.",
+        "The last step is always how you VERIFY it worked — the number to look at, and where."
+      ],
+      "owner": "who does it: eng | founder | design | ops",
+      "effort": "hours | days | weeks",
+      "confidence": "high | medium | low — how sure are you this is the real cause" }
   ],
   "constraint": "the single binding constraint right now, and which otherwise-sensible work is wasted until it clears (Goldratt)",
   "disagreement": "any place a metric and a user story contradict each other, or empty string if none — do not average them away (Bezos, dive deep)",
   "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence, plus what you are explicitly NOT doing"
 }
 Give 4 to 6 items, ordered by leverage.
+
+THE "how" FIELD IS THE POINT. An advisor that says "improve onboarding" has told the founder
+nothing they did not know; the value is entirely in the steps. Write them the way a good senior
+engineer briefs someone at a whiteboard: concrete, ordered, each one finishable, ending in the check
+that proves it. If you cannot write the steps, the recommendation is not ready — say that instead of
+padding it, and make the item "go find out X" with steps for finding out.
 
 HOW TO NOT BE USELESS — these are the failure modes of advice like this:
 1. RESTATING A NUMBER IS NOT AN INSIGHT. "Activation is 17%" is data the founder already has.
