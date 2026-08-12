@@ -8,6 +8,7 @@
 // React (not just the hooks): the cohort table renders TWO <tr> per cohort — answered and
 // opened — which needs a keyed <React.Fragment>. The <> shorthand cannot take a key.
 import React, { useEffect, useState } from "react";
+import { RANGES, withRange, honours } from "./components/range";
 import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
 import Flywheel from "./components/Flywheel";
 import { detect, describe, findConstraint } from "./components/signals";
@@ -81,6 +82,7 @@ export default function Admin() {
   const [ref, setRef] = useState(null);
   const [carr, setCarr] = useState(null);
   const [rev, setRev] = useState(null);
+  const [days, setDays] = useState(90);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -168,9 +170,9 @@ export default function Admin() {
     } catch {}
   };
 
-  const loadPower = async () => {
+  const loadPower = async (d = days) => {
     try {
-      const r = await fetch("/api/admin/churn?view=power_users", { cache: "no-store" });
+      const r = await fetch(withRange("/api/admin/churn?view=power_users", "power_users", d), { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (j.ok) setPower(j);
     } catch {}
@@ -187,26 +189,26 @@ export default function Admin() {
     } catch {}
   };
 
-  const loadRef = async () => {
+  const loadRef = async (d = days) => {
     try {
-      const r = await fetch("/api/admin/churn?view=referrals&days=60&goal=500000&horizon_days=80",
+      const r = await fetch(withRange("/api/admin/churn?view=referrals&goal=500000&horizon_days=80", "referrals", d),
                             { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (j.ok) setRef(j);
     } catch {}
   };
 
-  const loadCarriers = async () => {
+  const loadCarriers = async (d = days) => {
     try {
-      const r = await fetch("/api/admin/churn?view=carriers&days=90", { cache: "no-store" });
+      const r = await fetch(withRange("/api/admin/churn?view=carriers", "carriers", d), { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (j.ok) setCarr(j);
     } catch {}
   };
 
-  const loadRevenue = async () => {
+  const loadRevenue = async (d = days) => {
     try {
-      const r = await fetch("/api/admin/churn?view=revenue&days=90", { cache: "no-store" });
+      const r = await fetch(withRange("/api/admin/churn?view=revenue", "revenue", d), { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (j.ok) setRev(j);
     } catch {}
@@ -272,6 +274,27 @@ export default function Admin() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Beta waitlist</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {/* THE RANGE. Only panels that genuinely accept a window receive one — several admin
+                endpoints declare no date parameter, and FastAPI discards an undeclared param
+                silently, so wiring the picker to everything would move the control and change
+                nothing. Those panels say "all time" instead of pretending. */}
+            <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: 4 }}>
+              {RANGES.map((r) => (
+                <button key={r.label}
+                  onClick={() => {
+                    // The range is passed to each loader EXPLICITLY. setDays is async, so a loader
+                    // reading `days` from the closure here would fetch the previously-selected
+                    // window — the picker would appear to work and be exactly one click behind.
+                    setDays(r.days);
+                    loadPower(r.days); loadRef(r.days); loadCarriers(r.days); loadRevenue(r.days);
+                  }}
+                  style={{ ...S.ghost, padding: "5px 9px", fontSize: 11.5,
+                           color: days === r.days ? "#fff" : "#9aa4b2",
+                           borderColor: days === r.days ? "#F4532E" : "rgba(255,255,255,.14)" }}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <a href="/admin/churn" style={{ textDecoration: "none" }}>
               <button style={S.ghost}>Churn &amp; lifecycle →</button>
             </a>

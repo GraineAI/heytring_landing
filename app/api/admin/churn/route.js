@@ -60,7 +60,12 @@ export async function GET(req) {
     // they meet, so the panel still makes exactly one call.
     if (searchParams.get("view") === "referrals" && body?.ok) {
       try {
-        const days = Number(searchParams.get("days") || 60);
+        // CLAMP TO APOLLO'S OWN BOUNDS. /admin/referrals declares days ge=14 le=180, so a picker
+        // outside that range 422s there while this local half would happily have accepted it —
+        // leaving one card whose two numbers were measured over different windows and no sign of
+        // it on screen. Matching the bounds here keeps both halves describing the same period.
+        const raw = Number(searchParams.get("days") || 60);
+        const days = Math.min(180, Math.max(14, Number.isFinite(raw) ? raw : 60));
         const rows = await sql()`
           SELECT COUNT(*)::int AS opens
           FROM clicks
