@@ -2,12 +2,13 @@
   "name": "tring-landing",
   "version": "1.0.0",
   "private": true,
-  "description": "Marketing landing page for Tring — a personal AI phone assistant (Ring). Built with Next.js.",
+  "description": "Marketing landing page for Tring \u2014 a personal AI phone assistant (Ring). Built with Next.js.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node app/lib/csv.test.mjs && node app/admin/components/range.test.mjs && node app/admin/tdz.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
