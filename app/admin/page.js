@@ -101,6 +101,23 @@ export default function Admin() {
     setData(await r.json());
   };
 
+  // DECLARED ABOVE THE AUTH EARLY-RETURNS, and it has to be.
+  //
+  // This component returns early twice — once while the session is being checked, once when it is
+  // absent — and both returns sit BEFORE the other loaders are declared. An effect registered up
+  // here still fires after that first, short render, so calling anything declared below those
+  // returns reaches a `const` whose initialiser never ran: "Cannot access 'X' before
+  // initialization", thrown from the effect commit, which takes the whole page down with a
+  // client-side exception. `load` was always fine because it is declared above them; this was not.
+  const loadAlerts = async () => {
+    try {
+      const r = await fetch("/api/admin/intel?view=feed&days=14&min_severity=4&limit=50",
+                            { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setAlerts(Number(j.alerts) || 0);
+    } catch {}
+  };
+
   // The heavy panels stay behind their Load button on purpose. The alert count does not — a
   // badge you have to click to discover is not an alert.
   useEffect(() => { load(); loadAlerts(); }, []);
@@ -180,15 +197,6 @@ export default function Admin() {
 
   // Only the count, only the items that actually change a decision (severity >= 4). A badge that
   // lights up for every headline is a badge nobody looks at within a fortnight.
-  const loadAlerts = async () => {
-    try {
-      const r = await fetch("/api/admin/intel?view=feed&days=14&min_severity=4&limit=50",
-                            { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setAlerts(Number(j.alerts) || 0);
-    } catch {}
-  };
-
   const loadRef = async (d = days) => {
     try {
       const r = await fetch(withRange("/api/admin/churn?view=referrals&goal=500000&horizon_days=80", "referrals", d),
