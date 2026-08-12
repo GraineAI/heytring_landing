@@ -16,13 +16,12 @@ import { isAuthed } from "../../../lib/adminAuth";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-// Frontier model: this panel is doing strategy, not summarisation, and the
-// difference shows in whether it spots a second-order problem or restates the
-// dashboard. $5/1M in, $30/1M out — real money, which is exactly why the
-// 10-minute cache and the one-significant-figure cache key below matter: a
-// stable key means roughly six calls an hour, not one per page view.
-// OPENAI_MODEL still overrides (gpt-5.4-mini is the cheap fallback).
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.6-sol";
+// Cheap tier by default. gpt-5.6-sol reasons better, but at $5/1M in and
+// $30/1M out against this one's $0.75 it is roughly 7x the input cost and far
+// more on output — too much for a panel that re-runs on a 10-minute cycle.
+// Set OPENAI_MODEL=gpt-5.6-sol to go back; IS_REASONING below matches both, so
+// the request shape needs no change either way.
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 // GPT-5.x / o-series are REASONING models: they use max_completion_tokens (not max_tokens), accept
 // reasoning_effort, and reject a non-default temperature. Older chat models (gpt-4o-mini) want
 // temperature + tolerate max_completion_tokens. Detect and build the body accordingly.
