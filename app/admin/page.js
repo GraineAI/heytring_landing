@@ -80,6 +80,7 @@ export default function Admin() {
   const [alerts, setAlerts] = useState(0);
   const [ref, setRef] = useState(null);
   const [carr, setCarr] = useState(null);
+  const [rev, setRev] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -203,6 +204,14 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadRevenue = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=revenue&days=90", { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setRev(j);
+    } catch {}
+  };
+
   const loadSeries = async () => {
     try {
       const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
@@ -314,7 +323,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); loadRevenue(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -547,6 +556,68 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* SUBSCRIPTIONS — COUNTS, and no revenue figure anywhere, which is not an omission.
+              No price is stored on the consumer path: receipts carry the product id and the
+              transaction ids, never money, and the receipt validator is a stub that never calls
+              Apple or Google. An MRR number here could only be counts times an assumed price —
+              an assumption wearing the costume of a measurement. */}
+          {rev && (
+            <div style={{ ...S.card, padding: 16, marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Subscriptions</span>
+                <span style={{ color: "#5b6673", fontSize: 11.5 }}>
+                  counts only — no price is recorded anywhere, so no revenue figure is shown
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 12 }}>
+                {[
+                  ["entitled now", rev.entitled_now, `${rev.entitled_paid} paid · ${rev.entitled_granted} referral`],
+                  ["ever paid", rev.unique_payers_ever,
+                   rev.paid_conversion_pct != null ? `${rev.paid_conversion_pct}% of ${rev.activated_users} activated` : ""],
+                  ["purchases", rev.purchases_in_window, `last ${rev.window_days}d, deduped`],
+                  ["renewals", rev.renewal_events, `${rev.churn_events} churn events`],
+                  ["expiring 7d", rev.expiring_7d, `${rev.expiring_30d} within 30d`],
+                ].map(([label, val, sub]) => (
+                  <div key={label}>
+                    <div style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase",
+                                  letterSpacing: .7 }}>{label}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
+                      {val ?? "—"}
+                    </div>
+                    <div style={{ color: "#9aa4b2", fontSize: 11 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              {/* PAID vs GRANTED, kept apart. Referral months are real Pro — they unlock voice
+                  cloning identically — and cost almost nothing to mint, so a conversion rate that
+                  folds them in counts giveaways as sales. */}
+              {rev.entitled_now > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${(rev.entitled_paid / rev.entitled_now) * 100}%`,
+                                  background: "#5FB07A", transition: "width 700ms" }} />
+                    <div style={{ flex: 1, background: "rgba(244,83,46,.5)" }} />
+                  </div>
+                  <div style={{ color: "#9aa4b2", fontSize: 11, marginTop: 6 }}>
+                    <span style={{ color: "#5FB07A" }}>■</span> {rev.entitled_paid} paid ·{" "}
+                    <span style={{ color: "#F4532E" }}>■</span> {rev.entitled_granted} granted by referral
+                  </div>
+                </div>
+              )}
+              {/* The caveats ARE the data. A reader who does not know them will draw conclusions
+                  these numbers cannot support, so they sit next to the numbers, not in a doc. */}
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ color: "#E7B75A", fontSize: 11.5, cursor: "pointer" }}>
+                  What these numbers can and cannot tell you ({rev.caveats?.length || 0})
+                </summary>
+                <ul style={{ color: "#9aa4b2", fontSize: 11.5, lineHeight: 1.6, marginTop: 8,
+                             paddingLeft: 18 }}>
+                  {(rev.caveats || []).map((c, i) => <li key={i} style={{ marginBottom: 4 }}>{c}</li>)}
+                </ul>
+              </details>
+            </div>
+          )}
 
           {/* FORWARDING, PER CARRIER. The whole product depends on one MMI code being accepted by
               the user's operator, and operators do not behave alike. A blended activation rate

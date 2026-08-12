@@ -23,7 +23,10 @@ async function exportAppUsers(searchParams) {
   // first page. An export that looks complete and is not is the failure worth engineering against,
   // so this pages until the server says there is no more and refuses to guess otherwise.
   const PAGE = 1000;
-  const MAX_PAGES = 25;                     // 25k rows; the endpoint's own universe cap is 20k
+  // Sized ABOVE the endpoint's own universe cap (_UNIVERSE_CAP = 20k) so this loop is never the
+  // binding limit — if the row count ever plateaus on a round number, it should be because the
+  // server said so and set `truncated`, not because the client quietly stopped asking.
+  const MAX_PAGES = 25;
   const all = [];
   let offset = 0, truncated = false, matched = null;
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -38,7 +41,12 @@ async function exportAppUsers(searchParams) {
     const j = await res.json().catch(() => ({}));
     if (!j?.ok) {
       if (page === 0) return new Response("Apollo returned no rows", { status: 502 });
-      break;                                // keep what we have rather than lose the whole export
+      // Keep what we have rather than lose the whole export — but MARK IT. A bare `break` here
+      // produced a file with no -PARTIAL in its name and no truncation header, which is precisely
+      // the failure the rest of this function is written to prevent: a short list somebody works
+      // through believing they have reached everybody.
+      truncated = true;
+      break;
     }
     const batch = j.users || j.rows || [];
     all.push(...batch);
@@ -72,7 +80,10 @@ async function exportAppUsers(searchParams) {
   // Say so IN THE FILENAME when the export is short. A truncated CSV that is named like a
   // complete one becomes a list somebody works through believing they have reached everybody.
   const name = `tring-app-users${truncated ? "-PARTIAL" : ""}-${new Date().toISOString().slice(0, 10)}.csv`;
-  const res = csvResponse(toCsv(rows, columns, headers), name);
+  // `?safe=0` for machine consumers: phone is the join key, and the Excel apostrophe convention
+  // would make every row fail to match on re-import.
+  const safe = searchParams.get("safe") !== "0";
+  const res = csvResponse(toCsv(rows, columns, headers, { safe }), name);
   res.headers.set("X-Rows-Exported", String(rows.length));
   if (matched != null) res.headers.set("X-Rows-Matched", String(matched));
   if (truncated) res.headers.set("X-Export-Truncated", "1");

@@ -24,6 +24,7 @@ const VIEWS = {
   utility: "/api/v1/calls/admin/utility",
   referrals: "/api/v1/calls/admin/referrals",
   carriers: "/api/v1/calls/admin/carriers",
+  revenue: "/api/v1/calls/admin/revenue",
 };
 
 export async function GET(req) {
