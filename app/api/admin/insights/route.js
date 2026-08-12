@@ -203,6 +203,32 @@ A16Z (consumer AI economics):
   business users rather than pretending consumer subscription will work.
 - Retention, not installs, is the only honest measure. Installs are vanity when D30 is low.
 
+UTILITY DELTA — the arithmetic that settles "deeper or wider":
+  utility = (improvement over the status quo) x (number of people it reaches)
+Both factors are real and they MULTIPLY, which is why a big improvement for a few and a small
+improvement for many can be worth the same, and why either factor at zero makes the other
+irrelevant. For Tring the delta is calls the assistant handled INSTEAD OF the user — without the
+product each is an interruption taken or information lost, so every screened call converts one of
+those into a transcript. Reach is people with at least one such call; an install that never
+forwards a call has a delta of zero, and zero times any reach is still zero.
+Use it as a test, not a decoration: before recommending acquisition, check whether raising the
+delta of people already here buys the same utility more cheaply. The metrics include
+depth_headroom_per_week (what bringing the lighter half to the median would add, at zero
+acquisition cost) against installs_for_same_gain. When depth is cheaper, say so and say it plainly
+— it is the most commonly skipped comparison in consumer growth.
+
+COMPETITIVE REALITY — hold every recommendation against it:
+- Truecaller Assistant is THE SAME PRODUCT, at Rs.99-149/month, inside ~400M installs (1B+ on Play,
+  ~29M ratings). We do not out-distribute them and no plan that requires it is real.
+- hiRobin: ~10 lakh Play installs, ~8.3k ratings, Bengaluru, ~10 people, Android-strong with no
+  resolvable iOS listing. They are ALREADY past the download figure we are aiming at, which makes
+  them the honest benchmark rather than Truecaller.
+- Equal AI: shipping weekly at ~30 ratings — early, and not yet a threat at that size.
+- TRAI is an actor, not background. A rule on what call-management apps may filter deletes features
+  rather than delaying them, and outranks any rival launch.
+When the intel feed is supplied below, cite it. A rival's 1-star rate is an opening; their hiring is
+their roadmap a quarter early; their changelog is what they shipped, as against what they announced.
+
 RULES for your output:
 - Every item MUST cite the specific metric number that triggered it.
 - Every item MUST name which idea it applies and which book it comes from (short). Draw from any of
@@ -249,7 +275,9 @@ Return JSON with this exact shape:
   "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence, plus what you are explicitly NOT doing",
   "goal_math": "the 500k-in-80-days arithmetic as it stands TODAY: downloads/day required, what current activation turns that into, and the one number that most limits it",
   "what_must_be_true": ["3-5 conditions that must hold for 500k in 80 days", "each marked PROVEN or ASSUMED", "an assumed one is a risk, not a plan"],
-  "reachable": "the largest figure genuinely reachable on the current path in 90 days, and what it would take to beat it"
+  "reachable": "the largest figure genuinely reachable on the current path in 90 days, and what it would take to beat it",
+  "utility_call": "deeper or wider, decided on the arithmetic: state utility today as delta x reach, then which factor is cheaper to move and by how much, citing depth_headroom_per_week against installs_for_same_gain",
+  "versus": "the one thing we can do that Truecaller structurally cannot or will not — and if the honest answer is that nothing here qualifies yet, say that instead of inventing one"
 }
 Give 4 to 6 items, ordered by leverage.
 
@@ -307,16 +335,43 @@ export async function POST(req) {
     const apolloKey = process.env.APOLLO_ADMIN_API_KEY || process.env.ADMIN_API_KEY;
     if (apolloKey) {
       const base = (process.env.APOLLO_API_BASE || "https://api.graine.ai").replace(/\/+$/, "");
-      const [m, u] = await Promise.all([
-        fetch(`${base}/api/v1/calls/admin/metrics`, {
-          headers: { "X-Internal-API-Key": apolloKey }, cache: "no-store",
-        }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch(`${base}/api/v1/calls/admin/users?limit=500`, {
-          headers: { "X-Internal-API-Key": apolloKey }, cache: "no-store",
-        }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      const pull = (path) =>
+        fetch(`${base}${path}`, { headers: { "X-Internal-API-Key": apolloKey }, cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+      const [m, u, ut, pw, intel] = await Promise.all([
+        pull("/api/v1/calls/admin/metrics"),
+        pull("/api/v1/calls/admin/users?limit=500"),
+        // The deeper-or-wider arithmetic. Without it the strategist can only ever argue for
+        // acquisition, because acquisition is the only lever it can see.
+        pull("/api/v1/calls/admin/utility"),
+        pull("/api/v1/calls/admin/power_users"),
+        // What rivals shipped, at their actual scale. Advice given without it is advice given as
+        // though we were the only company in the category.
+        pull("/api/v1/calls/admin/intel?days=21&min_severity=3&limit=25"),
       ]);
       if (m?.ok) summary.product_metrics = m;
       if (u?.ok) summary.activation_funnel = { funnel: u.funnel, ladder_health: u.ladder_health };
+      if (ut?.ok) summary.utility = ut;
+      if (pw?.ok) {
+        summary.power_law = {
+          users: pw.users, top_decile_share_pct: pw.top_decile_share_pct, deciles: pw.deciles,
+        };
+      }
+      if (intel?.ok) {
+        summary.competitors = {
+          scale: (intel.apps || []).map((a) => ({
+            competitor: a.competitor, store: a.store, installs: a.downloads,
+            ratings: a.ratings, released_at: a.released_at,
+            shipped: (a.notes || "").slice(0, 240),
+          })),
+          hiring: (intel.jobs || []).slice(0, 15).map((j) => `${j.competitor}: ${j.title} (${j.location})`),
+          news: (intel.items || []).slice(0, 15).map((i) => ({
+            competitor: i.competitor || "market", severity: i.severity,
+            title: i.title, so_what: i.so_what,
+          })),
+        };
+      }
     } else {
       summary.product_metrics_unavailable =
         "APOLLO_ADMIN_API_KEY not set — retention and activation numbers are MISSING, not zero. " +

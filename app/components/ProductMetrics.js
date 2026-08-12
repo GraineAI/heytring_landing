@@ -1051,6 +1051,27 @@ function AIStrategist({ d, tick }) {
               <strong style={{ color: "#E7B75A" }}>A number and a story disagree:</strong> {ins.disagreement}
             </div>
           )}
+          {/* DEEPER OR WIDER, on the arithmetic. utility = delta x reach, both factors real and
+              multiplying — so before any acquisition plan, the honest question is whether raising
+              the delta of the people already here buys the same utility for less. It is the
+              comparison consumer growth skips most often. */}
+          {ins.utility_call && (
+            <div style={{ marginTop: 10, padding: "12px 14px", background: "rgba(123,167,217,.09)",
+                          borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.55,
+                          border: "1px solid rgba(123,167,217,.25)" }}>
+              <strong style={{ color: "#7BA7D9" }}>Deeper or wider:</strong> {ins.utility_call}
+            </div>
+          )}
+          {/* The only durable question in a category with an incumbent at a billion installs.
+              The prompt is explicitly allowed to answer "nothing yet" — an invented moat is
+              worse than an admitted absence. */}
+          {ins.versus && String(ins.versus).trim() && (
+            <div style={{ marginTop: 10, padding: "12px 14px", background: "rgba(244,83,46,.07)",
+                          borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.55,
+                          border: "1px solid rgba(244,83,46,.22)" }}>
+              <strong style={{ color: "#F4532E" }}>What Truecaller can&apos;t do:</strong> {ins.versus}
+            </div>
+          )}
           {ins.one_bet && (
             <div style={{ marginTop: 12, padding: "12px 14px", background: "rgba(159,224,188,.08)", borderRadius: 10, fontSize: 13.5, color: INK, lineHeight: 1.55 }}>
               <strong style={{ color: "#9FE0BC" }}>The one bet:</strong> {ins.one_bet}
