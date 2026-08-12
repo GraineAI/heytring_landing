@@ -398,15 +398,22 @@ export default function Admin() {
             <div style={{ overflowX: "auto", marginTop: 14 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
                 <thead><tr>
-                  {["Phone", "Stage", "Platform", "Asked for code", "Calls", "Days", "Nudges", "Push?"].map((h) => (
+                  {["Who", "Stage", "Platform", "Asked for code", "Calls", "Days", "Nudges", "Push?"].map((h) => (
                     <th key={h} style={{ textAlign: "left", color: "#9aa4b2", fontSize: 12, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {lifecycle.users.map((u) => (
                     <tr key={u.phone}>
-                      <td style={{ padding: "8px 10px", color: "#fff", fontSize: 13.5 }}>
-                        <a href={`tel:${u.phone}`} style={{ color: "#F4532E", textDecoration: "none" }}>{u.phone}</a>
+                      {/* NAME above NUMBER. The team is ringing a person; leading with digits made
+                          every row look identical and gave the caller nothing to open with. */}
+                      <td style={{ padding: "8px 10px", fontSize: 13.5 }}>
+                        {u.name
+                          ? <div style={{ color: "#fff", fontWeight: 600 }}>{u.name}</div>
+                          : <div style={{ color: "#5b6673", fontSize: 12 }}>no name yet</div>}
+                        <a href={`tel:${u.phone}`}
+                           style={{ color: "#F4532E", textDecoration: "none", fontSize: 12.5,
+                                    fontVariantNumeric: "tabular-nums" }}>{u.phone}</a>
                       </td>
                       <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.stage?.replace("_", " ")}</td>
                       <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 13 }}>{u.platform || "—"}</td>
