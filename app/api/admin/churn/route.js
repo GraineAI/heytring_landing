@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthed } from "../../../lib/adminAuth";
+import { sql } from "../../../lib/db";
 
 /**
  * /api/admin/churn — the four churn reads, behind one proxy.
@@ -48,7 +49,36 @@ export async function GET(req) {
     const res = await fetch(`${base}${path}${qs.toString() ? "?" + qs : ""}`, {
       headers: { "X-Internal-API-Key": key }, cache: "no-store",
     });
-    return NextResponse.json(await res.json().catch(() => ({ ok: false })), { status: res.status });
+    const body = await res.json().catch(() => ({ ok: false }));
+
+    // LINK OPENS ALREADY EXIST — here, not in Apollo. Every tap on /r/{code} is written to the
+    // `clicks` table by that page, so asking the app to emit a second event for the same act
+    // would double-count it and put two disagreeing numbers in front of the same person. Apollo
+    // is authoritative for shares and redemptions, this database for opens; the proxy is where
+    // they meet, so the panel still makes exactly one call.
+    if (searchParams.get("view") === "referrals" && body?.ok) {
+      try {
+        const days = Number(searchParams.get("days") || 60);
+        const rows = await sql()`
+          SELECT COUNT(*)::int AS opens
+          FROM clicks
+          WHERE placement LIKE 'referral:%'
+            AND placement <> 'referral:invalid'
+            AND created_at >= NOW() - (${days} || ' days')::interval`;
+        const opens = rows?.[0]?.opens ?? null;
+        if (opens != null) {
+          body.loop_top = { ...(body.loop_top || {}), link_opens: opens, instrumented: true };
+          // Opens are the only step measured upstream of redemption, so this is the one
+          // conversion rate available today for the middle of the loop.
+          if (opens > 0 && typeof body.redemptions === "number") {
+            body.open_to_redeem_pct = Math.round((body.redemptions / opens) * 1000) / 10;
+          }
+        }
+      } catch (e) {
+        console.error("referral opens read failed:", e?.message);
+      }
+    }
+    return NextResponse.json(body, { status: res.status });
   } catch {
     return NextResponse.json({ ok: false, error: "apollo unreachable" }, { status: 502 });
   }

@@ -592,6 +592,52 @@ export default function Admin() {
                   )}
                 </div>
               </div>
+              {/* THE LOOP, end to end. k tells you the loop's yield; only the steps tell you
+                  WHERE it leaks, and the two leaks need opposite fixes — a share sheet nobody
+                  opens is a message problem, a link nobody converts is a store-listing problem. */}
+              {ref.loop_top?.instrumented && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase",
+                                letterSpacing: .7, marginBottom: 7 }}>the loop</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 2 }}>
+                    {[["shared", ref.loop_top.shares], ["link opened", ref.loop_top.link_opens],
+                      ["redeemed", ref.redemptions]].map(([label, v], i, arr) => {
+                      const max = Math.max(...arr.map(([, x]) => Number(x) || 0)) || 1;
+                      const prev = i > 0 ? Number(arr[i - 1][1]) || 0 : null;
+                      const conv = prev ? Math.round((Number(v) / prev) * 1000) / 10 : null;
+                      return (
+                        <React.Fragment key={label}>
+                          {i > 0 && (
+                            <div style={{ color: conv != null && conv < 10 ? "#F4532E" : "#5b6673",
+                                          fontSize: 10.5, padding: "0 6px 14px" }}>
+                              {conv != null ? `${conv}%` : "—"}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, textAlign: "center" }}>
+                            <div style={{ height: 44, display: "flex", alignItems: "flex-end" }}>
+                              <div style={{ width: "100%", borderRadius: "3px 3px 0 0",
+                                            background: i === 2 ? "#F4532E" : "rgba(244,83,46,.35)",
+                                            height: `${Math.max(4, ((Number(v) || 0) / max) * 100)}%`,
+                                            transition: "height 700ms cubic-bezier(.22,.9,.3,1)" }} />
+                            </div>
+                            <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, marginTop: 4 }}>
+                              {v ?? "—"}
+                            </div>
+                            <div style={{ color: "#5b6673", fontSize: 10 }}>{label}</div>
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                  {ref.loop_top.shares == null || ref.loop_top.shares === 0 ? (
+                    <div style={{ color: "#E7B75A", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                      Link opens are counted here on the website; shares are not arriving from the
+                      app yet, so the first step is blank until the next build ships.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               {/* Absence is not zero, and the panel must not let those look alike. */}
               {ref.loop_top && !ref.loop_top.instrumented && (
                 <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
