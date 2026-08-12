@@ -921,6 +921,15 @@ export default function Admin() {
                 {st === "" ? "All" : st.replace("_", " ")}
               </button>
             ))}
+            {/* Exports the SAME filter that is on screen. A button that silently exported
+                everything while the table showed one stage would hand someone a call list that
+                does not match the thing they were looking at when they asked for it. */}
+            <a href={`/api/admin/export?table=app_users${lcStage ? `&stage=${lcStage}` : ""}`}
+               style={{ textDecoration: "none" }}>
+              <button style={S.ghost} title="Every matching row, paged in full — not just this page">
+                Export CSV{lcStage ? ` · ${lcStage.replace("_", " ")}` : ""}
+              </button>
+            </a>
           </div>
           <p style={{ color: "#9aa4b2", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
             <b>code requested</b> asked for an OTP and never entered it — the biggest leak.{" "}
