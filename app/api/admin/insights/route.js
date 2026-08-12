@@ -64,6 +64,18 @@ Y COMBINATOR (Gupta, "minimum evolvable product"; Alströmer, "how to talk to us
 - Do not fear churn at this size. Losing an unsuitable user costs nothing; learning nothing costs everything.
 - Talk to users on a call, never a survey. Ask what they DID, not what they WOULD do.
 
+RETENTION IS THE ONLY HONEST SCOREBOARD (a16z on premature scaling; Ellis on PMF):
+- Retention is the ONE number that cannot be bought. Acquisition, installs and store clicks can all
+  be manufactured; a user coming back next week cannot. If the curve has no flat tail, spending on
+  acquisition pours users into a bucket with a hole in it.
+- Read the retention CURVE, not a single number: a curve that flattens at 15% is a real business,
+  one that decays to zero is not, and both can show the same D7.
+- Measure retention by the product DOING ITS JOB — Tring answering a call — not by app opens. Opens
+  can be manufactured with notifications; an answered call cannot. When both are given, the GAP
+  between them is the finding: opens holding up while answers fall means people keep checking a
+  product that is not working for them.
+- Never treat a null/missing week as zero. Say the data is missing and what would be needed.
+
 CROSSING THE CHASM (Moore) — the most binding constraint at a few hundred users:
 - Early adopters tolerate broken things; the early majority does not. Do not read enthusiasm from
   140 beta users as proof the product is ready for a wider audience.
@@ -131,7 +143,24 @@ Return JSON with this exact shape:
   ],
   "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence"
 }
-Give 4 to 6 items, ordered by leverage.`;
+Give 4 to 6 items, ordered by leverage.
+
+HOW TO NOT BE USELESS — these are the failure modes of advice like this:
+1. RESTATING A NUMBER IS NOT AN INSIGHT. "Activation is 17%" is data the founder already has.
+   "17% activation with 191 of 218 lost on ANDROID specifically, while iOS converts at 29%, means
+   this is an Android sign-in defect and not a positioning problem" is an insight. Always say what
+   the number MEANS and what it rules OUT.
+2. EVERY ITEM MUST BE FALSIFIABLE. In "action", include what you expect to happen and by when, so
+   it can be checked and you can be wrong. "Ship the OTP retry; expect Android sign-in above 20%
+   within a week" — not "improve onboarding".
+3. NEVER RECOMMEND WHAT THE DATA CANNOT SUPPORT. If retention is missing or a cohort is tiny, say
+   so and make the item "go measure this" rather than inventing a conclusion. A confident answer
+   from absent data is worse than no answer.
+4. RESPECT THE ORDER OF CONSTRAINTS. Do not advise acquisition while activation or retention is
+   broken — users acquired now are wasted. Fix the leak first, and say that plainly if the numbers
+   show it.
+5. ONE BET MEANS ONE. If everything is important, nothing is. Name the single thing, and be
+   explicit about what you are choosing NOT to do this week.`;
 }
 
 export async function POST(req) {
@@ -142,6 +171,38 @@ export async function POST(req) {
   let body = {};
   try { body = await req.json(); } catch {}
   const summary = body.summary || {};
+
+  // FEED IT THE HARD NUMBERS, server-side.
+  //
+  // The strategist previously reasoned from whatever the browser happened to POST — waitlist counts
+  // and store clicks. Those describe reach, not whether the product works, so its advice could only
+  // ever be about acquisition. Apollo now computes the numbers that decide everything else
+  // (D1/D7/D28 both ways, activation latency, answers per active user, where the funnel leaks), and
+  // an advisor that cannot see retention will confidently tell you to go get more users.
+  //
+  // Merged under its own key so the model can tell measured facts from client-supplied context, and
+  // failures are swallowed: a strategist running on partial data beats no strategist at all — but it
+  // is TOLD the data is partial, so it cannot mistake absence for zero.
+  try {
+    const apolloKey = process.env.APOLLO_ADMIN_API_KEY || process.env.ADMIN_API_KEY;
+    if (apolloKey) {
+      const base = (process.env.APOLLO_API_BASE || "https://api.graine.ai").replace(/\/+$/, "");
+      const [m, u] = await Promise.all([
+        fetch(`${base}/api/v1/calls/admin/metrics`, {
+          headers: { "X-Internal-API-Key": apolloKey }, cache: "no-store",
+        }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`${base}/api/v1/calls/admin/users?limit=500`, {
+          headers: { "X-Internal-API-Key": apolloKey }, cache: "no-store",
+        }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ]);
+      if (m?.ok) summary.product_metrics = m;
+      if (u?.ok) summary.activation_funnel = { funnel: u.funnel, ladder_health: u.ladder_health };
+    } else {
+      summary.product_metrics_unavailable =
+        "APOLLO_ADMIN_API_KEY not set — retention and activation numbers are MISSING, not zero. " +
+        "Do not infer anything about retention from their absence.";
+    }
+  } catch (_) {}
   const force = !!body.force;
   // Cache on a ROUNDED view of the summary. Raw counters drift by a person or
   // two between refreshes, which changed the key every time and made a

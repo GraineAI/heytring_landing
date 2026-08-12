@@ -31,7 +31,15 @@ export async function GET(req) {
     // Say WHICH thing is missing. "failed to load" on a dashboard sends someone into the network
     // tab for twenty minutes to rediscover an unset environment variable.
     return NextResponse.json(
-      { ok: false, error: "APOLLO_ADMIN_API_KEY is not set on the landing deployment" },
+      {
+        ok: false,
+        error:
+          "APOLLO_ADMIN_API_KEY is not set on this deployment. Set it to the SAME value as " +
+          "ADMIN_API_KEY in Apollo's environment (Vercel → Settings → Environment Variables), " +
+          "then redeploy. ADMIN_API_KEY is accepted as an alias if you prefer one name. " +
+          "Optionally set APOLLO_API_BASE if Apollo is not at https://api.graine.ai.",
+        needs: ["APOLLO_ADMIN_API_KEY"],
+      },
       { status: 503 },
     );
   }

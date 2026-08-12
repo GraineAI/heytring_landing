@@ -5,7 +5,9 @@
  * set by /api/admin/login). Shows totals, platform split, where people
  * came from, the full signup list and store-link clicks, with CSV export.
  */
-import { useEffect, useState } from "react";
+// React (not just the hooks): the cohort table renders TWO <tr> per cohort — answered and
+// opened — which needs a keyed <React.Fragment>. The <> shorthand cannot take a key.
+import React, { useEffect, useState } from "react";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
@@ -64,6 +66,8 @@ export default function Admin() {
   const [lcErr, setLcErr] = useState("");
   const [lcStage, setLcStage] = useState("");
   const [lcBusy, setLcBusy] = useState(false);
+  const [cohorts, setCohorts] = useState(null);
+  const [cohErr, setCohErr] = useState("");
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -141,6 +145,16 @@ export default function Admin() {
     } finally { setLcBusy(false); }
   };
 
+  const loadCohorts = async () => {
+    setCohErr("");
+    try {
+      const res = await fetch("/api/admin/users?view=retention&weeks=8", { cache: "no-store" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok) setCohErr(j.error || `apollo returned ${res.status}`);
+      else setCohorts(j);
+    } catch { setCohErr("could not reach the server"); }
+  };
+
   const toggleContacted = async (row) => {
     const next = !row.contacted;
     // optimistic update
@@ -197,6 +211,126 @@ export default function Admin() {
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
         <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
+        {/* ── PRODUCT METRICS — above the waitlist on purpose ────────────────────────
+            Signups and store clicks say how many people we reached. They say nothing about
+            whether the product works, and a dashboard that leads with them optimises for the
+            wrong number. Activation and retention go first. ── */}
+        <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+            <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>Does the product work?</h2>
+            <span style={{ color: "#9aa4b2", fontSize: 12.5 }}>
+              activation, then retention measured by calls actually answered
+            </span>
+            <div style={{ flex: 1 }} />
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); }}>Load</button>}
+          </div>
+
+          {/* FUNNEL — the DROP between steps is the number that matters, so it is the number
+              rendered. Counts alone hide where people are lost. */}
+          {lifecycle?.funnel && (() => {
+            const order = ["installed", "code_requested", "signed_in", "activated", "retained"];
+            const labels = {
+              installed: "Installed", code_requested: "Asked for a code",
+              signed_in: "Signed in", activated: "Tring answered a call", retained: "5+ active days",
+            };
+            // Cumulative: everyone at a later stage also passed the earlier ones.
+            const cum = {};
+            order.forEach((k, i) => { cum[k] = order.slice(i).reduce((a, x) => a + (lifecycle.funnel[x] || 0), 0); });
+            const top = cum[order[0]] || 0;
+            return (
+              <div style={{ marginTop: 16 }}>
+                {order.map((k, i) => {
+                  const n = cum[k];
+                  const prev = i === 0 ? n : cum[order[i - 1]];
+                  const kept = prev > 0 ? (100 * n) / prev : 0;
+                  const width = top > 0 ? Math.max(2, (100 * n) / top) : 0;
+                  const bad = i > 0 && kept < 50;
+                  return (
+                    <div key={k} style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13 }}>
+                        <span style={{ color: "#e6edf3", minWidth: 168 }}>{labels[k]}</span>
+                        <span style={{ color: "#fff", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{n}</span>
+                        {i > 0 && (
+                          <span style={{ color: bad ? "#FF7B72" : "#9aa4b2", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+                            {kept.toFixed(0)}% of previous · {(prev - n)} lost here
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ height: 8, borderRadius: 6, background: "rgba(255,255,255,.07)", marginTop: 4 }}>
+                        <div style={{ width: `${width}%`, height: "100%", borderRadius: 6,
+                                      background: bad ? "#FF7B72" : "#F4532E", opacity: bad ? 0.85 : 0.9 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* RETENTION — two curves for the SAME users. The gap is the signal: opens holding up
+              while answers fall means people keep checking a product that is not working for them. */}
+          {cohErr && <div style={{ color: "#FF7B72", fontSize: 13, marginTop: 14 }}>{cohErr}</div>}
+          {cohorts?.cohorts?.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ color: "#fff", fontSize: 14.5, fontWeight: 600 }}>Weekly retention, by cohort</div>
+              <div style={{ color: "#9aa4b2", fontSize: 12, marginTop: 3 }}>
+                Cohort = the week Tring first answered a call for them. Top row of each pair is
+                calls answered, the muted row is app opens. “—” means that week has not happened
+                yet, or predates the open ledger — not zero.
+              </div>
+              <div style={{ overflowX: "auto", marginTop: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
+                  <thead><tr>
+                    {["Cohort", "Users", "W0", "W1", "W2", "W3", "W4", "W5"].map((h) => (
+                      <th key={h} style={{ textAlign: h === "Cohort" ? "left" : "right", color: "#9aa4b2",
+                                           fontSize: 12, padding: "6px 10px",
+                                           borderBottom: "1px solid rgba(255,255,255,.1)" }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {cohorts.cohorts.map((c) => {
+                      const cell = (v, muted) => {
+                        if (v == null) return <span style={{ color: "#5b6673" }}>—</span>;
+                        // Colour only the answered row: two coloured rows would fight.
+                        const col = muted ? "#8b95a1" : v >= 40 ? "#5CD98A" : v >= 20 ? "#E7B75A" : "#FF7B72";
+                        return <span style={{ color: col, fontVariantNumeric: "tabular-nums" }}>{v}%</span>;
+                      };
+                      return (
+                        <React.Fragment key={c.cohort_week}>
+                          <tr>
+                            <td rowSpan={2} style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13,
+                                                     borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                              {c.cohort_week}
+                            </td>
+                            <td rowSpan={2} style={{ padding: "8px 10px", color: "#fff", fontSize: 13, textAlign: "right",
+                                                     fontVariantNumeric: "tabular-nums",
+                                                     borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                              {c.activated_users}
+                            </td>
+                            {[0, 1, 2, 3, 4, 5].map((w) => (
+                              <td key={w} style={{ padding: "6px 10px", textAlign: "right", fontSize: 13,
+                                                   borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                                {cell(c[`answered_week_${w}`], false)}
+                              </td>
+                            ))}
+                          </tr>
+                          <tr>
+                            {[0, 1, 2, 3, 4, 5].map((w) => (
+                              <td key={w} style={{ padding: "0 10px 7px", textAlign: "right", fontSize: 11.5 }}>
+                                {cell(c[`opened_week_${w}`], true)}
+                              </td>
+                            ))}
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* ── App lifecycle: who to call, and about what ───────────────────────────── */}
         <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -216,7 +350,18 @@ export default function Admin() {
             <b>activated</b> at least one answered call. <b>retained</b> answered calls on 5+ days —
             the only people whose opinion on the product is worth weighting.
           </p>
-          {lcErr && <div style={{ color: "#FF7B72", fontSize: 13.5, marginTop: 12 }}>{lcErr}</div>}
+          {lcErr && (
+            <div style={{ ...S.card, marginTop: 12, padding: "12px 14px",
+                          borderColor: "rgba(255,123,114,.4)" }}>
+              <div style={{ color: "#FF7B72", fontSize: 13.5, fontWeight: 600 }}>{lcErr}</div>
+              {/^APOLLO_ADMIN_API_KEY/.test(lcErr) && (
+                <div style={{ color: "#9aa4b2", fontSize: 12.5, marginTop: 6, lineHeight: 1.5 }}>
+                  This panel reads live data from Apollo, which is key-gated. Nothing is broken —
+                  the deployment just has no key yet.
+                </div>
+              )}
+            </div>
+          )}
           {lcBusy && <div style={{ color: "#9aa4b2", fontSize: 13.5, marginTop: 12 }}>Loading…</div>}
           {/* Whether the abandoned-signup reminder can actually be DELIVERED. Scheduling, firing
               and "sending" all succeed even with no device attached, so an inert ladder looks
