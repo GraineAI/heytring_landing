@@ -219,7 +219,8 @@ export default function Admin() {
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>Does the product work?</h2>
             <span style={{ color: "#9aa4b2", fontSize: 12.5 }}>
-              activation, then retention measured by calls actually answered
+              activation, then retention measured by calls actually answered — always the whole
+              population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
             {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); }}>Load</button>}
@@ -250,10 +251,13 @@ export default function Admin() {
                       <div style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13 }}>
                         <span style={{ color: "#e6edf3", minWidth: 168 }}>{labels[k]}</span>
                         <span style={{ color: "#fff", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{n}</span>
-                        {i > 0 && (
+                        {i > 0 && prev > 0 && (
                           <span style={{ color: bad ? "#FF7B72" : "#9aa4b2", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
                             {kept.toFixed(0)}% of previous · {(prev - n)} lost here
                           </span>
+                        )}
+                        {i > 0 && prev === 0 && (
+                          <span style={{ color: "#5b6673", fontSize: 12 }}>no one reached this step yet</span>
                         )}
                       </div>
                       <div style={{ height: 8, borderRadius: 6, background: "rgba(255,255,255,.07)", marginTop: 4 }}>
