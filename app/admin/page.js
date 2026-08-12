@@ -76,6 +76,8 @@ export default function Admin() {
   const [noteBusy, setNoteBusy] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [series, setSeries] = useState(null);
+  const [power, setPower] = useState(null);
+  const [alerts, setAlerts] = useState(0);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -94,7 +96,9 @@ export default function Admin() {
     setData(await r.json());
   };
 
-  useEffect(() => { load(); }, []);
+  // The heavy panels stay behind their Load button on purpose. The alert count does not — a
+  // badge you have to click to discover is not an alert.
+  useEffect(() => { load(); loadAlerts(); }, []);
 
   const login = async (e) => {
     e.preventDefault();
@@ -161,6 +165,25 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadPower = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=power_users", { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setPower(j);
+    } catch {}
+  };
+
+  // Only the count, only the items that actually change a decision (severity >= 4). A badge that
+  // lights up for every headline is a badge nobody looks at within a fortnight.
+  const loadAlerts = async () => {
+    try {
+      const r = await fetch("/api/admin/intel?view=feed&days=14&min_severity=4&limit=50",
+                            { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setAlerts(Number(j.alerts) || 0);
+    } catch {}
+  };
+
   const loadSeries = async () => {
     try {
       const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
@@ -224,6 +247,13 @@ export default function Admin() {
             <a href="/admin/churn" style={{ textDecoration: "none" }}>
               <button style={S.ghost}>Churn &amp; lifecycle →</button>
             </a>
+            <a href="/admin/intel" style={{ textDecoration: "none", position: "relative" }}>
+              <button style={alerts > 0
+                ? { ...S.ghost, borderColor: "rgba(244,83,46,.6)", color: "#F4532E" }
+                : S.ghost}>
+                Industry watch{alerts > 0 ? ` · ${alerts}` : ""} →
+              </button>
+            </a>
             <a href="/admin/guide" style={{ textDecoration: "none" }}><button style={{ ...S.ghost, borderColor: "rgba(244,83,46,.5)", color: "#F4532E" }}>Guide: how to read these</button></a>
             <button style={S.ghost} onClick={load}>Refresh</button>
             <a href="/api/admin/export?table=waitlist"><button style={S.btn}>Export CSV</button></a>
@@ -265,7 +295,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -498,6 +528,64 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* THE POWER LAW (Thiel ch7), made visible. An average hides it completely: "21 calls
+              per user" is a sentence about nobody when one person has 596 and forty have one. */}
+          {power?.deciles?.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>
+                Who does the using
+                <span style={{ color: "#5b6673", fontSize: 11.5, fontWeight: 400 }}>
+                  {" "}· {power.users} people with ≥1 answered call · {power.total_calls?.toLocaleString("en-IN")} calls
+                </span>
+              </div>
+              {power.top_decile_share_pct != null && (
+                <div style={{ color: "#9aa4b2", fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                  The heaviest 10% account for{" "}
+                  <b style={{ color: power.top_decile_share_pct >= 50 ? "#E7B75A" : "#e6edf3" }}>
+                    {power.top_decile_share_pct}%
+                  </b>{" "}
+                  of all answered calls.
+                  {power.top_decile_share_pct >= 50
+                    ? " Above half means the business IS these users — build for them, and find more like them."
+                    : " Usage is relatively even, so the average is actually meaningful here."}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 3, alignItems: "flex-end", marginTop: 12, height: 76 }}>
+                {power.deciles.map((d, i) => {
+                  const max = Math.max(...power.deciles.map((x) => x.share_pct)) || 1;
+                  return (
+                    <div key={d.decile} style={{ flex: 1, textAlign: "center" }}>
+                      <div style={{ color: "#6b7684", fontSize: 9.5, marginBottom: 2 }}>{d.share_pct}%</div>
+                      <div style={{ height: 46, display: "flex", alignItems: "flex-end" }}>
+                        <div style={{ width: "100%", background: i === 0 ? "#F4532E" : "rgba(244,83,46,.35)",
+                                      borderRadius: "3px 3px 0 0",
+                                      height: `${Math.max(3, (d.share_pct / max) * 100)}%`,
+                                      transition: "height 700ms cubic-bezier(.22,.9,.3,1)" }} />
+                      </div>
+                      <div style={{ color: "#5b6673", fontSize: 9 }}>{d.decile}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ color: "#5b6673", fontSize: 10.5 }}>
+                decile 1 = heaviest users · bar height = share of all answered calls
+              </div>
+              {power.top_users?.length > 0 && (
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 10 }}>
+                  {power.top_users.slice(0, 8).map((u) => (
+                    <div key={u.phone} style={{ ...S.card, padding: "7px 11px" }}>
+                      <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>
+                        {u.name || u.phone}
+                      </span>
+                      <span style={{ color: "#F4532E", fontSize: 12, marginLeft: 7 }}>{u.calls}</span>
+                      <span style={{ color: "#5b6673", fontSize: 10.5 }}> · {u.active_days}d</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* RETENTION — two curves for the SAME users. The gap is the signal: opens holding up
               while answers fall means people keep checking a product that is not working for them. */}

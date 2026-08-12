@@ -19,6 +19,7 @@ const VIEWS = {
   feed: "/api/v1/calls/admin/churn/feed",
   logout_return: "/api/v1/calls/admin/churn/logout_return",
   timeseries: "/api/v1/calls/admin/timeseries",
+  power_users: "/api/v1/calls/admin/power_users",
 };
 
 export async function GET(req) {
