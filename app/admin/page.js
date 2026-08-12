@@ -15,6 +15,14 @@ import { detect, describe, findConstraint } from "./components/signals";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
+// Same wording the app shows on the delete screen, so the panel reads back exactly what the
+// person was asked. Paraphrasing here would quietly change what the number means.
+const REASON_LABEL = {
+  not_useful: "Didn't find it useful", too_many_calls: "Too many notifications",
+  didnt_work: "It didn't work properly", privacy: "Privacy concerns",
+  setup_hard: "Setup was too hard", other: "Something else",
+};
+
 const S = {
   page: { minHeight: "100vh", background: "#000000", color: "#FFF0EB", padding: "48px 20px", fontFamily: "inherit" },
   wrap: { maxWidth: 1100, margin: "0 auto" },
@@ -83,6 +91,7 @@ export default function Admin() {
   const [carr, setCarr] = useState(null);
   const [rev, setRev] = useState(null);
   const [days, setDays] = useState(90);
+  const [why, setWhy] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -222,6 +231,14 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadWhy = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=funnel", { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setWhy(j);
+    } catch {}
+  };
+
   const loadSeries = async () => {
     try {
       const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
@@ -354,7 +371,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); loadRevenue(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); loadCarriers(); loadRevenue(); loadWhy(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -587,6 +604,85 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* WHY PEOPLE LEAVE, IN THEIR OWN WORDS — the clearest dissatisfaction signal there is,
+              because it is the one moment someone is willing to say it. Split by what they did
+              NEXT: the same sentence is a post-mortem from someone who deleted and a live problem
+              report from someone who backed out and is still here. */}
+          {why && (why.counts?.initiated > 0 || Object.keys(why.exit_reasons || {}).length > 0) && (
+            <div style={{ ...S.card, padding: 16, marginTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Why people leave</span>
+                <span style={{ color: "#5b6673", fontSize: 11.5 }}>
+                  {why.counts?.initiated || 0} opened the delete screen ·{" "}
+                  {why.counts?.cancelled || 0} backed out ·{" "}
+                  {why.counts?.completed || 0} went through with it
+                  {why.cancel_rate_pct != null && ` · ${why.cancel_rate_pct}% changed their mind`}
+                </span>
+              </div>
+
+              {Object.keys(why.exit_reasons || {}).length === 0 ? (
+                <div style={{ color: "#9aa4b2", fontSize: 12.5, marginTop: 10, lineHeight: 1.55 }}>
+                  Nobody has given a reason yet. The survey is optional by design — someone who has
+                  decided to go should not have to fill a form to leave, and a forced one yields
+                  whatever tap escapes fastest.
+                </div>
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  {Object.entries(why.exit_reasons)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([k, n]) => {
+                      const split = why.reasons_by_outcome?.[k] || {};
+                      const stayed = split.cancelled || 0;
+                      const max = Math.max(...Object.values(why.exit_reasons)) || 1;
+                      return (
+                        <div key={k} style={{ marginBottom: 9 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                            <span style={{ color: "#e6edf3", fontSize: 13, minWidth: 190 }}>
+                              {REASON_LABEL[k] || k}
+                            </span>
+                            <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>{n}</span>
+                            {stayed > 0 && (
+                              <span style={{ color: "#5FB07A", fontSize: 11.5 }}>
+                                · {stayed} said this and STAYED
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, marginTop: 4,
+                                        background: "rgba(255,255,255,.06)", overflow: "hidden",
+                                        display: "flex" }}>
+                            {/* Green first: the people still reachable. */}
+                            <div style={{ width: `${(stayed / max) * 100}%`, background: "#5FB07A",
+                                          transition: "width 700ms cubic-bezier(.22,.9,.3,1)" }} />
+                            <div style={{ width: `${((n - stayed) / max) * 100}%`, background: "#F4532E",
+                                          transition: "width 700ms cubic-bezier(.22,.9,.3,1)" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  <div style={{ color: "#5b6673", fontSize: 10.5, marginTop: 8 }}>
+                    <span style={{ color: "#5FB07A" }}>■</span> named it and stayed — still reachable ·{" "}
+                    <span style={{ color: "#F4532E" }}>■</span> named it and left
+                  </div>
+                </div>
+              )}
+
+              {/* The call list. A reason from someone who is still a user is not a statistic. */}
+              {why.recoverable?.length > 0 && (
+                <div style={{ marginTop: 12, padding: "11px 13px", borderRadius: 10,
+                              background: "rgba(95,176,122,.09)", border: "1px solid rgba(95,176,122,.28)" }}>
+                  <div style={{ color: "#5FB07A", fontSize: 11, fontWeight: 700, letterSpacing: .6,
+                                textTransform: "uppercase" }}>Ring these people</div>
+                  <div style={{ color: "#e6edf3", fontSize: 12.5, marginTop: 5, lineHeight: 1.55 }}>
+                    {why.recoverable.slice(0, 3).map((r) => (
+                      `${r.stayed}× "${REASON_LABEL[r.reason] || r.reason}"`
+                    )).join(" · ")} — they told us what is wrong and are still here.{" "}
+                    <a href="/admin/churn" style={{ color: "#5FB07A" }}>Open the autopsy →</a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* SUBSCRIPTIONS — COUNTS, and no revenue figure anywhere, which is not an omission.
               No price is stored on the consumer path: receipts carry the product id and the
