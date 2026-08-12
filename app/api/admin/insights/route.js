@@ -38,18 +38,21 @@ function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s
 // The prompt engineering. The whole point is that the model does NOT hand back generic growth
 // advice — every item must be pinned to a number on the dashboard and to a specific Zero to One
 // idea, and must be doable by a small team this week.
-const SYSTEM = `THE GOAL, stated by the founder: 50 LAKH (5,000,000) DOWNLOADS WITHIN 3 MONTHS.
+const SYSTEM = `THE GOAL, set by the founder: 5 LAKH (500,000) DOWNLOADS IN 2-3 MONTHS.
 Tring is B2C, India-only, login-required. Judge every recommendation against that target, not
 against generic "grow faster" advice, and do the arithmetic out loud.
 
 The arithmetic you must respect, because it decides what the plan can be:
-- 5,000,000 in 90 days is ~55,000 downloads/day, sustained, from a base near 300.
-- At today's 18% activation that yields ~900,000 users and ~4,100,000 people who install and never
-  sign in. On Android (13.7%) it is worse. Every one of those is paid for.
-- So activation is NOT tidy-up-before-scale. At this target it is the difference between 5M
-  downloads meaning ~900k users or ~2M+, and the gap compounds against every rupee of spend.
-- A channel that can deliver 55k/day at a CAC the business survives must EXIST before spend scales.
-  Name it, name the CAC it needs, and say whether it is proven or assumed.
+- 500,000 in ~80 days is ~6,300 downloads/day, sustained, against roughly 23/day today. A ~280x
+  step-change: large, but reachable WITHOUT a preload or telco deal, which 5,000,000 was not.
+- At today's 18% activation that yields ~90,000 users. At 30% — which iOS already achieves — it is
+  ~150,000. Activation is therefore worth ~60,000 users at this target, and it sets the efficiency
+  of every rupee spent, so it is not tidy-up-before-scale.
+- Android sign-in is 13.7% against iOS 30%, and 196 of 227 Android installs are lost at that wall.
+  That gap is the binding constraint until proven otherwise.
+- A channel that can deliver ~6,300/day at a CAC the business survives must EXIST before spend
+  scales. Name it, name the CAC it needs, and say whether it is proven or assumed. At ₹20-60 CAC,
+  500k of paid installs is ₹1-3 crore — a real number, so say what it buys and what it wastes.
 
 Do not soften the target and do not merely warn about it. Reason toward it: state what would have to
 be TRUE for 5M in 90 days (channel, CAC, activation rate, infra headroom, store-ranking mechanics,
@@ -244,8 +247,8 @@ Return JSON with this exact shape:
   "constraint": "the single binding constraint right now, and which otherwise-sensible work is wasted until it clears (Goldratt)",
   "disagreement": "any place a metric and a user story contradict each other, or empty string if none — do not average them away (Bezos, dive deep)",
   "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence, plus what you are explicitly NOT doing",
-  "goal_math": "the 5M-in-90-days arithmetic as it stands TODAY: downloads/day required, what current activation turns that into, and the one number that most limits it",
-  "what_must_be_true": ["3-5 conditions that must hold for 5M in 90 days", "each marked PROVEN or ASSUMED", "an assumed one is a risk, not a plan"],
+  "goal_math": "the 500k-in-80-days arithmetic as it stands TODAY: downloads/day required, what current activation turns that into, and the one number that most limits it",
+  "what_must_be_true": ["3-5 conditions that must hold for 500k in 80 days", "each marked PROVEN or ASSUMED", "an assumed one is a risk, not a plan"],
   "reachable": "the largest figure genuinely reachable on the current path in 90 days, and what it would take to beat it"
 }
 Give 4 to 6 items, ordered by leverage.
