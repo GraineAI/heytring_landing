@@ -41,23 +41,39 @@ ${talking
  * still renders in the fallback font: a preview in the wrong typeface beats no
  * preview at all.
  */
+// CACHE THE FONT ACROSS REQUESTS.
+//
+// Every OG render was fetching Google's CSS and then the TTF itself — two network round trips on
+// the critical path of a preview. WhatsApp and iMessage give a link preview a short budget and
+// simply show a bare grey URL when it is missed, which is why shared Tring links looked broken.
+// The module-level cache means only the first render after a cold start pays for it, and
+// force-cache lets the platform serve it from its own layer as well.
+let _fontCache = null;
+
 export async function figtree(weights = [800]) {
+  if (_fontCache) return _fontCache;
   try {
     const css = await fetch(
       `https://fonts.googleapis.com/css2?family=Figtree:wght@${weights.join(";")}`,
-      { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8)" } }
+      { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8)" },
+        cache: "force-cache" }
     ).then((r) => r.text());
 
     const urls = [...css.matchAll(/src:\s*url\(([^)]+)\)\s*format\('(truetype|opentype)'\)/g)];
     const fonts = await Promise.all(
       urls.slice(0, weights.length).map(async (m, i) => ({
         name: "Figtree",
-        data: await fetch(m[1]).then((r) => r.arrayBuffer()),
+        data: await fetch(m[1], { cache: "force-cache" }).then((r) => r.arrayBuffer()),
         weight: weights[i],
         style: "normal",
       }))
     );
-    return fonts.filter((f) => f.data?.byteLength);
+    const ok = fonts.filter((f) => f.data?.byteLength);
+    // Only cache a SUCCESSFUL fetch. Caching an empty result would make one transient network
+    // failure permanent for the life of the instance, and the card would render in a fallback face
+    // forever with nothing to indicate why.
+    if (ok.length) _fontCache = ok;
+    return ok;
   } catch {
     return [];
   }
