@@ -78,6 +78,7 @@ export default function Admin() {
   const [series, setSeries] = useState(null);
   const [power, setPower] = useState(null);
   const [alerts, setAlerts] = useState(0);
+  const [ref, setRef] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -181,6 +182,15 @@ export default function Admin() {
                             { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (j.ok) setAlerts(Number(j.alerts) || 0);
+    } catch {}
+  };
+
+  const loadRef = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=referrals&days=60&goal=500000&horizon_days=80",
+                            { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setRef(j);
     } catch {}
   };
 
@@ -295,7 +305,7 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); loadPower(); loadAlerts(); loadRef(); }}>Load</button>}
           </div>
 
           {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
@@ -528,6 +538,78 @@ export default function Admin() {
               </Pulse>
             );
           })()}
+
+          {/* THE REFERRAL ENGINE. With referral the only acquisition channel, two numbers decide
+              everything and neither is the one usually quoted: k sets whether growth compounds at
+              all, cycle time sets how fast. A k of 0.6 on a 10-day loop beats a k of 0.9 on a
+              60-day loop badly — so both are shown, always together. */}
+          {ref && (
+            <div style={{ ...S.card, padding: 16, marginTop: 20,
+                          borderColor: ref.reaches_goal ? "rgba(95,176,122,.4)" : "rgba(244,83,46,.35)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>The referral engine</span>
+                <span style={{ color: "#5b6673", fontSize: 11.5 }}>
+                  the only channel, so the only arithmetic that matters
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 12 }}>
+                {[
+                  ["k-factor", ref.k_factor, ref.k_factor > 0 ? `1 new user per ${Math.round(1 / ref.k_factor)}` : "no compounding"],
+                  ["cycle", ref.cycle_days != null ? `${ref.cycle_days}d` : "—",
+                   ref.cycles_in_horizon ? `${ref.cycles_in_horizon} turns in ${ref.horizon_days}d` : "not measurable yet"],
+                  ["referring", ref.participation_pct != null ? `${ref.participation_pct}%` : "—",
+                   `${ref.referrers} of ${ref.base_users} users`],
+                  ["redemptions", ref.redemptions, `${ref.window_days}d window`],
+                ].map(([label, val, sub]) => (
+                  <div key={label}>
+                    <div style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase",
+                                  letterSpacing: .7 }}>{label}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
+                      {val ?? "—"}
+                    </div>
+                    <div style={{ color: "#9aa4b2", fontSize: 11 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              {/* The unflattering part, on purpose. If referral alone cannot reach the goal, the
+                  number says so — a plan built on an unmeasured k is not a plan. */}
+              <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10,
+                            background: ref.reaches_goal ? "rgba(95,176,122,.10)" : "rgba(244,83,46,.09)",
+                            border: `1px solid ${ref.reaches_goal ? "rgba(95,176,122,.3)" : "rgba(244,83,46,.28)"}` }}>
+                <div style={{ fontSize: 13.5, color: "#e6edf3", lineHeight: 1.55 }}>
+                  <b style={{ color: ref.reaches_goal ? "#5FB07A" : "#F4532E" }}>
+                    {ref.reaches_goal
+                      ? `On today's k, referral alone reaches ${(ref.projected_users || 0).toLocaleString("en-IN")} in ${ref.horizon_days} days.`
+                      : ref.projected_users != null
+                        ? `On today's k, referral alone reaches ${ref.projected_users.toLocaleString("en-IN")} in ${ref.horizon_days} days — not ${(ref.goal || 0).toLocaleString("en-IN")}.`
+                        : "No honest projection yet — cycle time isn't measurable."}
+                  </b>
+                  {ref.k_needed_for_goal != null && ref.k_factor > 0 && (
+                    <span style={{ color: "#9aa4b2" }}>
+                      {" "}Reaching the goal on this clock needs k = {ref.k_needed_for_goal},
+                      about {Math.round(ref.k_needed_for_goal / ref.k_factor)}× today's.
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Absence is not zero, and the panel must not let those look alike. */}
+              {ref.loop_top && !ref.loop_top.instrumented && (
+                <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+                  Shares aren&apos;t instrumented yet — only redemptions are recorded, which is the
+                  last step of five. A loop leaking at the share sheet and one leaking at install
+                  look identical from here. The events are live server-side; the app needs to send
+                  <code style={{ color: "#e6edf3" }}> referral_shared</code> and
+                  <code style={{ color: "#e6edf3" }}> referral_link_opened</code>.
+                </div>
+              )}
+              {ref.top_decile_share_pct != null && (
+                <div style={{ color: "#9aa4b2", fontSize: 11.5, marginTop: 8 }}>
+                  The top 10% of referrers bring <b style={{ color: "#e6edf3" }}>{ref.top_decile_share_pct}%</b>
+                  {" "}of all referred users.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* THE POWER LAW (Thiel ch7), made visible. An average hides it completely: "21 calls
               per user" is a sentence about nobody when one person has 596 and forty have one. */}

@@ -20,6 +20,8 @@ const VIEWS = {
   logout_return: "/api/v1/calls/admin/churn/logout_return",
   timeseries: "/api/v1/calls/admin/timeseries",
   power_users: "/api/v1/calls/admin/power_users",
+  utility: "/api/v1/calls/admin/utility",
+  referrals: "/api/v1/calls/admin/referrals",
 };
 
 export async function GET(req) {
@@ -37,7 +39,7 @@ export async function GET(req) {
   if (!path) return NextResponse.json({ ok: false, error: "unknown view" }, { status: 400 });
 
   const qs = new URLSearchParams();
-  for (const k of ["days", "limit", "weeks", "months"]) {
+  for (const k of ["days", "limit", "weeks", "months", "goal", "horizon_days"]) {
     const v = searchParams.get(k);
     if (v) qs.set(k, v);
   }
