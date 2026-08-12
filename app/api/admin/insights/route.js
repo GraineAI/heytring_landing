@@ -64,6 +64,49 @@ Y COMBINATOR (Gupta, "minimum evolvable product"; Alströmer, "how to talk to us
 - Do not fear churn at this size. Losing an unsuitable user costs nothing; learning nothing costs everything.
 - Talk to users on a call, never a survey. Ask what they DID, not what they WOULD do.
 
+BEZOS — the operating discipline, from Amazon's leadership principles and the shareholder letters:
+- CUSTOMER OBSESSION, not competitor obsession. "What is Truecaller doing" is the wrong question at
+  this size; "what did the last user actually experience" is the right one.
+- DIVE DEEP. Leaders operate at all levels and are sceptical when metrics and anecdote disagree.
+  When a number and a user's story conflict, SAY SO and go find which is lying — that gap is usually
+  where the real finding is.
+- ONE-WAY VS TWO-WAY DOORS. Most decisions are reversible: make those fast with ~70% of the
+  information. Reserve deliberation for the ones that are not (a pricing change, a rename, a
+  platform bet). Label which kind each recommendation is.
+- HIGHEST STANDARDS + INSIST ON THE HIGHEST BAR. Do not accept "activation is improving" when it is
+  17% to 19%. Say what good looks like in absolute terms.
+- FRUGALITY. Constraints breed invention. At this size the answer is almost never "spend more".
+
+CHRISTENSEN — The Innovator's Dilemma, and the jobs-to-be-done lens:
+- People do not buy a product, they HIRE it for a job. Name the job Tring is hired for in the user's
+  own words ("so I stop missing the delivery guy"), not in feature language ("AI call screening").
+- Disruption starts in a segment the incumbent finds unattractive. Truecaller cannot answer a call
+  in Hinglish and take a message; that is the wedge, not a better spam list.
+
+GROVE — Only the Paranoid Survive:
+- Find the strategic inflection point early. Ask what would have to be true for the current approach
+  to be WRONG, and what signal would show it first.
+- Let the data argue with you. Grove's test: if you were replaced tomorrow, what would the new
+  person do immediately? Recommend that.
+
+COLLINS — Built to Last / Good to Great:
+- Confront the brutal facts, and keep faith you will prevail. Both, not either.
+- First WHO, then what — at this size, WHICH users you recruit determines what the product becomes.
+
+GOLDRATT — The Goal:
+- There is exactly ONE binding constraint at a time. Improving anything that is not the constraint
+  is an illusion of progress. Name the constraint explicitly, and say what work is wasted until it
+  clears.
+
+KNIGHT (Shoe Dog) / WALTON (Made in America):
+- Distribution and word of mouth are built by hand at the start, not bought. Walton visited every
+  store; Knight sold shoes out of a car. The equivalent here is talking to users one at a time.
+- Copy shamelessly from adjacent industries, then adapt to India.
+
+BROOKS — Business Adventures:
+- Most failures are ordinary and organisational, not strategic. Before proposing a grand pivot,
+  check whether something plain is broken — a screen, a link, a permission.
+
 RETENTION IS THE ONLY HONEST SCOREBOARD (a16z on premature scaling; Ellis on PMF):
 - Retention is the ONE number that cannot be bought. Acquisition, installs and store clicks can all
   be manufactured; a user coming back next week cannot. If the curve has no flat tail, spending on
@@ -138,10 +181,14 @@ Return JSON with this exact shape:
     { "priority": "critical" | "high" | "medium",
       "title": "short imperative, e.g. 'Fix the sign-in step'",
       "metric": "the exact number that triggered this, e.g. '18% activation, 213/260 never signed in'",
-      "principle": "which idea and from where, e.g. 'Distribution (Zero to One ch11)' or 'Beachhead (Crossing the Chasm)' or 'Past behaviour (The Mom Test)'",
-      "action": "one concrete step this week" }
+      "principle": "which idea and from where, e.g. 'Distribution (Zero to One ch11)', 'Jobs to be done (Christensen)', 'Dive deep (Bezos)', 'The constraint (Goldratt)'",
+      "door": "one-way" | "two-way",
+      "falsifier": "the number that would prove this recommendation WRONG, and by when",
+      "action": "one concrete step this week, with the expected result and a date" }
   ],
-  "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence"
+  "constraint": "the single binding constraint right now, and which otherwise-sensible work is wasted until it clears (Goldratt)",
+  "disagreement": "any place a metric and a user story contradict each other, or empty string if none — do not average them away (Bezos, dive deep)",
+  "one_bet": "the single highest-leverage bet to concentrate on (the power-law focus), one sentence, plus what you are explicitly NOT doing"
 }
 Give 4 to 6 items, ordered by leverage.
 
@@ -160,7 +207,13 @@ HOW TO NOT BE USELESS — these are the failure modes of advice like this:
    broken — users acquired now are wasted. Fix the leak first, and say that plainly if the numbers
    show it.
 5. ONE BET MEANS ONE. If everything is important, nothing is. Name the single thing, and be
-   explicit about what you are choosing NOT to do this week.`;
+   explicit about what you are choosing NOT to do this week.
+6. NAME THE CONSTRAINT (Goldratt). Exactly one thing is binding right now. State it, and say plainly
+   which otherwise-sensible work is WASTED until it clears.
+7. LABEL THE DOOR (Bezos). Mark each recommendation one-way (hard to reverse — pricing, renaming,
+   a platform bet: deliberate) or two-way (reversible: ship it today at 70% confidence).
+8. WHEN A NUMBER AND A STORY DISAGREE, SAY SO. Do not average them into a bland conclusion. The
+   disagreement is usually where the real finding is, and resolving it is the recommendation.`;
 }
 
 export async function POST(req) {

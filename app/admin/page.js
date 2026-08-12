@@ -71,6 +71,7 @@ export default function Admin() {
   const [noteFor, setNoteFor] = useState(null);   // phone whose log row is open
   const [noteText, setNoteText] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
+  const [metrics, setMetrics] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -146,6 +147,14 @@ export default function Admin() {
     } catch (e) {
       setLcErr("could not reach the server");
     } finally { setLcBusy(false); }
+  };
+
+  const loadMetrics = async () => {
+    try {
+      const res = await fetch("/api/admin/users?view=metrics", { cache: "no-store" });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok) setMetrics(j);
+    } catch {}
   };
 
   const loadCohorts = async () => {
@@ -241,8 +250,91 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); }}>Load</button>}
           </div>
+
+          {/* THE SIX NUMBERS, and the ones about people leaving. Rendered before the funnel because
+              "are we keeping anyone" outranks "where do they drop". */}
+          {metrics && (
+            <>
+              <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                {[
+                  ["Active today", metrics.active_devices_day, "devices that opened the app"],
+                  ["Active this week", metrics.active_devices_week, ""],
+                  ["Sessions / device", metrics.sessions_per_active_device_week, "per week"],
+                  ["Answers / user", metrics.answers_per_active_user_week, "per week — depth"],
+                  ["Time to first answer", metrics.time_to_first_answer_hours != null
+                    ? `${metrics.time_to_first_answer_hours}h` : "—", "median, sign-in → proof"],
+                ].map(([k, v, sub]) => (
+                  <div key={k} style={{ ...S.card, padding: "12px 15px", minWidth: 132 }}>
+                    <div style={{ color: "#9aa4b2", fontSize: 11.5 }}>{k}</div>
+                    <div style={{ color: "#fff", fontSize: 23, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                      {v ?? "—"}
+                    </div>
+                    {sub ? <div style={{ color: "#5b6673", fontSize: 10.5 }}>{sub}</div> : null}
+                  </div>
+                ))}
+              </div>
+
+              {/* D1 / D7 / D28 — Apple's definition, both ways on the same cohort. Bars, because
+                  three numbers compared against each other is a comparison, not a series. */}
+              <div style={{ display: "flex", gap: 18, marginTop: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+                {["d1", "d7", "d28"].map((k) => {
+                  const d = metrics[k] || {};
+                  const a = d.answered_pct, o = d.opened_pct;
+                  const bar = (v, col) => (
+                    <div style={{ width: 22, height: 68, background: "rgba(255,255,255,.06)",
+                                  borderRadius: 4, position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", bottom: 0, width: "100%",
+                                    height: `${Math.max(0, Math.min(100, v ?? 0))}%`, background: col }} />
+                    </div>
+                  );
+                  return (
+                    <div key={k} style={{ textAlign: "center" }}>
+                      <div style={{ display: "flex", gap: 5, alignItems: "flex-end" }}>
+                        {bar(a, "#F4532E")}{bar(o, "#4a5a6a")}
+                      </div>
+                      <div style={{ color: "#e6edf3", fontSize: 12, marginTop: 5, fontVariantNumeric: "tabular-nums" }}>
+                        {a != null ? `${a}%` : "—"}
+                        <span style={{ color: "#6b7684" }}>{o != null ? ` / ${o}%` : ""}</span>
+                      </div>
+                      <div style={{ color: "#9aa4b2", fontSize: 11 }}>{k.toUpperCase()}</div>
+                      <div style={{ color: "#5b6673", fontSize: 10 }}>n={d.cohort ?? 0}</div>
+                    </div>
+                  );
+                })}
+                <div style={{ color: "#6b7684", fontSize: 11.5, maxWidth: 260, lineHeight: 1.45 }}>
+                  Coral = Tring answered a call that day. Grey = they only opened the app. Small
+                  <b> n</b> means one person moves it a lot — read the cohort size before the percentage.
+                </div>
+              </div>
+
+              {/* WHO LEFT. Deletion used to erase every trace, so this had no answer at all. */}
+              <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                {[
+                  ["Deleted account", metrics.deleted_accounts, `${metrics.deleted_last_30d ?? 0} in 30d`, "#FF7B72"],
+                  ["Came back after deleting", metrics.returned_after_deletion, "re-signed up", "#5CD98A"],
+                  ["Likely uninstalled", metrics.likely_uninstalled, "proxy — see note", "#E7B75A"],
+                  ["Avg life before leaving", metrics.deleted_avg_lifetime_days != null
+                    ? `${metrics.deleted_avg_lifetime_days}d` : "—",
+                    `${metrics.deleted_avg_calls_answered ?? 0} calls answered`, "#9aa4b2"],
+                ].map(([k, v, sub, col]) => (
+                  <div key={k} style={{ ...S.card, padding: "12px 15px", minWidth: 148 }}>
+                    <div style={{ color: "#9aa4b2", fontSize: 11.5 }}>{k}</div>
+                    <div style={{ color: col, fontSize: 23, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                      {v ?? "—"}
+                    </div>
+                    <div style={{ color: "#5b6673", fontSize: 10.5 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              {metrics.likely_uninstalled_note && (
+                <div style={{ color: "#6b7684", fontSize: 11, marginTop: 6, maxWidth: 620 }}>
+                  {metrics.likely_uninstalled_note}
+                </div>
+              )}
+            </>
+          )}
 
           {/* FUNNEL — the DROP between steps is the number that matters, so it is the number
               rendered. Counts alone hide where people are lost. */}

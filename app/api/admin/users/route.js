@@ -15,6 +15,7 @@ import { isAuthed } from "../../../lib/adminAuth";
  *
  *   ?view=users      one row per person + the stage they stopped at (default)
  *   ?view=retention  weekly cohorts, answered-calls AND app-opens curves
+ *   ?view=metrics    computed product metrics — D1/D7/D28, active devices, churn, uninstall proxy
  *   ?stage=…&platform=…&days=…   passed through to Apollo
  */
 export const dynamic = "force-dynamic";
@@ -45,7 +46,8 @@ export async function GET(req) {
   }
 
   const { searchParams } = new URL(req.url);
-  const view = searchParams.get("view") === "retention" ? "retention" : "users";
+  const _v = searchParams.get("view");
+  const view = _v === "retention" ? "retention" : _v === "metrics" ? "metrics" : "users";
   const qs = new URLSearchParams();
   for (const k of ["stage", "platform", "days", "limit", "weeks", "india_only"]) {
     const v = searchParams.get(k);
