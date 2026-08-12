@@ -68,6 +68,9 @@ export default function Admin() {
   const [lcBusy, setLcBusy] = useState(false);
   const [cohorts, setCohorts] = useState(null);
   const [cohErr, setCohErr] = useState("");
+  const [noteFor, setNoteFor] = useState(null);   // phone whose log row is open
+  const [noteText, setNoteText] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -153,6 +156,21 @@ export default function Admin() {
       if (!res.ok || !j.ok) setCohErr(j.error || `apollo returned ${res.status}`);
       else setCohorts(j);
     } catch { setCohErr("could not reach the server"); }
+  };
+
+  const saveNote = async (phone, outcome, sentiment) => {
+    setNoteBusy(true);
+    try {
+      const res = await fetch("/api/admin/note", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, note: noteText, outcome, sentiment }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok) {
+        setNoteText(""); setNoteFor(null);
+        loadLifecycle(lcStage);   // pull the row back with its new contact summary
+      }
+    } catch {} finally { setNoteBusy(false); }
   };
 
   const toggleContacted = async (row) => {
@@ -282,6 +300,58 @@ export default function Admin() {
                 calls answered, the muted row is app opens. “—” means that week has not happened
                 yet, or predates the open ledger — not zero.
               </div>
+              {/* THE CURVE, drawn. A retention table is read cell by cell; the SHAPE is the whole
+                  point — whether it flattens or decays to zero — and no one sees a shape in a grid
+                  of percentages. Inline SVG, no chart library: a dozen points do not justify a
+                  dependency, and this renders identically everywhere. */}
+              {(() => {
+                const W = 520, H = 150, PADL = 34, PADB = 22, PADT = 10;
+                const weeks = [0, 1, 2, 3, 4, 5];
+                const x = (w) => PADL + (w / 5) * (W - PADL - 10);
+                const y = (p) => PADT + (1 - p / 100) * (H - PADT - PADB);
+                // Weight each cohort by size: a 2-person cohort must not swing the picture as hard
+                // as a 36-person one, which is exactly how small-sample noise gets mistaken for a
+                // trend.
+                const avg = weeks.map((w) => {
+                  let num = 0, den = 0;
+                  for (const c of cohorts.cohorts) {
+                    const v = c[`answered_week_${w}`];
+                    if (v != null) { num += v * c.activated_users; den += c.activated_users; }
+                  }
+                  return den ? { w, v: num / den, n: den } : null;
+                }).filter(Boolean);
+                if (avg.length < 2) return null;
+                const line = avg.map((p, i) => `${i ? "L" : "M"}${x(p.w).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+                return (
+                  <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 560, marginTop: 14 }}
+                       role="img" aria-label="Weighted answered-call retention curve">
+                    {[0, 25, 50, 75, 100].map((g) => (
+                      <g key={g}>
+                        <line x1={PADL} y1={y(g)} x2={W - 10} y2={y(g)} stroke="rgba(255,255,255,.08)" strokeWidth="1" />
+                        <text x={PADL - 6} y={y(g) + 3.5} textAnchor="end" fontSize="9" fill="#6b7684">{g}%</text>
+                      </g>
+                    ))}
+                    {weeks.map((w) => (
+                      <text key={w} x={x(w)} y={H - 6} textAnchor="middle" fontSize="9" fill="#6b7684">W{w}</text>
+                    ))}
+                    <path d={line} fill="none" stroke="#F4532E" strokeWidth="2.2"
+                          strokeLinejoin="round" strokeLinecap="round" />
+                    {avg.map((p) => (
+                      <g key={p.w}>
+                        <circle cx={x(p.w)} cy={y(p.v)} r="3.4" fill="#F4532E" />
+                        <text x={x(p.w)} y={y(p.v) - 8} textAnchor="middle" fontSize="9.5" fill="#e6edf3">
+                          {p.v.toFixed(0)}%
+                        </text>
+                      </g>
+                    ))}
+                  </svg>
+                );
+              })()}
+              <div style={{ color: "#6b7684", fontSize: 11.5, marginTop: 4 }}>
+                Curve is weighted by cohort size, so a 2-person week cannot swing it like a
+                36-person one. A tail that flattens is a business; one that reaches zero is not.
+              </div>
+
               <div style={{ overflowX: "auto", marginTop: 12 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
                   <thead><tr>
@@ -402,7 +472,7 @@ export default function Admin() {
             <div style={{ overflowX: "auto", marginTop: 14 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
                 <thead><tr>
-                  {["Who", "Stage", "Platform", "Asked for code", "Calls", "Days", "Nudges", "Push?"].map((h) => (
+                  {["Who", "Stage", "Platform", "Calls", "Days", "Last contact", "Log"].map((h) => (
                     <th key={h} style={{ textAlign: "left", color: "#9aa4b2", fontSize: 12, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,.1)" }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -421,17 +491,63 @@ export default function Admin() {
                       </td>
                       <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.stage?.replace("_", " ")}</td>
                       <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 13 }}>{u.platform || "—"}</td>
-                      <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 12.5 }}>{u.code_requested_at ? new Date(u.code_requested_at).toLocaleDateString() : "—"}</td>
-                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.calls_answered}</td>
-                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13 }}>{u.active_days}</td>
-                      <td style={{ padding: "8px 10px", color: "#9aa4b2", fontSize: 13 }}>{u.nudges_sent}</td>
-                      <td style={{ padding: "8px 10px", fontSize: 13, color: u.reachable_by_push ? "#5CD98A" : "#FF7B72" }}>
-                        {u.reachable_by_push ? "yes" : "no"}
+                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{u.calls_answered}</td>
+                      <td style={{ padding: "8px 10px", color: "#e6edf3", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{u.active_days}</td>
+                      {/* CONTACT HISTORY, on the row. Nobody should ring someone who was called
+                          yesterday, and the person's own words belong next to their usage. */}
+                      <td style={{ padding: "8px 10px", fontSize: 12.5 }}>
+                        {u.contact?.contact_count > 0 ? (
+                          <>
+                            <div style={{ color: "#9aa4b2" }}>
+                              {new Date(u.contact.last_contact_at).toLocaleDateString()}
+                              {u.contact.last_outcome ? ` · ${u.contact.last_outcome.replace("_", " ")}` : ""}
+                            </div>
+                            {u.contact.last_note && (
+                              <div style={{ color: "#6b7684", fontStyle: "italic", maxWidth: 260 }}>
+                                “{u.contact.last_note}”
+                              </div>
+                            )}
+                          </>
+                        ) : <span style={{ color: "#5b6673" }}>never</span>}
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <button style={{ ...S.ghost, padding: "4px 10px", fontSize: 12 }}
+                                onClick={() => { setNoteFor(noteFor === u.phone ? null : u.phone); setNoteText(""); }}>
+                          {noteFor === u.phone ? "Close" : "Log"}
+                        </button>
                       </td>
                     </tr>
                   ))}
+                  {/* nothing here: the log form is rendered inline below each row via noteFor */}
                 </tbody>
               </table>
+              {noteFor && (
+                <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
+                  <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>
+                    What did {(lifecycle.users.find((x) => x.phone === noteFor)?.name) || noteFor} say?
+                  </div>
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Their words, not your summary. What did they DO, and what happened?"
+                    rows={3}
+                    style={{ width: "100%", marginTop: 8, background: "rgba(255,255,255,.05)",
+                             border: "1px solid rgba(255,255,255,.14)", borderRadius: 10,
+                             color: "#e6edf3", fontSize: 13.5, padding: 10, fontFamily: "inherit" }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                    {[["reached", "Reached"], ["no_answer", "No answer"], ["callback_later", "Call back"],
+                      ["wrong_number", "Wrong number"], ["refused", "Refused"]].map(([k, label]) => (
+                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
+                              onClick={() => saveNote(noteFor, k, undefined)}>{label}</button>
+                    ))}
+                    <div style={{ flex: 1 }} />
+                    {[["love", "Loves it"], ["ok", "Fine"], ["frustrated", "Frustrated"], ["churned", "Gone"]].map(([k, label]) => (
+                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
+                              onClick={() => saveNote(noteFor, undefined, k)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {!lifecycle && !lcBusy && !lcErr && (
