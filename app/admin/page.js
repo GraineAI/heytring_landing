@@ -9,6 +9,8 @@
 // opened — which needs a keyed <React.Fragment>. The <> shorthand cannot take a key.
 import React, { useEffect, useState } from "react";
 import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
+import Flywheel from "./components/Flywheel";
+import { detect, describe, findConstraint } from "./components/signals";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
@@ -73,6 +75,7 @@ export default function Admin() {
   const [noteText, setNoteText] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [metrics, setMetrics] = useState(null);
+  const [series, setSeries] = useState(null);
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -158,6 +161,14 @@ export default function Admin() {
     } catch {}
   };
 
+  const loadSeries = async () => {
+    try {
+      const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setSeries(j);
+    } catch {}
+  };
+
   const loadCohorts = async () => {
     setCohErr("");
     try {
@@ -210,6 +221,9 @@ export default function Admin() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Beta waitlist</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <a href="/admin/churn" style={{ textDecoration: "none" }}>
+              <button style={S.ghost}>Churn &amp; lifecycle →</button>
+            </a>
             <a href="/admin/guide" style={{ textDecoration: "none" }}><button style={{ ...S.ghost, borderColor: "rgba(244,83,46,.5)", color: "#F4532E" }}>Guide: how to read these</button></a>
             <button style={S.ghost} onClick={load}>Refresh</button>
             <a href="/api/admin/export?table=waitlist"><button style={S.btn}>Export CSV</button></a>
@@ -251,8 +265,68 @@ export default function Admin() {
               population, never the filter below
             </span>
             <div style={{ flex: 1 }} />
-            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); }}>Load</button>}
+            {!cohorts && <button style={S.ghost} onClick={() => { loadLifecycle(lcStage); loadCohorts(); loadMetrics(); loadSeries(); }}>Load</button>}
           </div>
+
+          {/* THE FLYWHEEL first (Collins). Each node carries the live input metric that turns the
+              next one, so a stalled loop is a number rather than an argument. */}
+          {(metrics || lifecycle) && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ color: "#fff", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                The loop
+              </div>
+              <Flywheel metrics={metrics} funnel={lifecycle?.stage_distribution || lifecycle?.funnel}
+                        shares={0} />
+            </div>
+          )}
+
+          {/* SIGNALS (Grove). A dashboard shows what happened; this says what CHANGED. Nobody
+              reads eight charts every morning, but everyone reads three things that moved. */}
+          {series && (() => {
+            const S = series.series || {};
+            const checks = [
+              ["Deletions", S.deletions?.weeks, true],
+              ["Delete screen opened", S.deletions_initiated?.weeks, true],
+              ["Logouts", S.logouts?.weeks, true],
+              ["Signups", S.signups?.weeks, false],
+              ["Calls answered", S.calls_answered?.weeks, false],
+              ["App opens", S.app_opens?.weeks, false],
+            ];
+            const hits = checks
+              .map(([name, w, invert]) => ({ name, sig: detect(w, { invert }) }))
+              .filter((x) => x.sig);
+            if (!hits.length) {
+              return (
+                <div style={{ color: "#5b6673", fontSize: 11.5, marginTop: 14 }}>
+                  No metric has moved more than 2σ from its 6-week trend. Quiet is information too —
+                  it means nothing needs attention this morning.
+                </div>
+              );
+            }
+            return (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ color: "#fff", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                  Signals <span style={{ color: "#5b6673", fontSize: 11, fontWeight: 400 }}>
+                    · moved &gt;2σ from the 6-week trend</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {hits.map(({ name, sig }, i) => (
+                    <Rise key={name} delay={i * 70}>
+                      <div style={{ display: "flex", gap: 9, alignItems: "center", padding: "9px 12px",
+                                    borderRadius: 10,
+                                    background: sig.bad ? "rgba(255,123,114,.08)" : "rgba(92,217,138,.07)",
+                                    border: `1px solid ${sig.bad ? "rgba(255,123,114,.28)" : "rgba(92,217,138,.24)"}` }}>
+                        <span style={{ fontSize: 13, color: sig.bad ? "#FF7B72" : "#5CD98A" }}>
+                          {sig.direction === "up" ? "▲" : "▼"}
+                        </span>
+                        <span style={{ color: "#e6edf3", fontSize: 12.5 }}>{describe(name, sig)}</span>
+                      </div>
+                    </Rise>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* THE SIX NUMBERS, and the ones about people leaving. Rendered before the funnel because
               "are we keeping anyone" outranks "where do they drop". */}
@@ -390,6 +464,38 @@ export default function Admin() {
                   );
                 })}
               </div>
+            );
+          })()}
+
+          {/* THE CONSTRAINT (Goldratt). One stage, never a list: the whole value of the idea is that
+              everything subordinates to ONE thing, and a panel highlighting four "problem areas"
+              has restated the problem rather than found the constraint. */}
+          {lifecycle?.funnel_cumulative && (() => {
+            const order = ["installed", "code_requested", "signed_in", "activated", "retained"];
+            const labels = { installed: "installed", code_requested: "asked for a code",
+                             signed_in: "signed in", activated: "had a call answered",
+                             retained: "reached 5+ active days" };
+            const c = findConstraint(lifecycle.funnel_cumulative, order);
+            if (!c) return null;
+            return (
+              <Pulse active>
+                <div style={{ marginTop: 16, padding: "13px 15px", borderRadius: 12,
+                              background: "rgba(255,123,114,.08)",
+                              border: "1px solid rgba(255,123,114,.32)" }}>
+                  <div style={{ color: "#FF7B72", fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+                    THE CONSTRAINT
+                  </div>
+                  <div style={{ color: "#fff", fontSize: 14.5, fontWeight: 600, marginTop: 4 }}>
+                    {labels[c.from]} → {labels[c.stage]} keeps only {(c.kept * 100).toFixed(0)}%
+                    {" "}· {c.lost} people lost here
+                  </div>
+                  <div style={{ color: "#9aa4b2", fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                    Everything else subordinates to this. Work that improves a different stage
+                    cannot move the total until this one clears — it only moves people into the
+                    queue in front of it.
+                  </div>
+                </div>
+              </Pulse>
             );
           })()}
 
