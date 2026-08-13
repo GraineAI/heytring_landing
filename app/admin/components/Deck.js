@@ -32,7 +32,10 @@ const fmt = (v, unit = "") =>
 function Node({ n, i }) {
   const bad = n.constraint;
   return (
-    <Rise delay={i * 60} style={{ flex: "1 1 128px", minWidth: 118 }}>
+    // maxWidth so a node that lands alone on a wrapped row does not stretch to fill it — the band
+    // reads as a sequence of comparable steps, and a step three times the width of its neighbours
+    // looks like it means three times as much.
+    <Rise delay={i * 60} style={{ flex: "1 1 128px", minWidth: 118, maxWidth: 230 }}>
       <div style={{
         height: "100%", padding: "11px 12px", borderRadius: 11, boxSizing: "border-box",
         background: bad ? "rgba(255,123,114,.07)" : "rgba(255,255,255,.03)",

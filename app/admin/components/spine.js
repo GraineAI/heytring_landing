@@ -21,12 +21,29 @@
  * The journey. `lever` is the controllable input that moves each step — the WBR's whole point is
  * that an output metric tells you the score and only an input metric tells you what to do.
  */
+/**
+ * The Apollo lifecycle stages, in order — the SINGLE SOURCE OF TRUTH for this list.
+ *
+ * cumulate() sums only the keys it is handed, so a stage missing from here does not merely go
+ * undrawn: everyone sitting in it vanishes from the cumulative total of every stage above it, and
+ * the funnel reports a loss at the wrong step. That is exactly what happened when the product grew
+ * a `forwarding_enabled` stage and three separate copies of this array in two files did not.
+ * Import it; do not retype it.
+ */
+export const APOLLO_STAGES = ["installed", "code_requested", "signed_in", "forwarding_enabled", "activated", "retained"];
+
 export const JOURNEY = [
   { key: "reach",          label: "Heard of us",           lever: "which channel, and at what cost" },
   { key: "installed",      label: "Installed",             lever: "the store page itself", seam: true },
   { key: "code_requested", label: "Asked for a code",      lever: "how clear the first screen is" },
   { key: "signed_in",      label: "Signed in",             lever: "OTP delivery and autofill" },
-  { key: "activated",      label: "Tring answered a call", lever: "forwarding actually switching on" },
+  // ARMED IS NOT THE SAME AS PROVEN, and collapsing the two hides the most useful distinction in
+  // the funnel. Someone with forwarding switched on has finished everything we asked of them; if
+  // no call has come in yet they are WAITING, not lost. Folding them into "answered a call" both
+  // undercounts every stage above (cumulate sums only the stages it is given) and blames the
+  // onboarding for a phone that simply has not rung.
+  { key: "forwarding_enabled", label: "Forwarding switched on", lever: "the setup screen and the carrier code" },
+  { key: "activated",      label: "Tring answered a call", lever: "whether the phone actually rings" },
   { key: "retained",       label: "Came back (5+ days)",   lever: "answers per active user" },
   { key: "referred",       label: "Told someone",          lever: "the share prompt", loop: true },
 ];
@@ -57,7 +74,7 @@ export function cumulate(distribution, order) {
  *          `kept` is the share of the previous stage that survived, null across a seam.
  */
 export function buildSpine({ reach = null, funnel = null, cumulative = null, referred = null } = {}) {
-  const apolloOrder = ["installed", "code_requested", "signed_in", "activated", "retained"];
+  const apolloOrder = APOLLO_STAGES;
   // UNKNOWN IS NOT ZERO. Before the app-user panels load there is no funnel, and rendering that as
   // five zeros claims we measured nothing happening — a far stronger statement than "not loaded",
   // and the one a reader will act on. Absent stays null all the way to the tiles, which draw "—".

@@ -13,6 +13,8 @@ import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
 import Flywheel from "./components/Flywheel";
 import { detect, describe, findConstraint } from "./components/signals";
 import Deck from "./components/Deck";
+import { cohortCurve } from "../lib/series";
+import { APOLLO_STAGES } from "./components/spine";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
@@ -342,6 +344,15 @@ export default function Admin() {
                 </button>
               ))}
             </div>
+            {/* The deck. Set apart from the other links because it is a different KIND of thing:
+                the panels below answer a question you arrived with, that page is read start to
+                finish on a Monday whether or not you had one. */}
+            <a href="/admin/wbr" style={{ textDecoration: "none" }}>
+              <button style={{ ...S.ghost, background: "#FBF9F4", color: "#17150F",
+                               borderColor: "#FBF9F4", fontWeight: 700 }}>
+                Weekly Business Review →
+              </button>
+            </a>
             <a href="/admin/churn" style={{ textDecoration: "none" }}>
               <button style={S.ghost}>Churn &amp; lifecycle →</button>
             </a>
@@ -530,10 +541,13 @@ export default function Admin() {
           {/* FUNNEL — the DROP between steps is the number that matters, so it is the number
               rendered. Counts alone hide where people are lost. */}
           {lifecycle?.funnel && (() => {
-            const order = ["installed", "code_requested", "signed_in", "activated", "retained"];
+            // One list, imported. Kept in step with Apollo by spine.js — a stage missing here
+            // silently deletes the people standing in it from every total above.
+            const order = APOLLO_STAGES;
             const labels = {
               installed: "Installed", code_requested: "Asked for a code",
-              signed_in: "Signed in", activated: "Tring answered a call", retained: "5+ active days",
+              signed_in: "Signed in", forwarding_enabled: "Forwarding switched on",
+              activated: "Tring answered a call", retained: "5+ active days",
             };
             // Cumulative: everyone at a later stage also passed the earlier ones.
             const cum = {};
@@ -587,9 +601,10 @@ export default function Admin() {
               everything subordinates to ONE thing, and a panel highlighting four "problem areas"
               has restated the problem rather than found the constraint. */}
           {lifecycle?.funnel_cumulative && (() => {
-            const order = ["installed", "code_requested", "signed_in", "activated", "retained"];
+            const order = APOLLO_STAGES;
             const labels = { installed: "installed", code_requested: "asked for a code",
-                             signed_in: "signed in", activated: "had a call answered",
+                             signed_in: "signed in", forwarding_enabled: "switched forwarding on",
+                             activated: "had a call answered",
                              retained: "reached 5+ active days" };
             const c = findConstraint(lifecycle.funnel_cumulative, order);
             if (!c) return null;
@@ -1066,16 +1081,16 @@ export default function Admin() {
                 // Weight each cohort by size: a 2-person cohort must not swing the picture as hard
                 // as a 36-person one, which is exactly how small-sample noise gets mistaken for a
                 // trend.
-                const avg = weeks.map((w) => {
-                  let num = 0, den = 0;
-                  for (const c of cohorts.cohorts) {
-                    const v = c[`answered_week_${w}`];
-                    if (v != null) { num += v * c.activated_users; den += c.activated_users; }
-                  }
-                  return den ? { w, v: num / den, n: den } : null;
-                }).filter(Boolean);
+                // Weighted average, and the composition behind each point. Both live in
+                // app/lib/series.js so the survivorship rule is tested rather than eyeballed.
+                const cc = cohortCurve(cohorts.cohorts, weeks);
+                const avg = cc.points;
                 if (avg.length < 2) return null;
-                const line = avg.map((p, i) => `${i ? "L" : "M"}${x(p.w).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+                const { full: fullK, solidN, thinned } = cc;
+                const seg = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${x(p.w).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+                const solid = seg(avg.slice(0, solidN));
+                // Overlap by one point so the dashed tail joins the solid line instead of floating.
+                const dashed = solidN < avg.length ? seg(avg.slice(Math.max(0, solidN - 1))) : "";
                 return (
                   <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 560, marginTop: 14 }}
                        role="img" aria-label="Weighted answered-call retention curve">
@@ -1088,19 +1103,38 @@ export default function Admin() {
                     {weeks.map((w) => (
                       <text key={w} x={x(w)} y={H - 6} textAnchor="middle" fontSize="9" fill="#6b7684">W{w}</text>
                     ))}
-                    <path d={line} fill="none" stroke="#F4532E" strokeWidth="2.2"
+                    <path d={solid} fill="none" stroke="#F4532E" strokeWidth="2.2"
                           strokeLinejoin="round" strokeLinecap="round" />
+                    {dashed && (
+                      <path d={dashed} fill="none" stroke="#F4532E" strokeWidth="2.2" strokeDasharray="4 3"
+                            opacity=".65" strokeLinejoin="round" strokeLinecap="round" />
+                    )}
                     {avg.map((p) => (
                       <g key={p.w}>
-                        <circle cx={x(p.w)} cy={y(p.v)} r="3.4" fill="#F4532E" />
+                        <circle cx={x(p.w)} cy={y(p.v)} r="3.4"
+                                fill={p.k === fullK ? "#F4532E" : "#0B0B0C"}
+                                stroke="#F4532E" strokeWidth={p.k === fullK ? 0 : 1.6} />
                         <text x={x(p.w)} y={y(p.v) - 8} textAnchor="middle" fontSize="9.5" fill="#e6edf3">
                           {p.v.toFixed(0)}%
+                        </text>
+                        {/* The population behind the point, on the point. A retention number
+                            without its n is an opinion. */}
+                        <text x={x(p.w)} y={H - 14} textAnchor="middle" fontSize="8" fill="#5b6673">
+                          n={p.n}
                         </text>
                       </g>
                     ))}
                   </svg>
                 );
               })()}
+              {thinned && (
+                <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                  Dashed from W{thinned.w}: only {thinned.k} of {fullK} cohorts are old enough to
+                  have reported that week, so the tail compares a different — older — set of users
+                  than the solid section. Read its SHAPE with suspicion; a rise there is composition
+                  changing, not retention improving. It becomes solid as the younger cohorts age in.
+                </div>
+              )}
               <div style={{ color: "#6b7684", fontSize: 11.5, marginTop: 4 }}>
                 Curve is weighted by cohort size, so a 2-person week cannot swing it like a
                 36-person one. A tail that flattens is a business; one that reaches zero is not.
