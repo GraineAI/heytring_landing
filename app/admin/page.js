@@ -1164,7 +1164,7 @@ export default function Admin() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>App users — where each one stopped</h2>
             <div style={{ flex: 1 }} />
-            {["", "code_requested", "signed_in", "activated", "retained"].map((st) => (
+            {["", "code_requested", "signed_in", "forwarding_enabled", "activated", "retained"].map((st) => (
               <button key={st || "all"}
                 style={lcStage === st ? S.btn : S.ghost}
                 onClick={() => { setLcStage(st); loadLifecycle(st); }}>
@@ -1183,8 +1183,12 @@ export default function Admin() {
           </div>
           <p style={{ color: "#9aa4b2", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
             <b>code requested</b> asked for an OTP and never entered it — the biggest leak.{" "}
-            <b>signed in</b> verified but Tring has never answered a call for them.{" "}
-            <b>activated</b> at least one answered call. <b>retained</b> answered calls on 5+ days —
+            <b>signed in</b> verified an OTP but never finished setup — forwarding is still off,
+            so Tring cannot answer anything for them.{" "}
+            <b>forwarding enabled</b> is ONBOARDED: setup is done and the product is armed, but no
+            call has come in yet. This is not a failure — it is someone waiting for their phone to
+            ring, and counting them as a drop-off blames onboarding for a quiet week.{" "}
+            <b>activated</b> the product has actually answered at least one call. <b>retained</b> answered calls on 5+ days —
             the only people whose opinion on the product is worth weighting.
           </p>
           {lcErr && (
