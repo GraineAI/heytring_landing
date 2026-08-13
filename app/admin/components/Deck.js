@@ -111,8 +111,14 @@ function Band({ nodes }) {
   );
 }
 
-/** A metric with no trend behind it. Same box for outputs and inputs; only the badge differs. */
-function Stat({ label, value, unit = "", sub, kind }) {
+/**
+ * A metric with no trend behind it. Same box for outputs and inputs; only the badge differs.
+ *
+ * `failed` is not cosmetic. An em dash on this dashboard means "measured, and there is nothing
+ * there" — a real finding a reader may act on. When the request behind a tile did not come back,
+ * saying the same thing would be a fabrication. It says so instead, and names the reason.
+ */
+function Stat({ label, value, unit = "", sub, kind, failed }) {
   return (
     <div style={{ ...card, padding: "11px 13px", flex: "1 1 132px", minWidth: 124 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -125,11 +131,13 @@ function Stat({ label, value, unit = "", sub, kind }) {
           </span>
         )}
       </div>
-      <div style={{ color: "#fff", fontSize: 21, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                    marginTop: 2 }}>
-        {fmt(value, unit)}
+      <div style={{ color: failed ? "#E7B75A" : "#fff", fontSize: failed ? 13 : 21, fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums", marginTop: failed ? 6 : 2 }}>
+        {failed ? "unavailable" : fmt(value, unit)}
       </div>
-      {sub ? <div style={{ color: FAINT, fontSize: 10, lineHeight: 1.3, marginTop: 1 }}>{sub}</div> : null}
+      <div style={{ color: failed ? "#E7B75A" : FAINT, fontSize: 10, lineHeight: 1.3, marginTop: 1 }}>
+        {failed || sub || ""}
+      </div>
     </div>
   );
 }
@@ -146,7 +154,15 @@ function GroupLabel({ children, note, tone }) {
   );
 }
 
-export default function Deck({ stats, lifecycle, metrics, series, referrals, revenue }) {
+const SOURCE = {
+  lifecycle: "App users (Apollo)", metrics: "Product metrics (Apollo)", series: "Weekly trends",
+  referrals: "Referral engine", revenue: "Subscriptions",
+};
+
+export default function Deck({ stats, lifecycle, metrics, series, referrals, revenue, errors }) {
+  // Only the sources this deck actually draws from. A carrier panel failing is real, but it is not
+  // this card's problem and listing it here would train people to skim the banner.
+  const broken = Object.keys(SOURCE).filter((k) => errors?.[k]);
   const nodes = buildSpine({
     reach: stats ? (stats.play_clicks || 0) + (stats.ios_clicks || 0) : null,
     funnel: lifecycle?.funnel,
@@ -173,6 +189,27 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
         </span>
       </div>
 
+      {/* WHAT DID NOT LOAD, BEFORE ANY NUMBER IS READ. A deck whose sources half-failed is worse
+          than no deck: every tile still looks authoritative, and the missing ones look like zeros.
+          Say it at the top, name the source, and give the reason the server actually gave. */}
+      {broken.length > 0 && (
+        <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 11,
+                      background: "rgba(231,183,90,.09)", border: "1px solid rgba(231,183,90,.32)" }}>
+          <span style={{ color: "#E7B75A", fontSize: 10, fontWeight: 700, letterSpacing: .6 }}>
+            {broken.length} SOURCE{broken.length > 1 ? "S" : ""} DID NOT LOAD
+          </span>
+          <div style={{ color: MUTED, fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }}>
+            The tiles they feed read “unavailable” rather than “—”. A dash here means we measured
+            and found nothing, which is a different claim from not having been able to ask.
+          </div>
+          {broken.map((k) => (
+            <div key={k} style={{ color: "#e6edf3", fontSize: 11.5, marginTop: 3 }}>
+              <b>{SOURCE[k]}</b> <span style={{ color: FAINT }}>— {errors[k]}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* THE ONE SENTENCE. If a reader gets no further than this line, they still learned the most
           important thing on the page. */}
       {h ? (
@@ -189,8 +226,10 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
           </div>
         </div>
       ) : (
-        <div style={{ color: FAINT, fontSize: 11.5, marginTop: 12 }}>
-          Load the app-user panels below and the constraint names itself here.
+        <div style={{ color: errors?.lifecycle ? "#E7B75A" : FAINT, fontSize: 11.5, marginTop: 12 }}>
+          {errors?.lifecycle
+            ? `No constraint: the funnel it is computed from did not load (${errors.lifecycle}).`
+            : "Load the app-user panels below and the constraint names itself here."}
         </div>
       )}
 
@@ -203,13 +242,13 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
         OUTPUT METRICS
       </GroupLabel>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-        <Stat kind="output" label="Signed in, all time" value={cum.signed_in}
+        <Stat kind="output" failed={errors?.lifecycle} label="Signed in, all time" value={cum.signed_in}
               sub={cum.installed ? `of ${cum.installed.toLocaleString("en-IN")} installs` : null} />
-        <Stat kind="output" label="Calls answered" value={m.calls_answered_week} sub="this week" />
-        <Stat kind="output" label="Stayed 5+ days" value={cum.retained} sub="the only durable number here" />
-        <Stat kind="output" label="Entitled now" value={revenue?.entitled_now}
+        <Stat kind="output" failed={errors?.metrics} label="Calls answered" value={m.calls_answered_week} sub="this week" />
+        <Stat kind="output" failed={errors?.lifecycle} label="Stayed 5+ days" value={cum.retained} sub="the only durable number here" />
+        <Stat kind="output" failed={errors?.revenue} label="Entitled now" value={revenue?.entitled_now}
               sub={revenue ? `${revenue.entitled_paid ?? 0} paid · ${revenue.entitled_granted ?? 0} referral` : "load Subscriptions"} />
-        <Stat kind="output" label="D7 retention" value={m.d7?.answered_pct} unit="%"
+        <Stat kind="output" failed={errors?.metrics} label="D7 retention" value={m.d7?.answered_pct} unit="%"
               sub={m.d7?.cohort ? `n=${m.d7.cohort} — read the cohort first` : null} />
       </div>
 
@@ -220,13 +259,13 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
         CONTROLLABLE INPUT METRICS
       </GroupLabel>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-        <Stat kind="input" label="Activation" value={activation} unit="%" sub="installed → signed in" />
-        <Stat kind="input" label="Time to first answer" value={m.time_to_first_answer_hours} unit="h"
+        <Stat kind="input" failed={errors?.lifecycle} label="Activation" value={activation} unit="%" sub="installed → signed in" />
+        <Stat kind="input" failed={errors?.metrics} label="Time to first answer" value={m.time_to_first_answer_hours} unit="h"
               sub="median, sign-in → proof it works" />
-        <Stat kind="input" label="Answers / active user" value={m.answers_per_active_user_week} sub="depth, per week" />
-        <Stat kind="input" label="Referring" value={referrals?.participation_pct} unit="%"
+        <Stat kind="input" failed={errors?.metrics} label="Answers / active user" value={m.answers_per_active_user_week} sub="depth, per week" />
+        <Stat kind="input" failed={errors?.referrals} label="Referring" value={referrals?.participation_pct} unit="%"
               sub={referrals ? `k=${referrals.k_factor ?? "—"}` : "load The referral engine"} />
-        <Stat kind="input" label="Active this week" value={m.active_devices_week} sub="devices that opened the app" />
+        <Stat kind="input" failed={errors?.metrics} label="Active this week" value={m.active_devices_week} sub="devices that opened the app" />
       </div>
 
       {/* The 6-12s, in the house format, for the inputs that have a history. Same shape as every

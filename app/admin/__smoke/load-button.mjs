@@ -81,26 +81,55 @@ const pick = (u) =>
   : u.includes("/users") ? F.users
   : F.data;
 
-const b = await chromium.launch({ channel: "chrome" });
-const pg = await b.newPage({ viewport: { width: 1400, height: 1000 } });
-const errs = [];
-pg.on("pageerror", (e) => errs.push("PAGEERROR: " + e.message));
-pg.on("console", (m) => m.type() === "error" && !/keys|404/.test(m.text()) && errs.push("CONSOLE: " + m.text()));
-await pg.route("**/api/admin/**", (r) =>
-  r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(pick(r.request().url())) }));
-await pg.goto("http://localhost:3111/admin", { waitUntil: "networkidle" });
-await pg.waitForTimeout(800);
+const run = async (name, breakUsers) => {
+  const b = await chromium.launch({ channel: "chrome" });
+  const pg = await b.newPage({ viewport: { width: 1400, height: 1000 } });
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push("PAGEERROR: " + e.message));
+  // "Failed to load resource" is the BROWSER reporting a non-2xx, not the page breaking — and in
+  // the degraded scenario those 500s are the thing under test. Real crashes still arrive via
+  // pageerror, and React's own render warnings still arrive here.
+  pg.on("console", (m) => m.type() === "error"
+    && !/keys|404|Failed to load resource/.test(m.text())
+    && errs.push("CONSOLE: " + m.text()));
 
-const btn = pg.getByRole("button", { name: "Load", exact: true }).first();
-console.log("Load button present:", await btn.count() > 0);
-await btn.click();
-await pg.waitForTimeout(2500);
+  await pg.route("**/api/admin/**", (r) => {
+    const u = r.request().url();
+    // The outage case: Apollo's /users is down while /churn is fine. This is the exact split seen
+    // in production — referrals and revenue populated, the funnel and product metrics blank — and
+    // the page used to render it as a deck full of em dashes with no hint anything had failed.
+    if (breakUsers && u.includes("/api/admin/users")) {
+      return r.fulfill({ status: 500, contentType: "application/json",
+                         body: JSON.stringify({ ok: false, error: "apollo returned 500" }) });
+    }
+    return r.fulfill({ status: 200, contentType: "application/json",
+                       body: JSON.stringify(pick(u)) });
+  });
 
-const dead = await pg.evaluate(() => document.body.innerText.length < 400);
-console.log("page blanked:", dead);
-console.log("cohort curve rendered:", await pg.locator('svg[aria-label="Weighted answered-call retention curve"]').count());
-console.log("survivorship note:", (await pg.getByText(/Dashed from W/).count()) > 0);
-console.log("ERRORS:", errs.length ? errs.join("\n") : "none");
+  await pg.goto("http://localhost:3111/admin", { waitUntil: "networkidle" });
+  await pg.waitForTimeout(800);
+  await pg.getByRole("button", { name: "Load", exact: true }).first().click();
+  await pg.waitForTimeout(2500);
 
-await b.close();
-process.exit(errs.length ? 1 : 0);
+  const alive = !(await pg.evaluate(() => document.body.innerText.length < 400));
+  const curve = await pg.locator('svg[aria-label="Weighted answered-call retention curve"]').count();
+  const banner = await pg.getByText(/SOURCES? DID NOT LOAD/).count();
+  const unavailable = await pg.getByText("unavailable").count();
+
+  const want = breakUsers
+    ? alive && banner === 1 && unavailable > 0 && !errs.length
+    : alive && curve === 1 && banner === 0 && !errs.length;
+
+  console.log(`${want ? "PASS" : "FAIL"}  ${name}`);
+  console.log(`      alive=${alive} curve=${curve} banner=${banner} unavailable=${unavailable}`);
+  if (errs.length) console.log("      " + errs.join("\n      "));
+  await b.close();
+  return want;
+};
+
+// Healthy: everything renders, and nothing claims a failure that did not happen.
+const ok1 = await run("every source healthy", false);
+// Degraded: the page survives, and says WHICH source failed rather than drawing em dashes that
+// read as measurements. A dash means "we looked and there was nothing"; that is not what happened.
+const ok2 = await run("Apollo /users down — deck must say so, not show dashes", true);
+process.exit(ok1 && ok2 ? 0 : 1);

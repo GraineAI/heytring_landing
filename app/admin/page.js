@@ -96,6 +96,8 @@ export default function Admin() {
   const [days, setDays] = useState(90);
   const [why, setWhy] = useState(null);
   const [health, setHealth] = useState(null);
+  // WHY EACH PANEL IS EMPTY, when it is. Keyed by source; absent means "fine".
+  const [srcErr, setSrcErr] = useState({});
 
   const load = async () => {
     const r = await fetch("/api/admin/data");
@@ -154,73 +156,60 @@ export default function Admin() {
     } finally { setLcBusy(false); }
   };
 
-  const loadMetrics = async () => {
+  /**
+   * ONE FETCH FOR EVERY PANEL, AND IT NEVER FAILS SILENTLY.
+   *
+   * Each of these loaders used to be `if (j.ok) setX(j)` wrapped in `catch {}`. A 500, an
+   * unreachable Apollo, an `{ok:false}` and a genuinely empty dataset all did the same thing:
+   * nothing. The state stayed null and the panel rendered an em dash — so the dashboard reported
+   * "we measured nothing here" when the truth was "we could not ask". Those are different claims,
+   * and only one of them is the reader's problem to act on.
+   *
+   * That is the same failure the backend just fixed on the names lookup, where a broken query and
+   * a population who never typed their name produced the identical screen. It hid a real outage
+   * for as long as it did precisely because nothing on the page could tell the two apart.
+   *
+   * On failure the previously-loaded value is KEPT rather than cleared: stale data plus a visible
+   * "this did not refresh" beats a panel that empties itself every time the network hiccups.
+   */
+  const loadInto = async (key, url, set) => {
     try {
-      const res = await fetch("/api/admin/users?view=metrics", { cache: "no-store" });
-      const j = await res.json().catch(() => ({}));
-      if (j.ok) setMetrics(j);
-    } catch {}
+      const r = await fetch(url, { cache: "no-store" });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) {
+        set(j);
+        setSrcErr((e) => (key in e ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== key)) : e));
+        return;
+      }
+      setSrcErr((e) => ({ ...e, [key]: j.error || `the server returned ${r.status}` }));
+    } catch {
+      setSrcErr((e) => ({ ...e, [key]: "could not reach the server" }));
+    }
   };
 
-  const loadPower = async (d = days) => {
-    try {
-      const r = await fetch(withRange("/api/admin/churn?view=power_users", "power_users", d), { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setPower(j);
-    } catch {}
-  };
+  const loadMetrics = () => loadInto("metrics", "/api/admin/users?view=metrics", setMetrics);
+
+  const loadPower = (d = days) =>
+    loadInto("power", withRange("/api/admin/churn?view=power_users", "power_users", d), setPower);
 
   // Only the count, only the items that actually change a decision (severity >= 4). A badge that
   // lights up for every headline is a badge nobody looks at within a fortnight.
-  const loadRef = async (d = days) => {
-    try {
-      const r = await fetch(withRange("/api/admin/churn?view=referrals&goal=500000&horizon_days=80", "referrals", d),
-                            { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setRef(j);
-    } catch {}
-  };
+  const loadRef = (d = days) =>
+    loadInto("referrals",
+             withRange("/api/admin/churn?view=referrals&goal=500000&horizon_days=80", "referrals", d), setRef);
 
-  const loadCarriers = async (d = days) => {
-    try {
-      const r = await fetch(withRange("/api/admin/churn?view=carriers", "carriers", d), { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setCarr(j);
-    } catch {}
-  };
+  const loadCarriers = (d = days) =>
+    loadInto("carriers", withRange("/api/admin/churn?view=carriers", "carriers", d), setCarr);
 
-  const loadRevenue = async (d = days) => {
-    try {
-      const r = await fetch(withRange("/api/admin/churn?view=revenue", "revenue", d), { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setRev(j);
-    } catch {}
-  };
+  const loadRevenue = (d = days) =>
+    loadInto("revenue", withRange("/api/admin/churn?view=revenue", "revenue", d), setRev);
 
-  const loadWhy = async () => {
-    try {
-      const r = await fetch("/api/admin/churn?view=funnel", { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setWhy(j);
-    } catch {}
-  };
+  const loadWhy = () => loadInto("why", "/api/admin/churn?view=funnel", setWhy);
 
-  const loadHealth = async (d = days) => {
-    try {
-      const r = await fetch(withRange("/api/admin/churn?view=delivery_health", "delivery_health", d),
-                            { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setHealth(j);
-    } catch {}
-  };
+  const loadHealth = (d = days) =>
+    loadInto("health", withRange("/api/admin/churn?view=delivery_health", "delivery_health", d), setHealth);
 
-  const loadSeries = async () => {
-    try {
-      const r = await fetch("/api/admin/churn?view=timeseries", { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
-      if (j.ok) setSeries(j);
-    } catch {}
-  };
+  const loadSeries = () => loadInto("series", "/api/admin/churn?view=timeseries", setSeries);
 
   const loadCohorts = async () => {
     setCohErr("");
@@ -383,7 +372,8 @@ export default function Admin() {
             point: this page used to open with seven waitlist tiles, which say how many people we
             reached and nothing about whether the product works. ── */}
         <Deck stats={stats} lifecycle={lifecycle} metrics={metrics} series={series}
-              referrals={ref} revenue={rev} />
+              referrals={ref} revenue={rev}
+              errors={{ ...srcErr, ...(lcErr ? { lifecycle: lcErr } : {}) }} />
         <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>Does the product work?</h2>
