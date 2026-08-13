@@ -104,12 +104,21 @@ const Q = {
   // THE HONEST FUNNEL. MAU counts anyone with any event — including CI, emulators and App Store
   // review bots. For a login-required India-only app the number that means "a real person
   // onboarded" is people who signed in ($identify). 90d so the whole beta is covered.
+  // ACTIVATION IS COMPUTED TWICE, ON PURPOSE, AND THE INDIA ONE IS THE HEADLINE.
+  // The global columns count CI, emulators and App Store review bots. Those install and open and
+  // then never sign in — they only ever land in the denominator. Dividing global sign-ins by
+  // global installs therefore reports an activation rate lower than the real one, on a panel whose
+  // own copy says the honest denominator is the India cohort. It was understating the number the
+  // whole dashboard is built around.
   funnel: `SELECT
       uniqIf(person_id, event='Application Installed') AS installed,
       uniqIf(person_id, event='Application Opened')    AS opened,
       uniqIf(person_id, event='$identify')             AS signed_in,
       uniqIf(person_id, properties.$geoip_country_name='India') AS in_india,
-      uniq(person_id) AS total
+      uniq(person_id) AS total,
+      uniqIf(person_id, event='Application Installed' AND properties.$geoip_country_name='India') AS installed_in,
+      uniqIf(person_id, event='Application Opened'    AND properties.$geoip_country_name='India') AS opened_in,
+      uniqIf(person_id, event='$identify'             AND properties.$geoip_country_name='India') AS signed_in_in
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY`,
 
   // Country split — surfaces the test/CI inflation (US traffic on an India app).
@@ -271,16 +280,22 @@ const Q = {
   // people who reached it. The granular middle steps (signin_started, otp_shown, otp_submitted,
   // activated) ship over OTA — the SDK is already in the binary — so they populate as that update
   // reaches devices, not after a native build. They read 0 only until the OTA propagates.
+  // THE LIFECYCLE, as the product defines it (each column = unique India people who reached it):
+  //   code_requested — asked for an OTP (may never have entered it: the biggest leak)
+  //   signed_in      — verified an OTP (but may never have finished setup)
+  //   forwarding_enabled — setup done, forwarding ON, product ARMED (activation:activate is the old
+  //                    name for this exact moment, so it's unioned in for history)
+  //   activated      — Tring has ANSWERED at least one real call
+  //   retained       — answered calls on 5+ distinct days
   journey: `SELECT
-      uniqIf(person_id, event IN ('Application Installed','app_first_open')) AS installed,
-      uniqIf(person_id, event IN ('Application Opened','app_first_open'))    AS opened,
-      uniqIf(person_id, event='signin_started')                             AS signin_started,
-      uniqIf(person_id, event='otp_screen_shown')                           AS otp_shown,
-      uniqIf(person_id, event='otp_submitted')                              AS otp_submitted,
-      uniqIf(person_id, event IN ('login_success','$identify'))             AS signed_in,
-      uniqIf(person_id, event='onboarding_complete')                        AS onboarded,
-      uniqIf(person_id, event IN ('activated','activation:activate'))       AS activated,
-      uniqIf(person_id, event='otp_autofilled')                            AS otp_autofilled
+      uniqIf(person_id, event IN ('Application Installed','app_first_open'))    AS installed,
+      uniqIf(person_id, event IN ('Application Opened','app_first_open'))       AS opened,
+      uniqIf(person_id, event='login_otp_requested')                           AS code_requested,
+      uniqIf(person_id, event IN ('login_success','$identify'))                AS signed_in,
+      uniqIf(person_id, event IN ('forwarding_enabled','activation:activate'))  AS forwarding_enabled,
+      uniqIf(person_id, event='activated')                                     AS activated,
+      uniqIf(person_id, event='retained')                                      AS retained,
+      uniqIf(person_id, event='otp_autofilled')                               AS otp_autofilled
     FROM events WHERE timestamp >= now() - INTERVAL 90 DAY
       AND properties.$geoip_country_name='India'`,
 
@@ -453,7 +468,8 @@ async function build() {
         y: c ? (LAT1 - c[0]) / (LAT1 - LAT0) : null,   // y inverted (north = up)
       };
     });
-    const [fInstalled=0, fOpened=0, fSignedIn=0, fIndia=0, fTotal=0] = funnel[0] || [];
+    const [fInstalled=0, fOpened=0, fSignedIn=0, fIndia=0, fTotal=0,
+           fInstalledIn=0, fOpenedIn=0, fSignedInIn=0] = funnel[0] || [];
 
     // Full activation journey + lifecycle (India). Both live in Q, so the
     // resilient loop above has already fetched them — this used to re-fetch
@@ -463,20 +479,23 @@ async function build() {
     // the isolation and 500'd the whole endpoint. Read the results instead.
     const journey = R.journey, lifecycle = R.lifecycle;
     const jr = journey[0] || []; const lc = lifecycle[0] || [];
-    // The granular activation funnel — each new micro-step makes the 17%-activation leak visible at
-    // the exact stage it happens (started sign-in → saw the OTP screen → entered a code → verified),
-    // instead of one "requested OTP → signed in" jump that hides where people give up.
+    // The lifecycle funnel, in the product's own terms. installed/opened are context; the five
+    // stages that matter run code_requested → signed_in → forwarding_enabled → activated → retained.
+    // The order of these keys MUST match the SELECT column order in Q.journey (jr is positional).
     const jSteps = [
-      { key: "installed", label: "Installed" }, { key: "opened", label: "Opened" },
-      { key: "signin_started", label: "Started sign-in" }, { key: "otp_shown", label: "Saw OTP screen" },
-      { key: "otp_submitted", label: "Entered code" }, { key: "signed_in", label: "Signed in" },
-      { key: "onboarded", label: "Onboarded" }, { key: "activated", label: "Activated" },
+      { key: "installed", label: "Installed" },
+      { key: "opened", label: "Opened" },
+      { key: "code_requested", label: "Code requested" },
+      { key: "signed_in", label: "Signed in" },
+      { key: "forwarding_enabled", label: "Forwarding enabled" },
+      { key: "activated", label: "Activated — answered a call" },
+      { key: "retained", label: "Retained — 5+ call days" },
     ].map((st, i) => ({ ...st, people: Number(jr[i]) || 0 }));
-    // Auto-read effectiveness — share of people who saw the OTP screen and had the code fill itself
-    // from the SMS. A low number (esp. on Android) is the data that justifies the SMS-Retriever
-    // native build rather than guessing the auto-read "works".
-    const otpShown = Number(jr[3]) || 0, otpAutofilled = Number(jr[8]) || 0;
-    const otpAutofillRate = otpShown ? Math.round((otpAutofilled / otpShown) * 1000) / 10 : 0;
+    // Auto-read effectiveness — of people who requested a code, how many had it fill itself from the
+    // SMS. A low number (esp. on Android) is the data that justifies the SMS-Retriever native build.
+    // otp_autofilled is the 8th SELECT column (index 7); code_requested is index 2.
+    const otpDenom = Number(jr[2]) || 0, otpAutofilled = Number(jr[7]) || 0;
+    const otpAutofillRate = otpDenom ? Math.round((otpAutofilled / otpDenom) * 1000) / 10 : 0;
     const lcKeys = ["logged_out","deleted","took_over","caller_id","favourites","referred","shared_call","viewed_call","weekly_open","ran_checkup"];
     const lcLabels = { logged_out:"Logged out", deleted:"Deleted account", took_over:"Took over a call",
       caller_id:"Enabled caller ID", favourites:"Saved a favourite", referred:"Referred a friend",
@@ -529,11 +548,30 @@ async function build() {
       // Flagged stale if nothing has arrived for 7 days — that is exactly the signal that caught
       // the July regression, where every custom event simply stopped and nobody noticed.
       journey: jSteps,
+      // The five product stages + the conversion between each, so the UI states them plainly rather
+      // than re-deriving. answerRate (forwarding_enabled → activated) is the one that separates "a
+      // quiet week" from a real problem: it's low only when armed phones aren't ringing.
+      lifecycleSummary: (() => {
+        const g = (k) => jSteps.find((s) => s.key === k)?.people || 0;
+        const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+        const codeRequested = g("code_requested"), signedIn = g("signed_in"),
+          forwardingEnabled = g("forwarding_enabled"), activated = g("activated"), retained = g("retained");
+        return {
+          codeRequested, signedIn, forwardingEnabled, activated, retained,
+          signinRate: pct(signedIn, codeRequested),          // entered the code they asked for
+          armRate: pct(forwardingEnabled, signedIn),         // finished setup / turned forwarding on
+          answerRate: pct(activated, forwardingEnabled),     // armed phone actually got a call answered
+          retainRate: pct(retained, activated),              // stuck around for 5+ call-days
+        };
+      })(),
       otpAutofillRate,
       shareLoop,
       lifecycle: lifecycleRows,
       funnel: { installed: fInstalled, opened: fOpened, signedIn: fSignedIn, india: fIndia, total: fTotal,
-                activation: fInstalled ? Math.round((fSignedIn / fInstalled) * 1000) / 10 : 0 },
+                // Kept for the global-vs-India comparison the panel draws. Read `activationIndia`.
+                activation: fInstalled ? Math.round((fSignedIn / fInstalled) * 1000) / 10 : 0,
+                installedIndia: fInstalledIn, openedIndia: fOpenedIn, signedInIndia: fSignedInIn,
+                activationIndia: fInstalledIn ? Math.round((fSignedInIn / fInstalledIn) * 1000) / 10 : null },
       countries: (countries || []).map(([c, p]) => ({ country: c, people: Number(p) || 0 })),
 
       // ── the added panels ──────────────────────────────────────────────

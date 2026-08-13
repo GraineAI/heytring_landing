@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { rolling, denseSlots } from "../lib/series";
 
 // Google's bundle is ~90KB and only renders when a key exists, so it is loaded
 // on demand rather than shipped to every admin page view.
@@ -32,15 +33,6 @@ function Tile({ k, v, sub, accent }) {
       {sub && <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>{sub}</div>}
     </div>
   );
-}
-
-/** 7-day trailing mean, so a noisy daily line reads as a trend. */
-function rolling(series, n = 7) {
-  return series.map((_, i) => {
-    const from = Math.max(0, i - n + 1);
-    const win = series.slice(from, i + 1);
-    return win.reduce((a, b) => a + b.dau, 0) / win.length;
-  });
 }
 
 function Chart({ series }) {
@@ -63,8 +55,11 @@ function Chart({ series }) {
   const ticks = [];
   for (let v = 0; v <= top; v += step) ticks.push(v);
 
+  // Only real points. A null (an in-progress day) is skipped rather than coerced to 0, which would
+  // draw the average diving to the floor on the last day of every chart.
   const linePts = series
-    .map((d, i) => `${PADL + i * slot + slot / 2},${y(avg[i])}`)
+    .map((d, i) => (avg[i] == null ? null : `${PADL + i * slot + slot / 2},${y(avg[i])}`))
+    .filter(Boolean)
     .join(" ");
 
   return (
@@ -122,7 +117,10 @@ function Chart({ series }) {
         }}>
           <div style={{ fontWeight: 700, marginBottom: 3 }}>{hover.date}{hover.partial ? " · in progress" : ""}</div>
           <div><span style={{ color: DAU_C }}>●</span> {hover.dau} active · {(hover.events ?? 0).toLocaleString()} events</div>
-          <div style={{ color: SUB }}><span style={{ color: AVG_C }}>●</span> {hover.avg.toFixed(1)} avg (7d)</div>
+          <div style={{ color: SUB }}>
+            <span style={{ color: AVG_C }}>●</span>{" "}
+            {hover.avg == null ? "no 7d average — day still in progress" : `${hover.avg.toFixed(1)} avg (7d)`}
+          </div>
         </div>
       )}
 
@@ -130,7 +128,7 @@ function Chart({ series }) {
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: SUB }}>
         <span><span style={{ color: DAU_C }}>●</span> Daily active people</span>
         <span><span style={{ color: AVG_C }}>●</span> 7-day average</span>
-        <span style={{ color: MUTED }}>▨ Today (still in progress)</span>
+        <span style={{ color: MUTED }}>▨ Today (still in progress — excluded from the average)</span>
       </div>
     </div>
   );
@@ -143,6 +141,9 @@ function Chart({ series }) {
  */
 function TrueUsers({ f }) {
   const testInfra = Math.max(0, (f.total || 0) - (f.india || 0));
+  // Prefer the India-scoped rate; fall back to the global one only while the payload predates it,
+  // so an older cached response degrades to the previous number rather than to a blank.
+  const act = f.activationIndia ?? f.activation ?? null;
   const step = (label, n, of, color) => (
     <div style={{ flex: "1 1 150px" }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", color: MUTED, textTransform: "uppercase" }}>{label}</div>
@@ -163,14 +164,25 @@ function TrueUsers({ f }) {
         person onboarded</strong> is sign-ins, and the honest denominator is the India cohort.
       </div>
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        {step("Installed", f.installed, "opened the app", "#F4532E")}
+        {step("Installed", f.installedIndia ?? f.installed, "in India", "#F4532E")}
         {step("In India", f.india, `${testInfra} elsewhere (mostly test infra)`, "#3B82F6")}
-        {step("Signed in", f.signedIn, "completed OTP — real users", "#3FBF7F")}
-        {step("Activation", f.activation, "signed in ÷ installed", f.activation < 30 ? "#FFB454" : "#3FBF7F")}
+        {step("Signed in", f.signedInIndia ?? f.signedIn, "completed OTP — real users", "#3FBF7F")}
+        {step("Activation", act, "signed in ÷ installed, India only",
+              act != null && act < 30 ? "#FFB454" : "#3FBF7F")}
       </div>
-      {step && f.activation != null && (
-        <div style={{ fontSize: 12, color: MUTED, marginTop: 12 }}>
-          {`Read: ${f.installed} installs → ${f.signedIn} signed in (${f.activation}% activation). The ${testInfra}-person gap between total and India is test/CI/review traffic hitting this same PostHog project.`}
+      {/* THE DENOMINATOR IS THE WHOLE POINT. This panel's argument is that the honest denominator
+          is the India cohort — and until now the activation figure beside it was computed on the
+          global one, which includes the CI and review-bot installs that never sign in. Those land
+          only in the denominator, so the headline number was reported LOWER than reality. Both are
+          shown now: the India rate leads, the global rate stays visible as the size of the
+          distortion. */}
+      {act != null && (
+        <div style={{ fontSize: 12, color: MUTED, marginTop: 12, lineHeight: 1.55 }}>
+          {`Read: ${(f.installedIndia ?? f.installed ?? 0).toLocaleString()} India installs → ${(f.signedInIndia ?? f.signedIn ?? 0).toLocaleString()} signed in (${act}% activation).`}
+          {f.activation != null && f.activationIndia != null && f.activation !== f.activationIndia && (
+            <> {" "}Counted globally it reads {f.activation}% — that gap is the {testInfra}-person
+            test/CI/review cohort, which installs and opens but never signs in.</>
+          )}
         </div>
       )}
     </div>
@@ -555,8 +567,11 @@ function Retention({ rows }) {
   const pick = [1, 3, 7, 14, 30];
   const by = Object.fromEntries(rows.map((r) => [r.day, r]));
   const d0 = by[0]?.people || 0;
-  const curve = rows.filter((r) => r.day > 0 && r.day <= 30);
-  const max = Math.max(1, ...curve.map((r) => r.pct));
+  // FIXED SLOTS, DAY 1..30. The rows are sparse — a day nobody returned on simply is not in the
+  // result — and drawing them as adjacent bars packed day 1, 2, 5, 9 under an axis labelled
+  // "day 1 … day 30" compresses the gaps out of existence and makes a decaying curve look level.
+  // A missing day is drawn as an absence, which is what it is.
+  const curve = denseSlots(rows.filter((r) => r.day > 0), { key: "day", from: 1, to: 30 });
   return (
     <div style={{ ...CARD, flex: "2 1 420px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Retention</div>
@@ -573,14 +588,35 @@ function Retention({ rows }) {
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 64 }}>
-        {curve.map((r) => (
-          <div key={r.day} title={`Day ${r.day} · ${r.people} people · ${r.pct}%`}
-               style={{ flex: 1, height: `${Math.max(2, (r.pct / max) * 100)}%`, background: "#F4532E", opacity: 0.35 + 0.65 * (r.pct / max), borderRadius: 2 }} />
+      {/* ABSOLUTE 0-100% SCALE, not scaled to the tallest bar. Normalising to the maximum made
+          whichever day retained best fill the panel — so a curve peaking at 4% and one peaking at
+          60% drew the identical picture, and the only chart on the page that decides whether the
+          app lives could not distinguish them. The gridlines make the scale readable at a glance. */}
+      <div style={{ position: "relative", height: 64, marginTop: 2 }}>
+        {[25, 50, 75].map((g) => (
+          <div key={g} style={{ position: "absolute", left: 0, right: 0, bottom: `${g}%`,
+                                borderTop: "1px dashed rgba(255,255,255,.09)" }} />
         ))}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: "100%", position: "relative" }}>
+          {curve.map((r) => (
+            <div key={r.day}
+                 title={r.missing ? `Day ${r.day} · not measured`
+                                      : `Day ${r.day} · ${r.people} people · ${r.pct}% of the cohort`}
+                 style={{
+                   flex: 1, borderRadius: 2,
+                   // A day with no row is not a zero. It gets a hairline at the baseline in the
+                   // muted colour, so "nobody came back" and "we have no reading" never look alike.
+                   height: r.missing ? 1 : `${Math.max(1, Math.min(100, r.pct || 0))}%`,
+                   background: r.missing ? "rgba(255,255,255,.14)" : "#F4532E",
+                   opacity: r.missing ? 1 : 0.45 + 0.55 * Math.min(1, (r.pct || 0) / 100),
+                 }} />
+          ))}
+        </div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: MUTED, marginTop: 4 }}>
-        <span>day 1</span><span>day 30</span>
+        <span>day 1</span>
+        <span>0–100% of the day-0 cohort</span>
+        <span>day 30</span>
       </div>
     </div>
   );
@@ -684,11 +720,24 @@ function Depth({ rows }) {
         <div><div style={{ fontSize: 11, color: MUTED }}>5+ days</div>
           <div style={{ fontSize: 19, fontWeight: 700, color: "#3FBF7F" }}>{total ? Math.round((habit / total) * 100) : 0}%</div></div>
       </div>
+      {/* Slots keyed by ACTIVE-DAY COUNT, not by row index. `rows` is sparse — no row exists for a
+          bucket nobody landed in — so mapping the array straight to bars placed "11 active days"
+          wherever it happened to fall in the result set. The histogram was mislabelled by however
+          many buckets were empty. */}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 54 }}>
-        {rows.slice(0, 30).map((r) => (
-          <div key={r.daysActive} title={`${r.daysActive} day(s) · ${r.people} people`}
-               style={{ flex: 1, height: `${Math.max(2, (r.people / max) * 100)}%`, background: r.daysActive === 1 ? "#FFB454" : "#3FBF7F", opacity: 0.8, borderRadius: 2 }} />
-        ))}
+        {denseSlots(rows, { key: "daysActive", from: 1, to: 30 }).map((slot) => {
+          const d = slot.daysActive, people = slot.people ?? 0;
+          return (
+            <div key={d} title={`${d} active day${d === 1 ? "" : "s"} · ${people} people`}
+                 style={{ flex: 1, height: `${Math.max(people > 0 ? 2 : 1, (people / max) * 100)}%`,
+                          background: people === 0 ? "rgba(255,255,255,.10)"
+                                    : d === 1 ? "#FFB454" : "#3FBF7F",
+                          opacity: 0.85, borderRadius: 2 }} />
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: MUTED, marginTop: 4 }}>
+        <span>1 day</span><span>30 days</span>
       </div>
     </div>
   );
@@ -711,7 +760,7 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
   return (
     <div style={{ ...CARD, marginTop: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User journey <span style={{ color: MUTED, fontWeight: 500 }}>· install → onboarded · India · 90d</span></div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User lifecycle <span style={{ color: MUTED, fontWeight: 500 }}>· code requested → signed in → armed → activated → retained · India · 90d</span></div>
         {anyPending && <div style={{ fontSize: 11.5, color: "#8C7C73" }}>grey steps ship their event in the next release</div>}
       </div>
       <div style={{ marginTop: 14 }}>
@@ -750,13 +799,15 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
           );
         })}
         {(() => {
-          const inst = steps.find((s) => s.key === "installed")?.people || 0;
-          const sign = steps.find((s) => s.key === "signed_in")?.people || 0;
-          const act = inst ? Math.round((sign / inst) * 1000) / 10 : 0;
+          const g = (k) => steps.find((s) => s.key === k)?.people || 0;
+          const signed = g("signed_in"), armed = g("forwarding_enabled"), activated = g("activated");
+          // ACTIVATED is the honest headline: Tring actually answered a call for this many people.
+          // "armed but not yet answered" is a waiting room, not a drop-off — call it out separately.
+          const waiting = Math.max(0, armed - activated);
           return (
             <div style={{ marginTop: 6, padding: "10px 14px", background: "rgba(244,83,46,.08)", borderRadius: 10, fontSize: 13, color: INK, lineHeight: 1.5 }}>
-              <strong>Bottom line:</strong> {inst} installed → {sign} signed in = <strong style={{ color: act < 30 ? "#FFB454" : "#3FBF7F" }}>{act}% activation</strong>.
-              {inst - sign > 0 && <> {inst - sign} people installed and never became users — the biggest single number to move.</>}
+              <strong>Bottom line:</strong> {signed} signed in → {armed} armed (forwarding on) → <strong style={{ color: "#3FBF7F" }}>{activated} activated</strong> — Tring has answered a real call for {activated}.
+              {waiting > 0 && <> {waiting} are armed but their phone hasn’t rung yet — waiting, not lost.</>}
             </div>
           );
         })()}
