@@ -1092,6 +1092,7 @@ export default function Admin() {
                 // Overlap by one point so the dashed tail joins the solid line instead of floating.
                 const dashed = solidN < avg.length ? seg(avg.slice(Math.max(0, solidN - 1))) : "";
                 return (
+                  <>
                   <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 560, marginTop: 14 }}
                        role="img" aria-label="Weighted answered-call retention curve">
                     {[0, 25, 50, 75, 100].map((g) => (
@@ -1125,16 +1126,17 @@ export default function Admin() {
                       </g>
                     ))}
                   </svg>
+                {thinned && (
+                  <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                    Dashed from W{thinned.w}: only {thinned.k} of {fullK} cohorts are old enough to
+                    have reported that week, so the tail compares a different — older — set of users
+                    than the solid section. Read its SHAPE with suspicion; a rise there is composition
+                    changing, not retention improving. It becomes solid as the younger cohorts age in.
+                  </div>
+                )}
+                  </>
                 );
               })()}
-              {thinned && (
-                <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
-                  Dashed from W{thinned.w}: only {thinned.k} of {fullK} cohorts are old enough to
-                  have reported that week, so the tail compares a different — older — set of users
-                  than the solid section. Read its SHAPE with suspicion; a rise there is composition
-                  changing, not retention improving. It becomes solid as the younger cohorts age in.
-                </div>
-              )}
               <div style={{ color: "#6b7684", fontSize: 11.5, marginTop: 4 }}>
                 Curve is weighted by cohort size, so a 2-person week cannot swing it like a
                 36-person one. A tail that flattens is a business; one that reaches zero is not.
