@@ -12,6 +12,7 @@ import { RANGES, withRange, honours } from "./components/range";
 import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
 import Flywheel from "./components/Flywheel";
 import { detect, describe, findConstraint } from "./components/signals";
+import Deck from "./components/Deck";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 
@@ -128,51 +129,13 @@ export default function Admin() {
     } catch {}
   };
 
-  // The heavy panels stay behind their Load button on purpose. The alert count does not — a
-  // badge you have to click to discover is not an alert.
-  useEffect(() => { load(); loadAlerts(); }, []);
-
-  const login = async (e) => {
-    e.preventDefault();
-    setErr("");
-    const r = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
-    if (r.ok) load();
-    else setErr(r.status === 401 ? "Wrong password." : "Login failed (is ADMIN_PASSWORD set?)");
-  };
-
-  if (authed === null) return <div style={S.page}><div style={S.wrap}>Loading…</div></div>;
-
-  if (!authed) {
-    return (
-      <div style={{ ...S.page, display: "grid", placeItems: "center" }}>
-        <form onSubmit={login} style={{ ...S.card, width: "min(420px, 92vw)", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Tring admin</div>
-          <input style={S.input} type="password" placeholder="Password" value={pw}
-            onChange={(e) => setPw(e.target.value)} autoFocus />
-          {err && <div style={{ color: "#FF7B72", fontSize: 14 }}>{err}</div>}
-          <button style={S.btn} type="submit">Sign in</button>
-        </form>
-      </div>
-    );
-  }
-
-  const { waitlist = [], clicks = [] } = data || {};
-  // stats derived from the rows themselves — the tiles always match the table
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  const stats = {
-    total: waitlist.length,
-    android: waitlist.filter((r) => r.device === "android").length,
-    ios: waitlist.filter((r) => r.device === "ios").length,
-    today: waitlist.filter((r) => new Date(r.created_at).getTime() > dayAgo).length,
-    onboarded: waitlist.filter((r) => r.contacted).length,
-    play_clicks: clicks.filter((r) => r.kind === "play").length,
-    ios_clicks: clicks.filter((r) => r.kind === "ios").length,
-  };
-
+  // ── THE LOADERS SIT HERE, ABOVE THE EARLY RETURNS, AND MUST ────────────────────────────
+  // The mount effect below calls several of them. This component returns early twice — while the
+  // session is checked, and when it is absent — and an effect registered before those returns
+  // still fires after that first short render. A loader declared below them would be reached in
+  // its temporal dead zone: "Cannot access 'X' before initialization", thrown from the effect
+  // commit, which takes the whole page down. app/admin/tdz.test.mjs fails the build if this
+  // ordering is ever undone.
   const loadLifecycle = async (stage) => {
     setLcBusy(true); setLcErr("");
     try {
@@ -267,6 +230,55 @@ export default function Admin() {
     } catch { setCohErr("could not reach the server"); }
   };
 
+  // WHAT THE DECK NEEDS, ON MOUNT. The detail panels below still sit behind their Load button —
+  // they are heavy and most mornings nobody opens them. The deck is not one of them: a summary you
+  // have to scroll past and click to populate is not a summary, in the same way that a badge you
+  // have to click to discover is not an alert. Five calls, and the page opens saying something.
+  const loadDeck = () => { loadLifecycle(); loadMetrics(); loadSeries(); loadRef(); loadRevenue(); };
+
+  useEffect(() => { load(); loadAlerts(); loadDeck(); }, []);
+
+  const login = async (e) => {
+    e.preventDefault();
+    setErr("");
+    const r = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (r.ok) load();
+    else setErr(r.status === 401 ? "Wrong password." : "Login failed (is ADMIN_PASSWORD set?)");
+  };
+
+  if (authed === null) return <div style={S.page}><div style={S.wrap}>Loading…</div></div>;
+
+  if (!authed) {
+    return (
+      <div style={{ ...S.page, display: "grid", placeItems: "center" }}>
+        <form onSubmit={login} style={{ ...S.card, width: "min(420px, 92vw)", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Tring admin</div>
+          <input style={S.input} type="password" placeholder="Password" value={pw}
+            onChange={(e) => setPw(e.target.value)} autoFocus />
+          {err && <div style={{ color: "#FF7B72", fontSize: 14 }}>{err}</div>}
+          <button style={S.btn} type="submit">Sign in</button>
+        </form>
+      </div>
+    );
+  }
+
+  const { waitlist = [], clicks = [] } = data || {};
+  // stats derived from the rows themselves — the tiles always match the table
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const stats = {
+    total: waitlist.length,
+    android: waitlist.filter((r) => r.device === "android").length,
+    ios: waitlist.filter((r) => r.device === "ios").length,
+    today: waitlist.filter((r) => new Date(r.created_at).getTime() > dayAgo).length,
+    onboarded: waitlist.filter((r) => r.contacted).length,
+    play_clicks: clicks.filter((r) => r.kind === "play").length,
+    ios_clicks: clicks.filter((r) => r.kind === "ios").length,
+  };
+
   const saveNote = async (phone, outcome, sentiment) => {
     setNoteBusy(true);
     try {
@@ -307,7 +319,7 @@ export default function Admin() {
     <div style={S.page}>
       <div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Beta waitlist</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Tring, end to end</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {/* THE RANGE. Only panels that genuinely accept a window receive one — several admin
                 endpoints declare no date parameter, and FastAPI discards an undeclared param
@@ -353,26 +365,14 @@ export default function Admin() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
-          <Tile k="Total signups" v={stats.total} />
-          <Tile k="Onboarded" v={`${stats.onboarded} / ${stats.total}`} />
-          <Tile k="Android" v={stats.android} />
-          <Tile k="iPhone" v={stats.ios} />
-          <Tile k="Last 24h" v={stats.today} />
-          <Tile k="Play clicks" v={stats.play_clicks} />
-          <Tile k="App Store clicks" v={stats.ios_clicks} />
-        </div>
-
-        {/* Live app metrics from PostHog. Self-contained: fetches /api/admin/posthog itself,
-            renders its own error/loading state, and never blocks the waitlist view below. */}
-        <ProductMetrics />
-
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
-        <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
-        {/* ── PRODUCT METRICS — above the waitlist on purpose ────────────────────────
-            Signups and store clicks say how many people we reached. They say nothing about
-            whether the product works, and a dashboard that leads with them optimises for the
-            wrong number. Activation and retention go first. ── */}
+        {/* ── THE DECK ─────────────────────────────────────────────────────────────────
+            The whole business on one screen, in the order a customer meets it, with the levers
+            separated from the scores. Everything after this card is the appendix — the same
+            business re-cut by geography, device, hour and screen. That ordering is the entire
+            point: this page used to open with seven waitlist tiles, which say how many people we
+            reached and nothing about whether the product works. ── */}
+        <Deck stats={stats} lifecycle={lifecycle} metrics={metrics} series={series}
+              referrals={ref} revenue={rev} />
         <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>Does the product work?</h2>
@@ -1159,6 +1159,10 @@ export default function Admin() {
           )}
         </div>
 
+        {/* Live app metrics from PostHog. Self-contained: fetches /api/admin/posthog itself,
+            renders its own error/loading state, and never blocks the waitlist view below. */}
+        <ProductMetrics />
+
         {/* ── App lifecycle: who to call, and about what ───────────────────────────── */}
         <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -1322,6 +1326,20 @@ export default function Admin() {
           )}
         </div>
 
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
+          <Tile k="Total signups" v={stats.total} />
+          <Tile k="Onboarded" v={`${stats.onboarded} / ${stats.total}`} />
+          <Tile k="Android" v={stats.android} />
+          <Tile k="iPhone" v={stats.ios} />
+          <Tile k="Last 24h" v={stats.today} />
+          <Tile k="Play clicks" v={stats.play_clicks} />
+          <Tile k="App Store clicks" v={stats.ios_clicks} />
+        </div>
+
+        {/* THE WAITLIST, last. It is a record of who asked, not a measure of anything —
+            and it belongs after the numbers that say whether the thing they asked for works. */}
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Signups</h2>
+        <div style={{ ...S.card, overflowX: "auto", padding: 0 }}>
           {/* The call queue sits ABOVE the raw table on purpose: the table is a
               record, this is the work. */}
           <UserResearch
