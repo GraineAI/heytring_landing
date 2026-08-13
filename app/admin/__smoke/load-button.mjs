@@ -44,6 +44,9 @@ const F = {
              d1: { answered_pct: 40, opened_pct: 60, cohort: 50 },
              d7: { answered_pct: 22, opened_pct: 35, cohort: 41 },
              d28: { answered_pct: 8, opened_pct: 14, cohort: 20 } },
+  usersNamesBroken: { ok: true, names_error: 'column "p" does not exist',
+    funnel: { installed: 31, code_requested: 40, signed_in: 60, forwarding_enabled: 18, activated: 52, retained: 26 },
+    users: [{ phone: "+919000000001", name: "", stage: "retained", last_seen: "2026-08-12" }] },
   users: { ok: true, funnel: { installed: 31, code_requested: 40, signed_in: 60, forwarding_enabled: 18, activated: 52, retained: 26 },
            funnel_cumulative: { installed: 227, code_requested: 196, signed_in: 156, forwarding_enabled: 96, activated: 78, retained: 26 },
            users: [{ phone: "+919000000001", name: "Test", stage: "signed_in", last_seen: "2026-08-12" }] },
@@ -81,7 +84,7 @@ const pick = (u) =>
   : u.includes("/users") ? F.users
   : F.data;
 
-const run = async (name, breakUsers) => {
+const run = async (name, breakUsers, breakNames) => {
   const b = await chromium.launch({ channel: "chrome" });
   const pg = await b.newPage({ viewport: { width: 1400, height: 1000 } });
   const errs = [];
@@ -102,8 +105,9 @@ const run = async (name, breakUsers) => {
       return r.fulfill({ status: 500, contentType: "application/json",
                          body: JSON.stringify({ ok: false, error: "apollo returned 500" }) });
     }
-    return r.fulfill({ status: 200, contentType: "application/json",
-                       body: JSON.stringify(pick(u)) });
+    // loadLifecycle asks for ?view=users — that is the call carrying the name column.
+    const body = breakNames && u.includes("view=users") ? F.usersNamesBroken : pick(u);
+    return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
 
   await pg.goto("http://localhost:3111/admin", { waitUntil: "networkidle" });
@@ -116,12 +120,17 @@ const run = async (name, breakUsers) => {
   const banner = await pg.getByText(/SOURCES? DID NOT LOAD/).count();
   const unavailable = await pg.getByText("unavailable").count();
 
-  const want = breakUsers
-    ? alive && banner === 1 && unavailable > 0 && !errs.length
-    : alive && curve === 1 && banner === 0 && !errs.length;
+  const names = await pg.getByText("NAMES DID NOT LOAD").count();
+  const noNameYet = await pg.getByText("no name yet").count();
+
+  const want = breakUsers ? alive && banner === 1 && unavailable > 0 && !errs.length
+    // The claim under test: a broken lookup must NEVER render as "no name yet", because that
+    // sentence is a statement about the user rather than about us.
+    : breakNames ? alive && names === 1 && noNameYet === 0 && !errs.length
+    : alive && curve === 1 && banner === 0 && names === 0 && !errs.length;
 
   console.log(`${want ? "PASS" : "FAIL"}  ${name}`);
-  console.log(`      alive=${alive} curve=${curve} banner=${banner} unavailable=${unavailable}`);
+  console.log(`      alive=${alive} curve=${curve} banner=${banner} unavailable=${unavailable} namesBanner=${names} "no name yet"=${noNameYet}`);
   if (errs.length) console.log("      " + errs.join("\n      "));
   await b.close();
   return want;
@@ -131,5 +140,8 @@ const run = async (name, breakUsers) => {
 const ok1 = await run("every source healthy", false);
 // Degraded: the page survives, and says WHICH source failed rather than drawing em dashes that
 // read as measurements. A dash means "we looked and there was nothing"; that is not what happened.
-const ok2 = await run("Apollo /users down — deck must say so, not show dashes", true);
-process.exit(ok1 && ok2 ? 0 : 1);
+const ok2 = await run("Apollo /users down — deck must say so, not show dashes", true, false);
+// The DISTINCT ON outage: /users answers fine, but the name lookup inside it raised and was
+// swallowed. Every row is nameless and the screen is identical to a beta full of anonymous users.
+const ok3 = await run("names_error set — rows must not claim 'no name yet'", false, true);
+process.exit(ok1 && ok2 && ok3 ? 0 : 1);

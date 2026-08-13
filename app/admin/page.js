@@ -1234,6 +1234,29 @@ export default function Admin() {
             </div>
           )}
           {lcBusy && <div style={{ color: "#9aa4b2", fontSize: 13.5, marginTop: 12 }}>Loading…</div>}
+
+          {/* NAMES FAILED, AS OPPOSED TO NAMES BEING ABSENT.
+              The rows below used to print "no name yet" whenever a name was missing — an
+              affirmative claim that the person never typed one. For the whole of the DISTINCT ON
+              outage that sentence was a lie in every single row: the lookup was raising
+              `column "p" does not exist` on every call, the backend swallowed it to keep the panel
+              from 500ing, and the screen was indistinguishable from a beta full of anonymous users.
+              Apollo now returns names_error when the lookup itself broke. This is the consumer that
+              makes that field mean something; without one it changes nothing anybody sees. */}
+          {lifecycle?.names_error && (
+            <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 11,
+                          background: "rgba(231,183,90,.09)", border: "1px solid rgba(231,183,90,.32)" }}>
+              <span style={{ color: "#E7B75A", fontSize: 10.5, fontWeight: 700, letterSpacing: .5 }}>
+                NAMES DID NOT LOAD
+              </span>
+              <div style={{ color: "#9aa4b2", fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }}>
+                The name lookup failed — <span style={{ color: "#e6edf3" }}>{lifecycle.names_error}</span>.
+                Every row below is showing a phone number because we could not read the name, NOT
+                because these people never gave one. Do not read this list as a population of
+                anonymous users, and do not act on it as one.
+              </div>
+            </div>
+          )}
           {/* Whether the abandoned-signup reminder can actually be DELIVERED. Scheduling, firing
               and "sending" all succeed even with no device attached, so an inert ladder looks
               identical to a working one everywhere except this number. */}
@@ -1281,7 +1304,11 @@ export default function Admin() {
                       <td style={{ padding: "8px 10px", fontSize: 13.5 }}>
                         {u.name
                           ? <div style={{ color: "#fff", fontWeight: 600 }}>{u.name}</div>
-                          : <div style={{ color: "#5b6673", fontSize: 12 }}>no name yet</div>}
+                          : lifecycle.names_error
+                            // "no name yet" is a finding about the person. When the lookup broke it
+                            // is a finding about us, and the two must never read the same.
+                            ? <div style={{ color: "#E7B75A", fontSize: 12 }}>name unavailable</div>
+                            : <div style={{ color: "#5b6673", fontSize: 12 }}>no name yet</div>}
                         <a href={`tel:${u.phone}`}
                            style={{ color: "#F4532E", textDecoration: "none", fontSize: 12.5,
                                     fontVariantNumeric: "tabular-nums" }}>{u.phone}</a>
