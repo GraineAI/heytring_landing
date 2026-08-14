@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { foldDaily, DELTA_DAYS } from "../../../lib/daily";
 import { isAuthed } from "../../../lib/adminAuth";
 
 /**
@@ -331,6 +332,60 @@ const Q = {
       AND properties.$geoip_country_name='India'
       AND properties.$geoip_subdivision_1_name != ''
     GROUP BY state ORDER BY people DESC LIMIT 20`,
+
+  // ── DAY-TO-DAY INCREASE ──────────────────────────────────────────────────────────────────
+  // The panels above are 90-day totals: correct, and completely silent about direction. "Ran
+  // checkup: 30" reads the same on the day it doubles as on the day it stops moving entirely.
+  //
+  // These are ADDITIVE queries, deliberately separate from the totals they annotate rather than
+  // folded into them. They are new HogQL against a hosted PostHog whose version this code does not
+  // pin, and the runner isolates failures per query — so if one of these does not parse, the panel
+  // it annotates keeps its total and simply loses its delta. Rewriting the working queries would
+  // have risked the numbers themselves to add a decoration.
+  //
+  // FIRST OCCURRENCE, NOT ACTIVITY. The subquery takes min(timestamp) per person, so a day's
+  // number is how many people reached that thing FOR THE FIRST TIME — which is exactly the amount
+  // the 90-day total went up by that day. Counting people merely active in the window would count
+  // returning users too, and the deltas would not sum to the change in the headline: the tile would
+  // claim +8 while the number beside it moved by 3.
+  newByEventDay: `SELECT event, toDate(first_ts) AS d, uniq(person_id) AS people
+    FROM (
+      SELECT event, person_id, min(timestamp) AS first_ts
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 90 DAY
+        AND properties.$geoip_country_name = 'India'
+      GROUP BY event, person_id
+    )
+    WHERE first_ts >= now() - INTERVAL 14 DAY
+    GROUP BY event, d ORDER BY d`,
+
+  newByStateDay: `SELECT state, toDate(first_ts) AS d, uniq(person_id) AS people
+    FROM (
+      SELECT properties.$geoip_subdivision_1_name AS state, person_id, min(timestamp) AS first_ts
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 90 DAY
+        AND properties.$geoip_country_name = 'India'
+        AND properties.$geoip_subdivision_1_name != ''
+      GROUP BY state, person_id
+    )
+    WHERE first_ts >= now() - INTERVAL 14 DAY
+    GROUP BY state, d ORDER BY d`,
+
+  newByOsDay: `SELECT os, step, toDate(first_ts) AS d, uniq(person_id) AS people
+    FROM (
+      SELECT coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+             person_id,
+             multiIf(event='Application Installed','installed',
+                     event='Application Opened','opened',
+                     event='$identify','signed_in','other') AS step,
+             min(timestamp) AS first_ts
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 90 DAY
+        AND event IN ('Application Installed','Application Opened','$identify')
+      GROUP BY os, person_id, step
+    )
+    WHERE first_ts >= now() - INTERVAL 14 DAY
+    GROUP BY os, step, d ORDER BY d`,
 };
 
 /**
@@ -385,6 +440,7 @@ export async function GET(req) {
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }
+
 
 async function build() {
   {
@@ -501,7 +557,23 @@ async function build() {
       caller_id:"Enabled caller ID", favourites:"Saved a favourite", referred:"Referred a friend",
       shared_call:"Shared a call", viewed_call:"Viewed a handled call", weekly_open:"Opened weekly summary",
       ran_checkup:"Ran checkup" };
-    const lifecycleRows = lcKeys.map((k, i) => ({ key: k, label: lcLabels[k], people: Number(lc[i]) || 0 }));
+    // THE EVENT NAMES TRAVEL WITH THE ROW. The daily-delta series is keyed by raw event, and the
+    // only place that knows a lifecycle tile is built from `referral_share_completed` OR
+    // `referral_copy` is the SQL a few hundred lines up. Shipping the mapping means the client
+    // never re-states it — a second copy would drift the first time an event is renamed, and it
+    // would drift silently, because a delta quietly summing a dead event name still renders a
+    // confident +0.
+    const LC_EVENTS = {
+      logged_out: ["logout"], deleted: ["account_deleted"], took_over: ["take_over_tap"],
+      caller_id: ["caller_id_enable_tap"], favourites: ["favourites_saved"],
+      referred: ["referral_share_completed", "referral_copy"],
+      shared_call: ["call_share", "share_call_completed"],
+      viewed_call: ["screened_call_viewed"], weekly_open: ["weekly_summary_opened"],
+      ran_checkup: ["checkup_verify_forwarding"],
+    };
+    const lifecycleRows = lcKeys.map((k, i) => ({
+      key: k, label: lcLabels[k], people: Number(lc[i]) || 0, events: LC_EVENTS[k] || [],
+    }));
     // Word-of-mouth loop counts.
     const sl = (R.shareLoop && R.shareLoop[0]) || [];
     const shareLoop = {
@@ -509,6 +581,10 @@ async function build() {
       referred: Number(sl[2]) || 0, redeemed: Number(sl[3]) || 0,
       // Completion rate of the share sheet, and a crude single-hop K proxy (redeemed per completed).
       completionRate: Number(sl[0]) ? Math.round((Number(sl[1]) / Number(sl[0])) * 1000) / 10 : 0,
+      events: {
+        tapped: ["share_call_tapped"], completed: ["share_call_completed"],
+        referred: ["referral_share_completed", "referral_copy"], redeemed: ["referral_redeemed"],
+      },
     };
 
     const full = series.filter((d) => !d.partial);
@@ -622,6 +698,18 @@ async function build() {
         event, people: Number(people) || 0, lastSeen: last ? String(last) : null,
       })),
       depth: (R.depth || []).map(([d, p]) => ({ daysActive: Number(d), people: Number(p) || 0 })),
+
+      // The daily deltas, folded into a shape the tiles can read directly: one series per key,
+      // oldest → newest, with the missing days filled in as real zeros. A gap in a "new people per
+      // day" series IS a zero — nobody arrived — which is the one case where filling is honest.
+      dailyNew: {
+        byEvent: foldDaily(R.newByEventDay, (r) => String(r[0])),
+        byState: foldDaily(R.newByStateDay, (r) => String(r[0])),
+        byOsStep: foldDaily(R.newByOsDay, (r) => `${r[0]}|${r[1]}`, { dateIdx: 2 }),
+        days: DELTA_DAYS,
+        // So a tile can say "delta unavailable" rather than draw a confident +0.
+        degraded: ["newByEventDay", "newByStateDay", "newByOsDay"].filter((n) => degraded.includes(n)),
+      },
 
       // Named so a missing panel reads as "this query failed" rather than "zero".
       degraded,

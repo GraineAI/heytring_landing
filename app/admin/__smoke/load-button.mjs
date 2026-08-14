@@ -70,7 +70,44 @@ const F = {
   health: { ok: true },
   intel: { ok: true, alerts: 0 },
 };
+// PostHog, with the day-to-day deltas the tiles annotate. Dates are stamped relative to now so
+// the fixture stays inside the 14-day window whenever this is run.
+const day = (back) => new Date(Date.now() - back * 86400000).toISOString().slice(0, 10);
+const posthog = {
+  ok: true, asOf: new Date().toISOString(), firstSeen: "2026-07-01T00:00:00Z", degraded: [],
+  active: { dau: 30, wau: 60, mau: 141, allTime: 169, avgDau: 15, stickiness: 21.3,
+            windowIsFullMonth: true, scope: "India", globalDau: 49, globalWau: 141, globalMau: 317 },
+  volume: { events30d: 60959, sessions: 2136, sessionsPerPerson: 15.15 },
+  series: [{ date: day(1), dau: 28, events: 900 }, { date: day(0), dau: 12, events: 300 }],
+  platform: [], topEvents: [], journey: [], customEvents: [], countries: [], screens: [], taps: [],
+  versions: [], errors: [], hourly: [], newVsReturning: [], devices: [], adoption: [], depth: [],
+  retention: [{ day: 0, people: 169, pct: 100 }, { day: 1, people: 67, pct: 39.6 }],
+  states: [{ state: "Haryana", people: 33, lat: 29.2, lon: 76.1, x: 0.4, y: 0.3 }],
+  funnel: { installed: 346, opened: 346, signedIn: 67, india: 169, total: 367, activation: 19.4,
+            installedIndia: 162, openedIndia: 162, signedInIndia: 65, activationIndia: 40.1 },
+  funnelByOs: [{ os: "Android", installed: 267, opened: 267, signedIn: 46, openRate: 100,
+                 signInRate: 17.2, lostAtOpen: 0, lostAtSignIn: 221 }],
+  shareLoop: { tapped: 3, completed: 2, referred: 2, redeemed: 0, completionRate: 66.7,
+               events: { tapped: ["share_call_tapped"], completed: ["share_call_completed"],
+                         referred: ["referral_share_completed", "referral_copy"],
+                         redeemed: ["referral_redeemed"] } },
+  lifecycle: [{ key: "ran_checkup", label: "Ran checkup", people: 30, events: ["checkup_verify_forwarding"] },
+              { key: "deleted", label: "Deleted account", people: 1, events: ["account_deleted"] }],
+  sessionShape: { eventsPerSession: 28.6, avgSecs: 295, medianSecs: 32 },
+  dailyNew: {
+    days: 14, degraded: [],
+    byEvent: {
+      checkup_verify_forwarding: [{ date: day(2), people: 1 }, { date: day(1), people: 2 }, { date: day(0), people: 5 }],
+      share_call_tapped: [{ date: day(1), people: 0 }, { date: day(0), people: 2 }],
+      account_deleted: [{ date: day(1), people: 0 }, { date: day(0), people: 0 }],
+    },
+    byState: { Haryana: [{ date: day(1), people: 1 }, { date: day(0), people: 4 }] },
+    byOsStep: { "Android|installed": [{ date: day(1), people: 3 }, { date: day(0), people: 9 }] },
+  },
+};
+
 const pick = (u) =>
+  u.includes("/posthog") ? posthog :
   u.includes("view=retention") ? cohorts
   : u.includes("view=metrics") ? F.metrics
   : u.includes("view=timeseries") ? F.timeseries
@@ -121,16 +158,18 @@ const run = async (name, breakUsers, breakNames) => {
   const unavailable = await pg.getByText("unavailable").count();
 
   const names = await pg.getByText("NAMES DID NOT LOAD").count();
+  // The day-to-day deltas: "+5 today" on the checkup tile, "+4" beside Haryana, "+9" on installs.
+  const deltas = await pg.getByText(/\+\d+ today/).count();
   const noNameYet = await pg.getByText("no name yet").count();
 
   const want = breakUsers ? alive && banner === 1 && unavailable > 0 && !errs.length
     // The claim under test: a broken lookup must NEVER render as "no name yet", because that
     // sentence is a statement about the user rather than about us.
     : breakNames ? alive && names === 1 && noNameYet === 0 && !errs.length
-    : alive && curve === 1 && banner === 0 && names === 0 && !errs.length;
+    : alive && curve === 1 && banner === 0 && names === 0 && deltas >= 2 && !errs.length;
 
   console.log(`${want ? "PASS" : "FAIL"}  ${name}`);
-  console.log(`      alive=${alive} curve=${curve} banner=${banner} unavailable=${unavailable} namesBanner=${names} "no name yet"=${noNameYet}`);
+  console.log(`      alive=${alive} curve=${curve} banner=${banner} unavailable=${unavailable} namesBanner=${names} "no name yet"=${noNameYet} deltas=${deltas}`);
   if (errs.length) console.log("      " + errs.join("\n      "));
   await b.close();
   return want;

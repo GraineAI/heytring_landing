@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { rolling, denseSlots } from "../lib/series";
+import { sumSeries, readout } from "../lib/daily";
 
 // Google's bundle is ~90KB and only renders when a key exists, so it is loaded
 // on demand rather than shipped to every admin page view.
@@ -424,7 +425,7 @@ function GoogleCanvas({ placed, maxP, sel, pick, onFail }) {
  * share of everyone. Selection is driven from one piece of state so the two views can never
  * disagree about what is selected.
  */
-function GeoMap({ states, countries, funnel }) {
+function GeoMap({ states, countries, funnel, dailyNew }) {
   const [sel, setSel] = useState(null);   // state name, or null for "all"
   const [mapFailed, setMapFailed] = useState(false);
   const useGoogle = !!MAPS_KEY && !mapFailed;
@@ -504,7 +505,24 @@ function GeoMap({ states, countries, funnel }) {
                 <span style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
                   <span style={{ color: MUTED, marginRight: 6 }}>{i + 1}</span>{s.state}
                 </span>
-                <span style={{ color: on ? "#F4532E" : SUB, fontWeight: on ? 700 : 400 }}>{s.people}</span>
+                <span style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                  {/* Which states are still ADDING people, which is not the same question as
+                      which states are biggest. A leaderboard sorted by a 90-day total can sit
+                      unchanged for weeks while the growth quietly moves somewhere else. */}
+                  {(() => {
+                    const t = dailyNew?.byState?.[s.state];
+                    const today = t?.[t.length - 1]?.people || 0;
+                    const week = t ? t.slice(-7).reduce((a, r) => a + r.people, 0) : 0;
+                    if (!t) return null;
+                    return (
+                      <span style={{ fontSize: 10.5, color: today > 0 ? "#3FBF7F" : "#6b6b6b" }}
+                            title={`${week} new in the last 7 days`}>
+                        {today > 0 ? `+${today}` : week > 0 ? `+${week}/7d` : "—"}
+                      </span>
+                    );
+                  })()}
+                  <span style={{ color: on ? "#F4532E" : SUB, fontWeight: on ? 700 : 400 }}>{s.people}</span>
+                </span>
               </button>
             );
           })}
@@ -521,6 +539,65 @@ function GeoMap({ states, countries, funnel }) {
   );
 }
 
+
+
+/* ─────────────────────────── day-to-day increase ─────────────────────────── */
+
+/**
+ * "+3 today", with the last fortnight's daily shape behind it.
+ *
+ * Every total on this page is a 90-day figure. Correct, and completely silent about direction:
+ * "Ran checkup — 30" reads identically on the day it doubles and on the day it stops moving. The
+ * delta is the part a reader can act on, and the fourteen bars are there so one good day is not
+ * mistaken for a trend.
+ *
+ * WHAT THE NUMBER MEANS: people reaching this for the FIRST time that day — so it is exactly the
+ * amount the total beside it went up by. Counting everyone active that day would include returning
+ * users, and the tile would claim +8 while the number above it moved by 3.
+ *
+ * @param series   [{date, people}] oldest → newest, zero-filled by the API
+ * @param approx   the tile sums several events, so a person who did two of them counts twice
+ * @param missing  the delta query failed — say so rather than draw a confident +0
+ */
+function DayDelta({ series, approx, missing }) {
+  if (missing) {
+    return <div style={{ fontSize: 10, color: "#8C7C73", marginTop: 3 }}>delta unavailable</div>;
+  }
+  const r = readout(series);
+  if (!r) return null;
+  const { today, yesterday: prev, week } = r;
+  const max = Math.max(1, ...series.map((x) => x.people));
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: today > 0 ? "#3FBF7F" : "#8C7C73" }}>
+          {today > 0 ? `${approx ? "≈+" : "+"}${today} today` : "none today"}
+        </span>
+        <span style={{ fontSize: 10.5, color: "#8C7C73" }}>
+          {prev > 0 ? `${prev} yest` : "0 yest"} · {week} in 7d
+        </span>
+      </div>
+      {/* Fourteen days. A single "+3" cannot tell you whether three is a good day here. */}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 1.5, height: 16, marginTop: 3 }}
+           title={series.map((r) => `${r.date}: +${r.people}`).join("\n")}>
+        {series.map((r, i) => (
+          <div key={r.date} style={{
+            flex: 1, borderRadius: 1,
+            height: `${Math.max(r.people > 0 ? 12 : 6, (r.people / max) * 100)}%`,
+            background: r.people === 0 ? "rgba(255,255,255,.10)"
+                      : i === series.length - 1 ? "#3FBF7F" : "rgba(63,191,127,.45)",
+          }} />
+        ))}
+      </div>
+      {approx && (
+        <div style={{ fontSize: 9.5, color: "#8C7C73", marginTop: 2 }}>
+          ≈ sums {">"}1 event; someone who did both counts twice
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ─────────────────────────── shared panel primitives ─────────────────────────── */
 
@@ -623,7 +700,7 @@ function Retention({ rows }) {
 }
 
 /** Install → open → sign-in, per platform, with the losses named. */
-function DropOff({ rows }) {
+function DropOff({ rows, dailyNew }) {
   return (
     <div style={{ ...CARD, flex: "2 1 420px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Drop-off by platform</div>
@@ -643,6 +720,31 @@ function DropOff({ rows }) {
               </div>
             ))}
           </div>
+          {/* TODAY, PER STEP. A 90-day funnel says where people were lost since June; it cannot
+              say whether yesterday's build fixed it. These are people reaching each step for the
+              first time in the last 24 hours, so they are the amount each bar above grew by. */}
+          {(() => {
+            const step = (k) => {
+              const t = dailyNew?.byOsStep?.[`${r.os}|${k}`];
+              return { today: t?.[t.length - 1]?.people || 0,
+                       week: t ? t.slice(-7).reduce((a, x) => a + x.people, 0) : 0, has: !!t };
+            };
+            const [ins, opn, sin] = [step("installed"), step("opened"), step("signed_in")];
+            if (!ins.has && !opn.has && !sin.has) return null;
+            return (
+              <div style={{ display: "flex", gap: 14, marginTop: 5, fontSize: 10.5, color: "#8C7C73" }}>
+                {[["installed", ins], ["opened", opn], ["signed in", sin]].map(([label, v]) => (
+                  <span key={label}>
+                    {label}{" "}
+                    <b style={{ color: v.today > 0 ? "#3FBF7F" : "#6b6b6b" }}>
+                      {v.today > 0 ? `+${v.today}` : "+0"}
+                    </b>
+                    <span> today · {v.week}/7d</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
           <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6 }}>
             {r.openRate == null ? "—" : `${r.openRate}% opened`}
             {r.lostAtOpen ? ` · lost ${r.lostAtOpen} before first open` : ""}
@@ -748,7 +850,7 @@ function Depth({ rows }) {
  * top of the funnel, with step-to-step conversion and the drop between them. The later steps read 0
  * until a build carrying the new events ships, which is shown as "awaiting build" rather than hidden.
  */
-function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
+function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
   // The PostHog SDK is already in the shipped binary, so the granular activation events flow over
   // OTA — they are NOT waiting on a native build. They begin at 0 only until the OTA that carries
   // them propagates to installed devices (a day or so as apps reopen), then self-populate. Nothing
@@ -831,16 +933,21 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: INK, margin: "16px 0 8px" }}>Word-of-mouth loop <span style={{ color: MUTED, fontWeight: 500 }}>· post-call WhatsApp share · 90d</span></div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {[
-              ["Opened share sheet", shareLoop.tapped, MUTED],
-              ["Actually sent", shareLoop.completed, "#3FBF7F"],
-              ["Referred a friend", shareLoop.referred, MUTED],
-              ["Redeemed", shareLoop.redeemed, "#FFB454"],
-            ].map(([label, n, c]) => (
+              ["Opened share sheet", shareLoop.tapped, MUTED, "tapped"],
+              ["Actually sent", shareLoop.completed, "#3FBF7F", "completed"],
+              ["Referred a friend", shareLoop.referred, MUTED, "referred"],
+              ["Redeemed", shareLoop.redeemed, "#FFB454", "redeemed"],
+            ].map(([label, n, c, step]) => {
+              const evs = shareLoop.events?.[step] || [];
+              return (
               <div key={label} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, flex: "1 1 140px" }}>
                 <div style={{ color: MUTED }}>{label}</div>
                 <div style={{ color: c, fontSize: 18, fontWeight: 700, marginTop: 2 }}>{Number(n || 0).toLocaleString()}</div>
+                <DayDelta series={sumSeries(dailyNew?.byEvent, evs)} approx={evs.length > 1}
+                          missing={dailyNew?.degraded?.includes("newByEventDay")} />
               </div>
-            ))}
+              );
+            })}
           </div>
           <div style={{ marginTop: 6, fontSize: 11.5, color: "#8C7C73" }}>
             {shareLoop.tapped > 0
@@ -856,6 +963,8 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop }) {
           <div key={l.key} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, flex: "1 1 140px" }}>
             <div style={{ color: MUTED }}>{l.label}</div>
             <div style={{ color: l.key === "deleted" && l.people > 0 ? "#FF7B72" : INK, fontSize: 18, fontWeight: 700, marginTop: 2 }}>{l.people.toLocaleString()}</div>
+            <DayDelta series={sumSeries(dailyNew?.byEvent, l.events)} approx={(l.events || []).length > 1}
+                      missing={dailyNew?.degraded?.includes("newByEventDay")} />
           </div>
         ))}
       </div>
@@ -1333,8 +1442,9 @@ export default function ProductMetrics() {
       <AIStrategist d={d} tick={updatedAt} />
       <ActionItems d={d} />
       {d.funnel && <TrueUsers f={d.funnel} />}
-      {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} otpAutofillRate={d.otpAutofillRate} shareLoop={d.shareLoop} />}
-      {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} />}
+      {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} otpAutofillRate={d.otpAutofillRate}
+                                shareLoop={d.shareLoop} dailyNew={d.dailyNew} />}
+      {d.states && <GeoMap states={d.states} countries={d.countries} funnel={d.funnel} dailyNew={d.dailyNew} />}
 
       {/* A failed query returns [], which renders as a confident zero. Name the
           casualties instead — "we could not fetch this" and "this is genuinely
@@ -1348,7 +1458,7 @@ export default function ProductMetrics() {
       <h2 style={H2}>Retention &amp; drop-off</h2>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {!!d.retention?.length && <Retention rows={d.retention} />}
-        {!!d.funnelByOs?.length && <DropOff rows={d.funnelByOs} />}
+        {!!d.funnelByOs?.length && <DropOff rows={d.funnelByOs} dailyNew={d.dailyNew} />}
       </div>
 
       <h2 style={H2}>Engagement</h2>
