@@ -1514,6 +1514,44 @@ export default function Admin() {
                        lost track of whose activity they were reading. As an
                        expanded row it stays attached to the person, and the
                        coral left edge ties it to the row above. */
+                    /* The LOG form had the same bug as the activity panel and I
+                       only fixed one of them: it still rendered after </tbody>,
+                       so writing a note about row 3 happened at the bottom of a
+                       43-row table. Same treatment — under the person. */
+                    noteFor === u.phone ? (
+                      <tr key={u.phone + ":log"}>
+                        <td colSpan={7} style={{ padding: 0 }}>
+                          <div style={{ ...S.card, margin: "0 0 8px", padding: 16,
+                                        borderLeft: "3px solid #7FD1B9", borderRadius: "0 14px 14px 0" }}>
+                <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
+                  <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>
+                    What did {(lifecycle.users.find((x) => x.phone === noteFor)?.name) || noteFor} say?
+                  </div>
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Their words, not your summary. What did they DO, and what happened?"
+                    rows={3}
+                    style={{ width: "100%", marginTop: 8, background: "rgba(255,255,255,.05)",
+                             border: "1px solid rgba(255,255,255,.14)", borderRadius: 10,
+                             color: "#e6edf3", fontSize: 13.5, padding: 10, fontFamily: "inherit" }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                    {[["reached", "Reached"], ["no_answer", "No answer"], ["callback_later", "Call back"],
+                      ["wrong_number", "Wrong number"], ["refused", "Refused"]].map(([k, label]) => (
+                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
+                              onClick={() => saveNote(noteFor, k, undefined)}>{label}</button>
+                    ))}
+                    <div style={{ flex: 1 }} />
+                    {[["love", "Loves it"], ["ok", "Fine"], ["frustrated", "Frustrated"], ["churned", "Gone"]].map(([k, label]) => (
+                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
+                              onClick={() => saveNote(noteFor, undefined, k)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null,
                     personFor === u.phone ? (
                       <tr key={u.phone + ":activity"}>
                         <td colSpan={7} style={{ padding: 0 }}>
@@ -1697,33 +1735,6 @@ export default function Admin() {
                   {/* nothing here: the log form is rendered inline below each row via noteFor */}
                 </tbody>
               </table>
-              {noteFor && (
-                <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
-                  <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>
-                    What did {(lifecycle.users.find((x) => x.phone === noteFor)?.name) || noteFor} say?
-                  </div>
-                  <textarea
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Their words, not your summary. What did they DO, and what happened?"
-                    rows={3}
-                    style={{ width: "100%", marginTop: 8, background: "rgba(255,255,255,.05)",
-                             border: "1px solid rgba(255,255,255,.14)", borderRadius: 10,
-                             color: "#e6edf3", fontSize: 13.5, padding: 10, fontFamily: "inherit" }} />
-                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                    {[["reached", "Reached"], ["no_answer", "No answer"], ["callback_later", "Call back"],
-                      ["wrong_number", "Wrong number"], ["refused", "Refused"]].map(([k, label]) => (
-                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
-                              onClick={() => saveNote(noteFor, k, undefined)}>{label}</button>
-                    ))}
-                    <div style={{ flex: 1 }} />
-                    {[["love", "Loves it"], ["ok", "Fine"], ["frustrated", "Frustrated"], ["churned", "Gone"]].map(([k, label]) => (
-                      <button key={k} disabled={noteBusy} style={{ ...S.ghost, padding: "5px 11px", fontSize: 12.5 }}
-                              onClick={() => saveNote(noteFor, undefined, k)}>{label}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
           {!lifecycle && !lcBusy && !lcErr && (
