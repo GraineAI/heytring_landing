@@ -1000,13 +1000,29 @@ export default function Admin() {
                       ["redeemed", ref.redemptions]].map(([label, v], i, arr) => {
                       const max = Math.max(...arr.map(([, x]) => Number(x) || 0)) || 1;
                       const prev = i > 0 ? Number(arr[i - 1][1]) || 0 : null;
-                      const conv = prev ? Math.round((Number(v) / prev) * 1000) / 10 : null;
+                      /**
+                       * A STEP RATE IS ONLY A RATE IF THE STEPS SHARE A POPULATION.
+                       *
+                       * These three numbers come from three systems: shares and redemptions from
+                       * Apollo, link opens from THIS site's click log. A friend who installs
+                       * straight from the store after a WhatsApp invite redeems in the app and
+                       * never appears in the click log — so redemptions routinely exceed opens,
+                       * and this card was rendering "2500%" as if that were a conversion rate.
+                       *
+                       * Above 100% is not a surprising number, it is proof the denominator does
+                       * not contain the numerator. Show that instead of a figure someone will
+                       * paste into a deck.
+                       */
+                      const rawConv = prev ? Math.round((Number(v) / prev) * 1000) / 10 : null;
+                      const conv = rawConv != null && rawConv <= 100 ? rawConv : null;
+                      const impossible = rawConv != null && rawConv > 100;
                       return (
                         <React.Fragment key={label}>
                           {i > 0 && (
-                            <div style={{ color: conv != null && conv < 10 ? "#F4532E" : "#5b6673",
-                                          fontSize: 10.5, padding: "0 6px 14px" }}>
-                              {conv != null ? `${conv}%` : "—"}
+                            <div style={{ color: impossible ? "#E4926F" : conv != null && conv < 10 ? "#F4532E" : "#5b6673",
+                                          fontSize: 10.5, padding: "0 6px 14px" }}
+                                 title={impossible ? "These two steps are measured by different systems over different populations, so the ratio is not a conversion rate." : undefined}>
+                              {impossible ? "n/a" : conv != null ? `${conv}%` : "—"}
                             </div>
                           )}
                           <div style={{ flex: 1, textAlign: "center" }}>
@@ -1020,10 +1036,23 @@ export default function Admin() {
                               {v ?? "—"}
                             </div>
                             <div style={{ color: "#5b6673", fontSize: 10 }}>{label}</div>
+                            {/* WHERE EACH NUMBER COMES FROM, on the number itself. Three steps
+                                measured by two different systems is the whole reason this card
+                                could show an impossible rate, and a reader cannot see that from
+                                the bars alone. */}
+                            <div style={{ color: "#3f4854", fontSize: 9 }}>
+                              {i === 1 ? "this site" : "app"}
+                            </div>
                           </div>
                         </React.Fragment>
                       );
                     })}
+                  </div>
+                  <div style={{ color: "#5b6673", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                    Shares and redemptions are counted in the app; link opens only on this website.
+                    Someone who installs straight from the store after a WhatsApp invite redeems in
+                    the app and never appears in the middle step — so link opens is a floor, and a
+                    step rate is shown only where one step genuinely contains the next.
                   </div>
                   {ref.loop_top.shares == null || ref.loop_top.shares === 0 ? (
                     <div style={{ color: "#E7B75A", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>

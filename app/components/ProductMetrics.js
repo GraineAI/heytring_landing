@@ -140,6 +140,94 @@ function Chart({ series }) {
  * emulators and App Store review bots; on an India-only login-required app that roughly doubles the
  * number. The honest read is the funnel: installed → signed in, and India vs test-infrastructure.
  */
+/**
+ * WHICH POPULATION AM I LOOKING AT — the label this page has never carried.
+ *
+ * Almost every complaint about "I can't read this dashboard" turns out to be this: the same word
+ * means three different sets of people in three different cards, and nothing on screen says so. A
+ * number without its population, source and window is not a number you can act on, and the reader
+ * is left doing the reconciliation in their head every time.
+ */
+function Scope({ people, source, window: win }) {
+  const parts = [people, source, win].filter(Boolean);
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "4px 0 10px" }}>
+      {parts.map((p, i) => (
+        <span key={i} style={{
+          fontSize: 10.5, fontWeight: 600, letterSpacing: ".02em", color: MUTED,
+          border: "1px solid rgba(255,255,255,.10)", borderRadius: 999, padding: "2px 8px",
+        }}>{p}</span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * THE RECONCILIATION. This page reports activation three times — and all three are correct.
+ *
+ * 90.8% is of people who completed a signup. 45.7% is of India installs. 21.9% is of every install
+ * including the CI, emulator and store-review traffic that installs, opens once and never signs in.
+ * Each answers a different question, and a reader who meets them in three different cards with no
+ * connecting sentence reasonably concludes the dashboard is broken.
+ *
+ * Put side by side with their denominators named, the spread stops being a contradiction and
+ * becomes the most informative thing on the page: the distance between 45.7% and 21.9% IS the test
+ * cohort, and the distance between 90.8% and 45.7% is everyone who installs and never starts.
+ */
+function Reconcile({ f }) {
+  const rows = [
+    {
+      k: "Of everyone who started signing up",
+      v: f.activationOfStarters,
+      d: "people who requested a code",
+      why: "How good the OTP screen is once someone commits. The narrowest denominator, so the flattering number — it excludes everyone who never tried.",
+    },
+    {
+      k: "Of India installs",
+      v: f.activationIndia,
+      d: "installs geolocated to India",
+      why: "The honest product number. Real people who installed, against the ones who got signed in.",
+    },
+    {
+      k: "Of all installs",
+      v: f.activation,
+      d: "every install, test infrastructure included",
+      why: "Depressed by CI, emulators and store review, which install and open but never sign in. Useful only as the size of that distortion.",
+    },
+  ].filter((r) => r.v != null);
+  if (rows.length < 2) return null;
+  return (
+    <div style={{ ...CARD, marginTop: 12 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4 }}>
+        Why activation appears three times <span style={{ color: MUTED, fontWeight: 500 }}>· and why all three are right</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: SUB, marginBottom: 12, lineHeight: 1.5 }}>
+        Each card below this one measures activation against a different set of people. The numbers
+        disagree because the denominators disagree — not because anything is broken. Read the middle
+        one as the product number.
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {rows.map((r, i) => (
+          <div key={r.k} style={{
+            display: "flex", gap: 12, alignItems: "baseline", padding: "10px 12px", borderRadius: 10,
+            background: i === 1 ? "rgba(63,191,127,.08)" : "rgba(255,255,255,.03)",
+            border: i === 1 ? "1px solid rgba(63,191,127,.28)" : "1px solid rgba(255,255,255,.06)",
+          }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: i === 1 ? "#3FBF7F" : "#fff", minWidth: 72, fontVariantNumeric: "tabular-nums" }}>
+              {r.v}%
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{r.k}</div>
+              <div style={{ fontSize: 11.5, color: MUTED }}>denominator: {r.d}</div>
+              <div style={{ fontSize: 12, color: SUB, marginTop: 2, lineHeight: 1.5 }}>{r.why}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TrueUsers({ f }) {
   const testInfra = Math.max(0, (f.total || 0) - (f.india || 0));
   // Prefer the India-scoped rate; fall back to the global one only while the payload predates it,
@@ -159,6 +247,7 @@ function TrueUsers({ f }) {
       <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4 }}>
         Who’s actually there <span style={{ color: MUTED, fontWeight: 500 }}>· real humans, not the MAU headline</span>
       </div>
+      <Scope people="India installs" source="PostHog" window="90 days" />
       <div style={{ fontSize: 12.5, color: SUB, marginBottom: 14, lineHeight: 1.5 }}>
         MAU counts anyone who opened the app — CI, emulators and store-review bots included. For a
         login-required, India-only app the number that means <strong style={{ color: INK }}>a real
@@ -704,6 +793,8 @@ function DropOff({ rows, dailyNew }) {
   return (
     <div style={{ ...CARD, flex: "2 1 420px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Drop-off by platform</div>
+      {/* GLOBAL, unlike the card above — which is exactly why its install counts are larger. */}
+      <Scope people="all installs incl. test infra" source="PostHog" window="90 days" />
       <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Installed → opened → signed in · 90 days</div>
       {!rows.length && <div style={{ fontSize: 13, color: MUTED, marginTop: 12 }}>No install events yet.</div>}
       {rows.map((r) => (
@@ -862,7 +953,8 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
   return (
     <div style={{ ...CARD, marginTop: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User lifecycle <span style={{ color: MUTED, fontWeight: 500 }}>· code requested → signed in → armed → activated → retained · India · 90d</span></div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>User lifecycle <span style={{ color: MUTED, fontWeight: 500 }}>· code requested → signed in → armed → activated → retained</span></div>
+        <Scope people="India installs" source="PostHog events" window="90 days" />
         {anyPending && <div style={{ fontSize: 11.5, color: "#8C7C73" }}>grey steps ship their event in the next release</div>}
       </div>
       <div style={{ marginTop: 14 }}>
@@ -1447,6 +1539,7 @@ export default function ProductMetrics() {
 
       <AIStrategist d={d} tick={updatedAt} />
       <ActionItems d={d} />
+      {d.funnel && <Reconcile f={d.funnel} />}
       {d.funnel && <TrueUsers f={d.funnel} />}
       {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} otpAutofillRate={d.otpAutofillRate}
                                 shareLoop={d.shareLoop} dailyNew={d.dailyNew} />}
