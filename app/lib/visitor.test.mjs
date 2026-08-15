@@ -105,5 +105,25 @@ ok(/clicks_attributed/.test(dataRoute) && /clicks_total/.test(dataRoute),
 ok(/clicksAttributable/.test(admin) && /clickCoverage/.test(admin),
    "the page must withhold a people-count for clicks when coverage is too low to mean anything");
 
+// ── NO IMPOSSIBLE PERCENTAGES ────────────────────────────────────────────────────────────────
+// This dashboard has now produced "2500%" (referral loop) and "180.4%" (activation of starters),
+// and both had the same cause: a ratio whose numerator and denominator come from different
+// populations. Every stage on this page is an independent uniqIf() count, never a true funnel, so
+// a later step CAN exceed an earlier one — and printing that as a conversion rate states something
+// arithmetically impossible on a page whose only job is to be trusted.
+//
+// Every place that divides one stage by another must therefore refuse to render above 100%.
+const ph = read("app/api/admin/posthog/route.js");
+ok(/pct > 100 \? null : pct/.test(ph),
+   'activationOfStarters must return null rather than a rate above 100% — signed_in and ' +
+   'code_requested are independent counts, so the denominator can be smaller than the numerator');
+const pm = read("app/components/ProductMetrics.js");
+ok(/const grew =/.test(pm) && /!grew/.test(pm),
+   'the lifecycle funnel must detect a stage that grew and suppress the conversion/loss figures ' +
+   'rather than printing "180% of prev · -45 lost"');
+const churn = read("app/api/admin/churn/route.js");
+ok(/pct <= 100/.test(churn),
+   'the referral open→redeem rate must only be emitted when arithmetically possible');
+
 console.log(`  ${pass}/${pass + fail} visitor-capture checks passed`);
 if (fail) process.exit(1);

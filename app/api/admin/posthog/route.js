@@ -682,7 +682,24 @@ async function build() {
                 activationOfStarters: (() => {
                   const g = (k) => jSteps.find((x) => x.key === k)?.people || 0;
                   const started = g("code_requested"), done = g("signed_in");
-                  return started ? Math.round((done / started) * 1000) / 10 : null;
+                  if (!started) return null;
+                  const pct = Math.round((done / started) * 1000) / 10;
+                  /**
+                   * ABOVE 100% MEANS THESE ARE NOT ONE POPULATION — the same error the referral
+                   * card used to make at 2500%, and I reintroduced it here at 180%.
+                   *
+                   * `code_requested` counts people who fired login_otp_requested; `signed_in`
+                   * counts login_success. They are two independent uniqIf() counts over the same
+                   * window, NOT a funnel — so anyone who signed in without that first event ever
+                   * being recorded (an older build, a path that skips it) lands in the numerator
+                   * and never in the denominator. 101 signed in against 56 who "started" is not a
+                   * 180% conversion rate; it is proof the denominator is incomplete.
+                   *
+                   * Returning null is right: the card renders only the rows it has, so the honest
+                   * two appear and this one is simply absent — better than a number that
+                   * contradicts arithmetic on a page whose whole purpose is to be trusted.
+                   */
+                  return pct > 100 ? null : pct;
                 })() },
       countries: (countries || []).map(([c, p]) => ({ country: c, people: Number(p) || 0 })),
 

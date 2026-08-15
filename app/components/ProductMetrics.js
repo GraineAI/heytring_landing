@@ -961,9 +961,25 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
         {steps.map((s, i) => {
           const pending = PENDING.has(s.key) && s.people === 0;
           const pct = Math.round((s.people / top) * 100);
-          // conversion + absolute drop measured against the last step that HAS data
-          const conv = !pending && lastMeasured ? Math.round((s.people / Math.max(1, lastMeasured.people)) * 100) : null;
-          const dropped = !pending && lastMeasured ? lastMeasured.people - s.people : null;
+          /**
+           * A STEP CANNOT CONVERT ABOVE 100%, AND THIS ONE WAS PRINTING 180%.
+           *
+           * These stages are independent uniqIf() counts, not a true funnel: each asks "how many
+           * people fired this event", never "how many who did the previous one went on to do this".
+           * So a later stage can legitimately exceed an earlier one — someone who signed in without
+           * login_otp_requested ever being recorded (an older build, or a path that skips it) is
+           * counted at "signed in" and not at "code requested".
+           *
+           * Printing that as "180% of prev · −45 lost" is worse than printing nothing: it states a
+           * conversion rate that cannot exist, and a NEGATIVE loss shown as a loss. Where a stage
+           * grew, say so — the growth is real information (it means the earlier event is
+           * under-recorded), and it is the flag that tells someone to go and fix instrumentation
+           * rather than onboarding.
+           */
+          const grew = !pending && lastMeasured ? s.people > lastMeasured.people : false;
+          const conv = !pending && lastMeasured && !grew
+            ? Math.round((s.people / Math.max(1, lastMeasured.people)) * 100) : null;
+          const dropped = !pending && lastMeasured && !grew ? lastMeasured.people - s.people : null;
           if (!pending) lastMeasured = s;
           return (
             <div key={s.key} style={{ marginBottom: 11 }}>
@@ -975,6 +991,11 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
                   <span>
                     <span style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>{s.people.toLocaleString()}</span>
                     {conv != null && <span style={{ color: conv < 60 ? "#FFB454" : MUTED }}> · {conv}% of prev</span>}
+                    {grew && (
+                      <span style={{ color: "#E4926F" }} title="This stage counts more people than the one before it, which a funnel cannot do. These are independent event counts, so the earlier step is under-recorded — an instrumentation gap, not a conversion.">
+                        {" "}· more than the step before — earlier event under-recorded
+                      </span>
+                    )}
                     {dropped != null && dropped > 0 && <span style={{ color: "#FF7B72" }}> · −{dropped.toLocaleString()} lost</span>}
                   </span>
                 )}
