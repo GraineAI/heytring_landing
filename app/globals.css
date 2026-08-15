@@ -1315,6 +1315,81 @@ p { margin: 0; }
   color: var(--muted);
   max-width: 34ch;
 }
+
+/* ============================================================
+   SOCIAL PROOF — the stats strip and the wall of quotes.
+
+   Both sections remove themselves when there is nothing real to put in them
+   (app/lib/socialProof.js), so these rules describe the full state only.
+   ============================================================ */
+
+.proof { background: var(--cream); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.proof__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: clamp(24px, 4vw, 56px);
+}
+.proof__item { padding-top: 18px; border-top: 2px solid var(--ink); }
+.proof__value {
+  font-size: clamp(34px, 4.6vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--ink);
+  /* The row must not jog sideways when a figure is updated. */
+  font-variant-numeric: tabular-nums;
+}
+.proof__label {
+  margin-top: 8px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.testimonials { background: var(--bg-2); }
+.testimonials__grid {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(18px, 2.4vw, 28px);
+}
+.quote {
+  margin: 0;
+  padding: 26px 26px 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.quote blockquote {
+  margin: 0;
+  font-size: clamp(16px, 1.5vw, 18px);
+  line-height: 1.58;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  /* No decorative quote marks. The card already says this is a quotation, and a 60px
+     curly comma would be the loudest thing in a section whose credibility rests on
+     looking like it was not designed by us. */
+}
+.quote figcaption {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13.5px;
+}
+.quote__name { font-weight: 650; color: var(--ink); }
+.quote__role { color: var(--muted); }
+.quote__via  { color: var(--muted-3); font-size: 12px; margin-left: auto; }
+
+@media (max-width: 720px) {
+  .testimonials__grid { grid-template-columns: 1fr; }
+  .proof__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+}
+
 @media (max-width: 720px) {
   .pillars__grid { grid-template-columns: 1fr; gap: 30px; }
   .story { padding: 72px 0 64px; }

@@ -5,7 +5,9 @@ import Hero from "./components/Hero";
 import Story from "./components/Story";
 import VideoSection from "./components/VideoSection";
 import Pillars from "./components/Pillars";
+import Proof from "./components/Proof";
 import VoiceClone from "./components/VoiceClone";
+import Testimonials from "./components/Testimonials";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
 import Footer from "./components/Footer";
@@ -29,7 +31,9 @@ export default function Home() {
             <Story />
             <VideoSection />
             <Pillars />
+            <Proof />
             <VoiceClone />
+            <Testimonials />
             <Faq />
             <FinalCta />
           </main>

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node app/lib/csv.test.mjs && node app/lib/daily.test.mjs && node app/lib/series.test.mjs && node app/admin/components/range.test.mjs && node app/admin/components/spine.test.mjs && node app/admin/tdz.test.mjs && node app/api/admin/contract.test.mjs"
+    "test": "node app/lib/csv.test.mjs && node app/lib/daily.test.mjs && node app/lib/socialProof.test.mjs && node app/lib/series.test.mjs && node app/admin/components/range.test.mjs && node app/admin/components/spine.test.mjs && node app/admin/tdz.test.mjs && node app/api/admin/contract.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
