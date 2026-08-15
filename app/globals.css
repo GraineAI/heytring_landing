@@ -1317,6 +1317,135 @@ p { margin: 0; }
 }
 
 /* ============================================================
+   APPBENTO — real app cards, in a grid that re-lays itself out.
+
+   Rebuilt, like PhoneStory: the component outlived its stylesheet. Eleven
+   classes had no rules, so the section rendered as a column of unstyled text.
+
+   TWO LAYOUTS, ON PURPOSE. GSAP Flip morphs between .bento and .bento--final
+   by measuring both, so the second class is not decoration — it is the other
+   half of the animation. If the two layouts are ever made identical the Flip
+   silently becomes a no-op, which looks exactly like the animation being
+   broken. They must differ.
+   ============================================================ */
+
+.bento-wrap { display: flex; flex-direction: column; gap: 34px; }
+.head--center { text-align: center; }
+.head--center h2 {
+  margin-top: 12px;
+  font-size: clamp(30px, 3.8vw, 46px);
+  font-weight: 700; letter-spacing: -0.035em; line-height: 1.08; color: var(--ink);
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 156px;
+  gap: 14px;
+}
+/* Layout A — the live call dominates. */
+.bento__item--coral { grid-column: span 2; grid-row: span 2; }
+.bento__item:nth-child(4) { grid-column: span 2; }
+
+/* Layout B — the one Flip morphs to. Attention moves off the call and onto
+   the outcome; the coral card shrinks to a peer and the wrap-up leads. */
+.bento--final .bento__item--coral { grid-column: span 1; grid-row: span 1; }
+.bento--final .bento__item:nth-child(4) { grid-column: span 1; }
+.bento--final .bento__item:nth-child(5) { grid-column: span 2; grid-row: span 2; }
+.bento--final .bento__item:nth-child(3) { grid-column: span 2; }
+
+.bento__item {
+  position: relative; overflow: hidden;
+  padding: 18px; border-radius: var(--radius-card);
+  background: var(--ink-card); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  display: flex; flex-direction: column;
+}
+.bento__item--coral {
+  background: linear-gradient(150deg, #F4532E 0%, #C4380F 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.b-k {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.b-live {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  padding: 5px 10px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22); color: #fff;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+}
+.b-live i {
+  width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  animation: ps-blink 1.2s steps(1, end) infinite;
+}
+.b-t {
+  margin-top: 10px;
+  font-size: 18px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.24;
+}
+.b-s { margin-top: 6px; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, 0.62); }
+.bento__item--coral .b-s { color: rgba(255, 255, 255, 0.86); }
+
+.b-eq { margin-top: auto; padding-top: 12px; display: flex; align-items: flex-end; gap: 4px; height: 30px; }
+.b-eq span {
+  flex: 1; max-width: 6px; border-radius: 2px; background: rgba(255, 255, 255, 0.85);
+  animation: ps-eq 1s ease-in-out infinite;
+}
+.b-eq span:nth-child(2) { animation-delay: 0.12s; }
+.b-eq span:nth-child(3) { animation-delay: 0.24s; }
+.b-eq span:nth-child(4) { animation-delay: 0.36s; }
+.b-eq span:nth-child(5) { animation-delay: 0.48s; }
+.b-eq span:nth-child(6) { animation-delay: 0.60s; }
+.b-eq span:nth-child(odd)  { height: 55%; }
+.b-eq span:nth-child(even) { height: 90%; }
+
+.b-chip {
+  margin-top: 12px; align-self: flex-start;
+  padding: 7px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.b-bar { margin-top: auto; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.b-bar span { display: block; height: 100%; width: 68%; border-radius: 999px; background: var(--coral-hot); }
+.b-row { display: flex; align-items: center; gap: 12px; }
+
+@media (max-width: 939px) {
+  /* Below the Flip breakpoint the component never animates, so the grid just
+     has to be a good grid. Every span resets or the cards tile unevenly. */
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
+  .bento__item, .bento__item--coral,
+  .bento__item:nth-child(3), .bento__item:nth-child(4), .bento__item:nth-child(5) {
+    grid-column: auto; grid-row: auto; min-height: 150px;
+  }
+}
+@media (max-width: 560px) { .bento { grid-template-columns: 1fr; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .b-live i, .b-eq span { animation: none; }
+}
+
+/* ── small repairs from the same sweep ─────────────────────────────────
+   Both of these are classes the markup applies and the stylesheet forgot. */
+
+/* The mascot's eyes. Without this the pupils are static dots — the blink is
+   what makes Ring read as a character rather than a logo. */
+.pupil { transform-origin: center; animation: blink 5.2s ease-in-out infinite; }
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.1); }
+}
+@media (prefers-reduced-motion: reduce) { .pupil { animation: none; } }
+
+/* The legal pages render the nav in its scrolled state permanently — they have
+   no hero for it to sit over, so it needs the surface it normally earns. */
+.nav.is-scrolled {
+  background: var(--card);
+  border-color: var(--line);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+
+/* ============================================================
    PHONESTORY — the phone that answers a call while you watch.
 
    Rebuilt. The component survived an earlier cut of the landing page but its

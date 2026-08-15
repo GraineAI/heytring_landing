@@ -5,6 +5,7 @@ import Hero from "./components/Hero";
 import Story from "./components/Story";
 import PhoneStory from "./components/PhoneStory";
 import VideoSection from "./components/VideoSection";
+import AppBento from "./components/AppBento";
 import Pillars from "./components/Pillars";
 import Proof from "./components/Proof";
 import VoiceClone from "./components/VoiceClone";
@@ -30,6 +31,7 @@ export default function Home() {
             <Hero />
             <Story />
             <PhoneStory />
+            <AppBento />
             <VideoSection />
             <Pillars />
             <Proof />
