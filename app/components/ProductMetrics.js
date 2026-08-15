@@ -1425,10 +1425,16 @@ export default function ProductMetrics() {
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Tile k="DAU" v={a.dau} sub={a.globalDau != null ? `${a.globalDau} incl. test` : "last 24h"} accent={DAU_C} />
+        {/* "DAU" here is a ROLLING last-24-hours unique count, not a calendar day. Worth saying
+            where it is read: on a product this size the two differ by a lot on any day with an
+            evening spike, and the distinction is why stickiness uses Avg DAU rather than this. */}
+        <Tile k="DAU" v={a.dau} sub={a.globalDau != null ? `${a.globalDau} incl. test · rolling 24h` : "rolling 24h"} accent={DAU_C} />
         <Tile k="WAU" v={a.wau} sub={a.globalWau != null ? `${a.globalWau} incl. test` : "last 7 days"} />
         <Tile k="MAU" v={a.mau} sub={a.globalMau != null ? `${a.globalMau} incl. test` : "last 30 days"} />
-        <Tile k="Stickiness" v={`${a.stickiness}%`} sub="DAU ÷ MAU" />
+        {/* Avg DAU ÷ MAU — the standard definition. It used to divide the single rolling-24h
+            figure by MAU, which moved with whatever happened yesterday and read about double the
+            truth. The label now names what it actually divides. */}
+        <Tile k="Stickiness" v={`${a.stickiness}%`} sub={a.stickinessBasis ? `avg DAU ${a.stickinessBasis.avgDau} ÷ MAU ${a.stickinessBasis.mau}` : "avg DAU ÷ MAU"} />
         <Tile k="Avg DAU" v={a.avgDau} sub="full days only" />
         <Tile k="Sessions" v={(v?.sessions ?? 0).toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
         <Tile k="Events" v={(v?.events30d ?? 0).toLocaleString()} sub="30 days" />

@@ -8,6 +8,7 @@ import VideoSection from "./components/VideoSection";
 import AppBento from "./components/AppBento";
 import Pillars from "./components/Pillars";
 import Proof from "./components/Proof";
+import Languages from "./components/Languages";
 import VoiceClone from "./components/VoiceClone";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
@@ -35,6 +36,7 @@ export default function Home() {
             <VideoSection />
             <Pillars />
             <Proof />
+            <Languages />
             <VoiceClone />
             <Faq />
             <FinalCta />

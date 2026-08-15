@@ -58,7 +58,7 @@ ok(/ON CONFLICT \(visitor_id, path, day\) DO NOTHING/.test(read("app/api/visit/r
 // the numbers stop moving, and a growing site reads as a plateau.
 const dataRoute = read("app/api/admin/data/route.js");
 ok(/count\(DISTINCT visitor_id\)/.test(dataRoute), "unique visitors must be COUNT(DISTINCT visitor_id) in SQL");
-ok(/LIMIT 1000/.test(dataRoute) && /waitlist_total/.test(dataRoute),
+ok(/LIMIT 1000/.test(dataRoute) && /waitlist_rows/.test(dataRoute),
    "the row lists may stay capped, but the totals must be computed over the whole table");
 const admin = read("app/admin/page.js");
 // Scoped to the stats object itself: `waitlist.length` is legitimate elsewhere on this page (the
@@ -70,6 +70,40 @@ ok(!/waitlist\.|clicks\./.test(statsBlock),
    "the old wrong numbers back on screen under the same labels at the moment something is broken");
 ok(/stats: srv/.test(admin) && /const S_ = srv \|\| \{\}/.test(admin),
    "the tiles must read the server-computed stats");
+
+// ── DOUBLE COUNTING ──────────────────────────────────────────────────────────────────────────
+// Every check below guards a number that reads as people and is not.
+
+// The waitlist's unique index is (lower(email), device) so the call list knows which build to
+// discuss. That makes one human who signed up on Android and again on iPhone TWO rows, and the
+// signup tile was counting rows. Several such pairs are already in the table.
+ok(/count\(DISTINCT lower\(email\)\) FROM waitlist/.test(dataRoute),
+   "signups must be counted as distinct people (lower(email)), not rows — the same person on two " +
+   "devices is one signup and two rows");
+ok(/waitlist_multi_device/.test(dataRoute),
+   "the rows-vs-people gap must be explained on the page, or one of the two numbers looks broken");
+ok(/signup rows/.test(admin) && /people/.test(admin),
+   "the page must show both the row count and the people count, reconciled");
+
+// count(*) on `visits` is page-DAYS: the unique index stores one row per visitor per path per day.
+// Calling that pageviews overstates uniques and understates real views in the same figure.
+ok(!/AS pageviews/.test(dataRoute) && /AS page_days/.test(dataRoute),
+   "visits count(*) is page-days, not pageviews — the unique index makes a true pageview count " +
+   "impossible from this table");
+ok(!/k="Pageviews"/.test(admin), "no tile may be labelled Pageviews from the visits table");
+
+// A rate whose numerator and denominator come from different populations is not a rate. Both
+// funnel steps must be DISTINCT over the same id and restricted to visitors we can follow.
+ok(/c\.visitor_id IS NOT NULL/.test(dataRoute) && /w\.visitor_id IS NOT NULL/.test(dataRoute),
+   "funnel steps must exclude unattributable rows explicitly rather than relying on COUNT to skip nulls");
+
+// COUNT(DISTINCT) silently skips nulls, so a unique count over rows logged before the cookie
+// existed reads as "almost nobody" when it means "we cannot tell who". The page must be able to
+// withhold the figure instead of printing a confidently wrong one.
+ok(/clicks_attributed/.test(dataRoute) && /clicks_total/.test(dataRoute),
+   "the click log must report how much of itself is attributable");
+ok(/clicksAttributable/.test(admin) && /clickCoverage/.test(admin),
+   "the page must withhold a people-count for clicks when coverage is too low to mean anything");
 
 console.log(`  ${pass}/${pass + fail} visitor-capture checks passed`);
 if (fail) process.exit(1);

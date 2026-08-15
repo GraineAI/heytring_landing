@@ -84,6 +84,23 @@ export default function Admin() {
   const [cohorts, setCohorts] = useState(null);
   const [cohErr, setCohErr] = useState("");
   const [noteFor, setNoteFor] = useState(null);   // phone whose log row is open
+  // PER-PERSON DRILL-DOWN. The table says which stage someone stopped at; this says what they
+  // actually did to get stuck there — which is the first question anyone asks before picking up
+  // the phone to call them. Fetched on demand, one person at a time: it is a per-person scan and
+  // has no business running as part of the dashboard's own load.
+  const [personFor, setPersonFor] = useState(null);   // phone whose timeline is open
+  const [person, setPerson] = useState(null);
+  const [personBusy, setPersonBusy] = useState(false);
+  const openPerson = async (phone) => {
+    if (personFor === phone) { setPersonFor(null); setPerson(null); return; }
+    setPersonFor(phone); setPerson(null); setPersonBusy(true);
+    try {
+      const r = await fetch(`/api/admin/person?phone=${encodeURIComponent(phone)}`);
+      setPerson(await r.json().catch(() => ({ ok: false, error: "bad response" })));
+    } catch {
+      setPerson({ ok: false, error: "request failed" });
+    } finally { setPersonBusy(false); }
+  };
   const [noteText, setNoteText] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [metrics, setMetrics] = useState(null);
@@ -274,23 +291,45 @@ export default function Admin() {
   const S_ = srv || {};
   const n = (v) => (typeof v === "number" ? v : null);
   const stats = {
-    total: n(S_.waitlist_total),
+    // ROWS vs PEOPLE, kept apart deliberately. The unique index on the waitlist is
+    // (lower(email), device) so that the call list knows which build to talk about — which means
+    // one person who signed up on Android and again on iPhone is two rows. Several already are.
+    // "Total signups" was the row count, so it has been reporting more humans than exist.
+    rows: n(S_.waitlist_rows),
+    total: n(S_.waitlist_people),
+    multiDevice: n(S_.waitlist_multi_device),
     android: n(S_.waitlist_android),
     ios: n(S_.waitlist_ios),
     today: n(S_.waitlist_today),
     onboarded: n(S_.waitlist_contacted),
     play_clicks: n(S_.play_clicks),
     ios_clicks: n(S_.ios_clicks),
-    // People, not rows. Null visitor_ids (bots, cookie-blocked browsers) are excluded by
-    // COUNT(DISTINCT) rather than counted as one person each.
+    play_people: n(S_.play_people),
+    ios_people: n(S_.ios_people),
+    click_people: n(S_.click_people),
+    clicks_attributed: n(S_.clicks_attributed),
+    clicks_total: n(S_.clicks_total),
     visitors: n(S_.visitors),
     visitors_today: n(S_.visitors_today),
     visitors_7d: n(S_.visitors_7d),
-    pageviews: n(S_.pageviews),
-    click_visitors: n(S_.click_visitors),
+    page_days: n(S_.page_days),
     visited_then_clicked: n(S_.visited_then_clicked),
     visited_then_joined: n(S_.visited_then_joined),
   };
+  /**
+   * How much of the click log can be attributed to a person at all.
+   *
+   * Every row logged before the visitor cookie existed has a null id, and COUNT(DISTINCT) skips
+   * nulls — so a unique count taken over mostly-historical rows reads as "almost nobody clicked"
+   * when what it means is "we cannot tell who". Below the threshold the people-figure is withheld
+   * rather than printed, because a confidently wrong small number does more damage than a gap:
+   * somebody will quote it.
+   */
+  const clickCoverage =
+    stats.clicks_total > 0 && stats.clicks_attributed != null
+      ? stats.clicks_attributed / stats.clicks_total
+      : 0;
+  const clicksAttributable = clickCoverage >= 0.5;
   const show = (v) => (v == null ? "\u2014" : v);
   const pct = (n, d) => (d > 0 && n != null ? `${((n / d) * 100).toFixed(1)}%` : "—");
 
@@ -1358,10 +1397,15 @@ export default function Admin() {
                           </>
                         ) : <span style={{ color: "#5b6673" }}>never</span>}
                       </td>
-                      <td style={{ padding: "8px 10px" }}>
+                      <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
                         <button style={{ ...S.ghost, padding: "4px 10px", fontSize: 12 }}
                                 onClick={() => { setNoteFor(noteFor === u.phone ? null : u.phone); setNoteText(""); }}>
                           {noteFor === u.phone ? "Close" : "Log"}
+                        </button>
+                        {/* What this person actually did, before you ring them. */}
+                        <button style={{ ...S.ghost, padding: "4px 10px", fontSize: 12, marginLeft: 6 }}
+                                onClick={() => openPerson(u.phone)}>
+                          {personFor === u.phone ? "Hide" : "Activity"}
                         </button>
                       </td>
                     </tr>
@@ -1369,6 +1413,86 @@ export default function Admin() {
                   {/* nothing here: the log form is rendered inline below each row via noteFor */}
                 </tbody>
               </table>
+              {personFor && (
+                <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
+                    What {(lifecycle.users.find((x) => x.phone === personFor)?.name) || personFor} actually did
+                  </div>
+                  {personBusy && <div style={{ color: "#8C7C73", fontSize: 13 }}>Loading…</div>}
+                  {!personBusy && person && !person.ok && (
+                    <div style={{ color: "#E4926F", fontSize: 13 }}>{person.error}</div>
+                  )}
+                  {!personBusy && person?.ok && !person.found && (
+                    <div style={{ color: "#8C7C73", fontSize: 13, lineHeight: 1.6 }}>
+                      No analytics events for this person in the window. That is a real finding, not
+                      an empty panel: they reached this stage according to the backend, but the app
+                      never reported a single event for them — an old build, analytics off, or they
+                      never opened it after installing.
+                      <div style={{ marginTop: 4, color: "#6b7684" }}>id {person.pseudoId}</div>
+                    </div>
+                  )}
+                  {!personBusy && person?.ok && person.found && (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5, color: "#9aa4b2" }}>
+                        <span><strong style={{ color: "#fff" }}>{person.stage?.label || "stage unknown"}</strong></span>
+                        <span>{person.summary.events} events</span>
+                        <span>{person.summary.sessions} sessions</span>
+                        <span>{person.summary.activeDays} active days</span>
+                        {person.summary.os && <span>{person.summary.os}</span>}
+                        {person.summary.appVersion && <span>v{person.summary.appVersion}</span>}
+                        {person.summary.lastSeen && <span>last seen {new Date(person.summary.lastSeen).toLocaleString()}</span>}
+                      </div>
+
+                      {/* ERRORS FIRST. On this product a stalled user is usually a user who hit
+                          something that failed, and login_otp_send_failed alone accounts for 45
+                          people — burying that under a list of screen views wastes the call. */}
+                      {person.errors?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#E4926F", textTransform: "uppercase", marginBottom: 4 }}>
+                            What failed for them
+                          </div>
+                          {person.errors.map((e) => (
+                            <div key={e.event} style={{ fontSize: 13, color: "#e6edf3" }}>
+                              {e.event} · {e.n}× · last {new Date(e.last_at).toLocaleString()}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                        <div style={{ minWidth: 240 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase", marginBottom: 4 }}>
+                            Screens they reached
+                          </div>
+                          {person.screens.slice(0, 12).map((sc) => (
+                            <div key={sc.screen} style={{ fontSize: 13, color: "#9aa4b2" }}>
+                              {sc.screen} <span style={{ color: "#5b6673" }}>· {sc.n}</span>
+                            </div>
+                          ))}
+                          {!person.screens.length && <div style={{ fontSize: 13, color: "#5b6673" }}>no screen events</div>}
+                        </div>
+                        <div style={{ minWidth: 260, flex: 1 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase", marginBottom: 4 }}>
+                            What they did · most recent first
+                          </div>
+                          {/* Grouped by event with a count, not a raw firehose: someone who tapped
+                              the same control forty times is one line saying forty, and the two
+                              events that explain the stall stay visible. */}
+                          {person.timeline.slice(0, 25).map((t) => (
+                            <div key={t.event} style={{ fontSize: 13, color: "#9aa4b2" }}>
+                              {t.event} <span style={{ color: "#5b6673" }}>· {t.n}× · {new Date(t.last_at).toLocaleDateString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#5b6673" }}>
+                        Matched on the app’s anonymous analytics id ({person.pseudoId}) — the phone
+                        number itself is never sent to PostHog.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {noteFor && (
                 <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
                   <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>
@@ -1404,31 +1528,50 @@ export default function Admin() {
         </div>
 
         {/* PEOPLE, first — and the rates that only exist because visits, clicks and signups now
-            share one anonymous id. Everything below this row counts events; this row counts
-            humans, and the two are not interchangeable no matter how often they get quoted as if
-            they were. */}
+            share one anonymous id. Everything in the second row counts events; this row counts
+            humans, and the two are not interchangeable however often they get quoted as if they
+            were. */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
           <Tile k="Unique visitors" v={show(stats.visitors)} />
           <Tile k="Visitors 24h" v={show(stats.visitors_today)} />
           <Tile k="Visitors 7d" v={show(stats.visitors_7d)} />
-          <Tile k="Pageviews" v={show(stats.pageviews)} />
-          {/* Visitor → store click → signup, each step a DISTINCT over the same id. */}
+          {/* NOT "pageviews". Visits are stored one row per visitor per path per day, so this
+              counts page-days; labelling it pageviews would overstate uniques and understate
+              actual views in the same number. */}
+          <Tile k="Page-days" v={show(stats.page_days)} />
           <Tile k="Visitor → store" v={pct(stats.visited_then_clicked, stats.visitors)} />
           <Tile k="Visitor → signup" v={pct(stats.visited_then_joined, stats.visitors)} />
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-          <Tile k="Total signups" v={show(stats.total)} />
+          {/* PEOPLE, not rows. One human who signed up on both platforms is one signup here and
+              two rows in the table below; the sub-line reconciles them so neither looks wrong. */}
+          <Tile k="Signups (people)" v={show(stats.total)} />
           <Tile k="Onboarded" v={stats.total == null ? show(null) : `${stats.onboarded} / ${stats.total}`} />
           <Tile k="Android" v={show(stats.android)} />
           <Tile k="iPhone" v={show(stats.ios)} />
           <Tile k="Last 24h" v={show(stats.today)} />
-          {/* Both numbers, deliberately. Clicks are taps; the number in brackets is how many
-              different people made them, and a wide gap between the two is either a very engaged
-              audience or something retrying — worth seeing rather than averaging away. */}
-          <Tile k="Play clicks" v={stats.click_visitors != null ? `${stats.play_clicks} (${stats.click_visitors} ppl)` : show(stats.play_clicks)} />
-          <Tile k="App Store clicks" v={show(stats.ios_clicks)} />
+          <Tile k="Play clicks" v={clicksAttributable ? `${show(stats.play_clicks)} (${show(stats.play_people)} ppl)` : show(stats.play_clicks)} />
+          <Tile k="App Store clicks" v={clicksAttributable ? `${show(stats.ios_clicks)} (${show(stats.ios_people)} ppl)` : show(stats.ios_clicks)} />
         </div>
+
+        <div style={{ marginTop: 8, fontSize: 12, color: "#8C7C73", lineHeight: 1.6 }}>
+          {stats.rows != null && stats.total != null && (
+            <div>
+              {stats.rows} signup rows → <strong style={{ color: "#fff" }}>{stats.total} people</strong>
+              {stats.multiDevice ? ` · ${stats.multiDevice} signed up on both Android and iPhone, counted once here and twice in the table below` : ""}
+            </div>
+          )}
+          {!clicksAttributable && stats.clicks_total > 0 && (
+            <div>
+              Store clicks are tap counts, not people: only {stats.clicks_attributed} of {stats.clicks_total}
+              {" "}rows carry a visitor id (the rest predate it), so a unique-person figure would be
+              wrong rather than merely incomplete. The log contains repeat taps seconds apart, so read
+              this as an upper bound.
+            </div>
+          )}
+        </div>
+
         {!srv && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#E4926F" }}>
             Totals unavailable — /api/admin/data returned no stats. The dashes above are missing

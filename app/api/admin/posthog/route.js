@@ -596,10 +596,27 @@ async function build() {
       firstSeen,
       active: {
         dau, wau, mau, allTime, avgDau,
-        // Classic stickiness. Read it with care while the project is young: data only starts
-        // at firstSeen, so a 30-day MAU that predates a full month of history is really
-        // "everyone we have ever seen" and the ratio is flattered.
-        stickiness: mau ? Math.round((dau / mau) * 1000) / 10 : 0,
+        /**
+         * STICKINESS = AVERAGE DAU ÷ MAU, over full days only.
+         *
+         * This was `dau / mau`, where `dau` is the rolling last-24-hours count — a single,
+         * arbitrary, partly-in-progress day divided by a thirty-day population. On a young product
+         * whose traffic swings by 3x between a quiet Tuesday and a launch day, that number moves
+         * with whatever happened yesterday and roughly DOUBLED the real figure: 37/161 = 23%
+         * against a true 16/161 = 10%. Everything downstream of it — "are people forming a habit",
+         * "is retention improving" — was being read off the wrong number.
+         *
+         * avgDau already existed on this response and was already displayed beside it, so the page
+         * was showing both the right input and the wrong ratio at the same time.
+         *
+         * Still read with care while the project is young: history starts at firstSeen, so a
+         * 30-day MAU covering less than a month is really "everyone we have ever seen" and the
+         * ratio is flattered. windowIsFullMonth below says whether that applies.
+         */
+        stickiness: mau ? Math.round((avgDau / mau) * 1000) / 10 : 0,
+        // What the ratio was actually computed from, so the page can label it rather than leaving
+        // the reader to assume it is today's DAU.
+        stickinessBasis: { avgDau, mau, fullDays: full.length },
         windowIsFullMonth: firstSeen
           ? (Date.now() - new Date(firstSeen).getTime()) / 86400000 >= 30
           : false,
