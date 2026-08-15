@@ -18,6 +18,7 @@ import { cohortCurve } from "../lib/series";
 import { APOLLO_STAGES } from "./components/spine";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
+import { humanEvent, byMeaning, KIND_COLOR } from "../lib/eventNames";
 
 // Same wording the app shows on the delete screen, so the panel reads back exactly what the
 // person was asked. Paraphrasing here would quietly change what the number means.
@@ -1457,7 +1458,7 @@ export default function Admin() {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {lifecycle.users.map((u) => (
+                  {lifecycle.users.flatMap((u) => ([
                     <tr key={u.phone}>
                       {/* NAME above NUMBER. The team is ringing a person; leading with digits made
                           every row look identical and gave the caller nothing to open with. */}
@@ -1500,17 +1501,24 @@ export default function Admin() {
                           {noteFor === u.phone ? "Close" : "Log"}
                         </button>
                         {/* What this person actually did, before you ring them. */}
-                        <button style={{ ...S.ghost, padding: "4px 10px", fontSize: 12, marginLeft: 6 }}
+                        <button style={{ ...S.ghost, padding: "4px 10px", fontSize: 12, marginLeft: 6,
+                                         ...(personFor === u.phone ? { borderColor: "#F4532E", color: "#F4532E" } : {}) }}
                                 onClick={() => openPerson(u.phone)}>
                           {personFor === u.phone ? "Hide" : "Activity"}
                         </button>
                       </td>
-                    </tr>
-                  ))}
-                  {/* nothing here: the log form is rendered inline below each row via noteFor */}
-                </tbody>
-              </table>
-              {personFor && (
+                    </tr>,
+                    /* THE PANEL BELONGS UNDER THE NAME IT DESCRIBES. It used to
+                       render after the whole table, so opening row 3 of 43 put
+                       the answer two screens below the question and the reader
+                       lost track of whose activity they were reading. As an
+                       expanded row it stays attached to the person, and the
+                       coral left edge ties it to the row above. */
+                    personFor === u.phone ? (
+                      <tr key={u.phone + ":activity"}>
+                        <td colSpan={7} style={{ padding: 0 }}>
+                          <div style={{ ...S.card, margin: "0 0 12px", padding: 16,
+                                        borderLeft: "3px solid #F4532E", borderRadius: "0 14px 14px 0" }}>
                 <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
                     What {(lifecycle.users.find((x) => x.phone === personFor)?.name) || personFor} actually did
@@ -1548,11 +1556,18 @@ export default function Admin() {
                           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#E4926F", textTransform: "uppercase", marginBottom: 4 }}>
                             What failed for them
                           </div>
-                          {person.errors.map((e) => (
-                            <div key={e.event} style={{ fontSize: 13, color: "#e6edf3" }}>
-                              {e.event} · {e.n}× · last {new Date(e.last_at).toLocaleString()}
-                            </div>
-                          ))}
+                          {person.errors.map((e) => {
+                            const h = humanEvent(e.event);
+                            return (
+                              <div key={e.event} title={e.event}
+                                   style={{ fontSize: 13.5, color: "#e6edf3", padding: "3px 0" }}>
+                                <strong style={{ color: "#E4926F" }}>{h.name}</strong>
+                                <span style={{ color: "#6b7684" }}>
+                                  {" · "}{e.n}×{" · "}last {new Date(e.last_at).toLocaleString()}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -1570,16 +1585,33 @@ export default function Admin() {
                         </div>
                         <div style={{ minWidth: 260, flex: 1 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase", marginBottom: 4 }}>
-                            What they did · most recent first
+                            What they did · what matters first
                           </div>
                           {/* Grouped by event with a count, not a raw firehose: someone who tapped
                               the same control forty times is one line saying forty, and the two
                               events that explain the stall stay visible. */}
-                          {person.timeline.slice(0, 25).map((t) => (
-                            <div key={t.event} style={{ fontSize: 13, color: "#9aa4b2" }}>
-                              {t.event} <span style={{ color: "#5b6673" }}>· {t.n}× · {new Date(t.last_at).toLocaleDateString()}</span>
-                            </div>
-                          ))}
+                          {[...person.timeline].sort(byMeaning).slice(0, 25).map((t) => {
+                            const h = humanEvent(t.event);
+                            const sdk = h.kind === "sdk";
+                            return (
+                              <div key={t.event} title={t.event}
+                                   style={{ display: "flex", alignItems: "baseline", gap: 8,
+                                            fontSize: 13.5, padding: "3px 0",
+                                            /* Plumbing is kept, not hidden — it is evidence the
+                                               app ran at all — but it is dimmed so the two events
+                                               that explain a stall are not buried under a row
+                                               saying the SDK captured 103 taps. */
+                                            opacity: sdk ? 0.45 : 1 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: 3, flex: "none",
+                                               marginTop: 5, background: KIND_COLOR[h.kind] }} />
+                                <span style={{ color: sdk ? "#8C7C73" : "#e6edf3" }}>{h.name}</span>
+                                <span style={{ color: "#5b6673", marginLeft: "auto", whiteSpace: "nowrap",
+                                               fontVariantNumeric: "tabular-nums" }}>
+                                  {t.n}× · {new Date(t.last_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                       {/* ── THE BACKEND'S ACCOUNT, KEPT SEPARATE FROM POSTHOG'S ──────────────
@@ -1657,7 +1689,14 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
-              )}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null,
+                  ]))}
+                  {/* nothing here: the log form is rendered inline below each row via noteFor */}
+                </tbody>
+              </table>
               {noteFor && (
                 <div style={{ ...S.card, marginTop: 10, padding: 14 }}>
                   <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>
