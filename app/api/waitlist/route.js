@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql, ensureSchema, requestMeta } from "../../lib/db";
+import { visitorId } from "../../lib/visitor";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -26,12 +27,16 @@ export async function POST(req) {
   if (!EMAIL_RE.test(email)) return NextResponse.json({ ok: false, error: "email" }, { status: 400 });
 
   const { ua, country } = requestMeta(req);
+  // The join key. This is what turns three separate tables into one funnel: the same anonymous id
+  // that recorded the visit and the store click is stamped on the signup, so "of the people who
+  // read the page, how many joined" stops being a guess made by comparing two vendor dashboards.
+  const vid = visitorId(req);
 
   try {
     await ensureSchema();
     const inserted = await sql()`
-      INSERT INTO waitlist (name, email, device, placement, source, utm, landing, user_agent, country)
-      VALUES (${name}, ${email}, ${device}, ${placement}, ${source}, ${utm ? JSON.stringify(utm) : null}, ${landing}, ${ua}, ${country})
+      INSERT INTO waitlist (name, email, device, placement, source, utm, landing, user_agent, country, visitor_id)
+      VALUES (${name}, ${email}, ${device}, ${placement}, ${source}, ${utm ? JSON.stringify(utm) : null}, ${landing}, ${ua}, ${country}, ${vid})
       ON CONFLICT ((lower(email)), device) DO NOTHING
       RETURNING id
     `;

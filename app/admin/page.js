@@ -257,18 +257,42 @@ export default function Admin() {
     );
   }
 
-  const { waitlist = [], clicks = [] } = data || {};
-  // stats derived from the rows themselves — the tiles always match the table
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const { waitlist = [], clicks = [], stats: srv } = data || {};
+  /**
+   * TOTALS FROM THE SERVER, counted over every row in SQL — never from the arrays above.
+   *
+   * These used to be counted from `waitlist` and `clicks` in this component, arrays the API caps at
+   * 1000 and 500 rows. Past those caps the tiles stopped moving entirely, so a growing site read as
+   * a plateau and nothing on the page suggested otherwise.
+   *
+   * There is deliberately NO client-side fallback. Recomputing from the truncated arrays when the
+   * server payload is missing would put the old wrong numbers back on screen under the same labels,
+   * at the one moment something is already broken — and a wrong number nobody can tell is wrong is
+   * worse than a dash. This page and its API ship in the same deployment, so "server stats missing"
+   * means something failed, and it should look like it.
+   */
+  const S_ = srv || {};
+  const n = (v) => (typeof v === "number" ? v : null);
   const stats = {
-    total: waitlist.length,
-    android: waitlist.filter((r) => r.device === "android").length,
-    ios: waitlist.filter((r) => r.device === "ios").length,
-    today: waitlist.filter((r) => new Date(r.created_at).getTime() > dayAgo).length,
-    onboarded: waitlist.filter((r) => r.contacted).length,
-    play_clicks: clicks.filter((r) => r.kind === "play").length,
-    ios_clicks: clicks.filter((r) => r.kind === "ios").length,
+    total: n(S_.waitlist_total),
+    android: n(S_.waitlist_android),
+    ios: n(S_.waitlist_ios),
+    today: n(S_.waitlist_today),
+    onboarded: n(S_.waitlist_contacted),
+    play_clicks: n(S_.play_clicks),
+    ios_clicks: n(S_.ios_clicks),
+    // People, not rows. Null visitor_ids (bots, cookie-blocked browsers) are excluded by
+    // COUNT(DISTINCT) rather than counted as one person each.
+    visitors: n(S_.visitors),
+    visitors_today: n(S_.visitors_today),
+    visitors_7d: n(S_.visitors_7d),
+    pageviews: n(S_.pageviews),
+    click_visitors: n(S_.click_visitors),
+    visited_then_clicked: n(S_.visited_then_clicked),
+    visited_then_joined: n(S_.visited_then_joined),
   };
+  const show = (v) => (v == null ? "\u2014" : v);
+  const pct = (n, d) => (d > 0 && n != null ? `${((n / d) * 100).toFixed(1)}%` : "—");
 
   const saveNote = async (phone, outcome, sentiment) => {
     setNoteBusy(true);
@@ -1379,15 +1403,38 @@ export default function Admin() {
           )}
         </div>
 
+        {/* PEOPLE, first — and the rates that only exist because visits, clicks and signups now
+            share one anonymous id. Everything below this row counts events; this row counts
+            humans, and the two are not interchangeable no matter how often they get quoted as if
+            they were. */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>
-          <Tile k="Total signups" v={stats.total} />
-          <Tile k="Onboarded" v={`${stats.onboarded} / ${stats.total}`} />
-          <Tile k="Android" v={stats.android} />
-          <Tile k="iPhone" v={stats.ios} />
-          <Tile k="Last 24h" v={stats.today} />
-          <Tile k="Play clicks" v={stats.play_clicks} />
-          <Tile k="App Store clicks" v={stats.ios_clicks} />
+          <Tile k="Unique visitors" v={show(stats.visitors)} />
+          <Tile k="Visitors 24h" v={show(stats.visitors_today)} />
+          <Tile k="Visitors 7d" v={show(stats.visitors_7d)} />
+          <Tile k="Pageviews" v={show(stats.pageviews)} />
+          {/* Visitor → store click → signup, each step a DISTINCT over the same id. */}
+          <Tile k="Visitor → store" v={pct(stats.visited_then_clicked, stats.visitors)} />
+          <Tile k="Visitor → signup" v={pct(stats.visited_then_joined, stats.visitors)} />
         </div>
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+          <Tile k="Total signups" v={show(stats.total)} />
+          <Tile k="Onboarded" v={stats.total == null ? show(null) : `${stats.onboarded} / ${stats.total}`} />
+          <Tile k="Android" v={show(stats.android)} />
+          <Tile k="iPhone" v={show(stats.ios)} />
+          <Tile k="Last 24h" v={show(stats.today)} />
+          {/* Both numbers, deliberately. Clicks are taps; the number in brackets is how many
+              different people made them, and a wide gap between the two is either a very engaged
+              audience or something retrying — worth seeing rather than averaging away. */}
+          <Tile k="Play clicks" v={stats.click_visitors != null ? `${stats.play_clicks} (${stats.click_visitors} ppl)` : show(stats.play_clicks)} />
+          <Tile k="App Store clicks" v={show(stats.ios_clicks)} />
+        </div>
+        {!srv && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#E4926F" }}>
+            Totals unavailable — /api/admin/data returned no stats. The dashes above are missing
+            data, not zeroes.
+          </div>
+        )}
 
         {/* THE WAITLIST, last. It is a record of who asked, not a measure of anything —
             and it belongs after the numbers that say whether the thing they asked for works. */}

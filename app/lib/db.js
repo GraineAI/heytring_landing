@@ -60,6 +60,49 @@ export function ensureSchema() {
           country text,
           created_at timestamptz NOT NULL DEFAULT now()
         )`;
+      // ── unique-visitor columns ───────────────────────────────────────────
+      // Both tables counted EVENTS and called them people. "Play clicks: 412"
+      // was 412 rows, which could be 412 visitors or one person on a bad
+      // connection tapping twelve times, and nothing stored could tell the
+      // difference. The same anonymous first-party id (middleware.js) now
+      // rides on every write, so COUNT(DISTINCT visitor_id) is answerable.
+      //
+      // NULLABLE on purpose: a cookie-blocking browser or a bot has no id, and
+      // minting one per row would manufacture a unique visitor per event —
+      // the exact error this is meant to remove. A null row is one we know we
+      // cannot attribute, and it is excluded from unique counts rather than
+      // silently inflating them.
+      await q`ALTER TABLE clicks ADD COLUMN IF NOT EXISTS visitor_id text`;
+      await q`ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS visitor_id text`;
+      await q`CREATE INDEX IF NOT EXISTS clicks_visitor_idx ON clicks (visitor_id)`;
+      await q`CREATE INDEX IF NOT EXISTS clicks_created_idx ON clicks (created_at DESC)`;
+
+      // ── visits: the top of the funnel, in our own database ───────────────
+      // Unique visitors existed only inside GA4 and Vercel, so the one number
+      // that makes every other number mean something — what share of people
+      // who saw the page joined — could not be computed at all from data we
+      // own. Two dashboards with different definitions of a "user" and no way
+      // to join them is not a funnel.
+      //
+      // ONE ROW PER VISITOR PER PATH PER DAY, enforced by the unique index
+      // rather than by the caller: a beacon that fires on every render, a
+      // double-mounted effect in React strict mode, or a user reloading twenty
+      // times would otherwise each look like twenty visits. The database is
+      // the only place that constraint cannot be forgotten.
+      await q`
+        CREATE TABLE IF NOT EXISTS visits (
+          id serial PRIMARY KEY,
+          visitor_id text NOT NULL,
+          day date NOT NULL DEFAULT (now() AT TIME ZONE 'utc')::date,
+          path text NOT NULL,
+          referrer text,
+          utm jsonb,
+          user_agent text,
+          country text,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )`;
+      await q`CREATE UNIQUE INDEX IF NOT EXISTS visits_visitor_path_day_uq ON visits (visitor_id, path, day)`;
+      await q`CREATE INDEX IF NOT EXISTS visits_created_idx ON visits (created_at DESC)`;
     })().catch((e) => { schemaReady = null; throw e; });
   }
   return schemaReady;

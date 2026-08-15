@@ -1,5 +1,6 @@
 import { Figtree, JetBrains_Mono } from "next/font/google";
 import SiteAnalytics from "./components/SiteAnalytics";
+import VisitBeacon from "./components/VisitBeacon";
 import "./globals.css";
 
 // One family, four weights. The redesign sheet is explicit that hierarchy
@@ -126,6 +127,10 @@ export default function RootLayout({ children }) {
             beforeSend drops the event entirely rather than redacting, because a redacted URL
             still tells them a share was viewed and when. */}
         <SiteAnalytics />
+        {/* Our OWN pageview record. GA4 and Vercel above cannot be joined to the waitlist table, so
+            the conversion rate that decides what to build has to come from a visit row we store
+            ourselves, keyed on the same anonymous id the signup and click writes use. */}
+        <VisitBeacon />
         {/* Chat widget removed from the site. components/SupportChat.js is kept
             rather than deleted — it still holds the Graine agent config and the
             Freshchat fallback — so putting it back is one import and one line.
