@@ -1284,7 +1284,22 @@ export default function Admin() {
         {/* ── App lifecycle: who to call, and about what ───────────────────────────── */}
         <div style={{ ...S.card, marginTop: 22, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>App users — where each one stopped</h2>
+            <div>
+              <h2 style={{ fontSize: 19, fontWeight: 700, color: "#fff", margin: 0 }}>App users — where each one stopped</h2>
+              {/* NAME THE WITNESS. This page carries two funnels built from different sources over
+                  different populations, and read side by side they look like one measurement
+                  contradicting itself: Apollo says ~96% of installs signed in, PostHog says ~20%
+                  of Android openers did. Neither is wrong — Apollo counts people who reached the
+                  BACKEND (a signup row, a device, or a call), PostHog counts every client that
+                  ever opened the app, CI and emulators and store-review bots included. Until each
+                  number says which question it answers, the only available conclusion is that the
+                  dashboard is broken. */}
+              <div style={{ fontSize: 12, color: "#8C7C73", marginTop: 3 }}>
+                Source: Apollo · everyone the backend has a record of. The platform drop-off
+                further down is PostHog, over every client that opened the app — a larger and
+                different population, which is why its activation rate is lower.
+              </div>
+            </div>
             <div style={{ flex: 1 }} />
             {["", "code_requested", "signed_in", "forwarding_enabled", "activated", "retained"].map((st) => (
               <button key={st || "all"}
@@ -1514,9 +1529,77 @@ export default function Admin() {
                           ))}
                         </div>
                       </div>
+                      {/* ── THE BACKEND'S ACCOUNT, KEPT SEPARATE FROM POSTHOG'S ──────────────
+                          These are two different witnesses and they must not be blended. PostHog
+                          reports what the PHONE did and only for people whose events arrived;
+                          Apollo reports what the SYSTEM did — a call actually answered, forwarding
+                          actually confirmed with the carrier, money actually taken. When they
+                          disagree, that disagreement is the finding, and merging them into one
+                          list would destroy it. Hence two headed sections, each naming its source. */}
+                      <div style={{ marginTop: 14, borderTop: "1px solid #23262b", paddingTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: "#8C7C73", textTransform: "uppercase", marginBottom: 6 }}>
+                          What the backend recorded · source: Apollo
+                        </div>
+                        {person.activityError ? (
+                          <div style={{ fontSize: 13, color: "#d68a5c" }}>
+                            Could not read it — {person.activityError}. This is not “they did
+                            nothing”; the record was not reachable.
+                          </div>
+                        ) : !person.activity ? (
+                          <div style={{ fontSize: 13, color: "#5b6673" }}>not loaded</div>
+                        ) : person.activity.length === 0 ? (
+                          <div style={{ fontSize: 13, color: "#5b6673" }}>
+                            Nothing on record — no signup row, no call, no forwarding event.
+                          </div>
+                        ) : (
+                          <>
+                            {person.activityPartial?.length > 0 && (
+                              <div style={{ fontSize: 12, color: "#d68a5c", marginBottom: 6 }}>
+                                Incomplete: {person.activityPartial.join(", ")} could not be read.
+                              </div>
+                            )}
+                            <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                              {person.activity.map((a, i) => (
+                                <div key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "#9aa4b2", padding: "3px 0" }}>
+                                  <span style={{ color: "#5b6673", minWidth: 118, fontVariantNumeric: "tabular-nums" }}>
+                                    {a.at ? new Date(a.at).toLocaleString() : "—"}
+                                  </span>
+                                  <span style={{ minWidth: 78, color: "#8C7C73", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", paddingTop: 2 }}>
+                                    {a.kind}
+                                  </span>
+                                  <span style={{ color: "#cfd6df" }}>
+                                    {a.title}
+                                    {a.caller ? ` · ${a.caller}` : ""}
+                                    {a.state ? ` · ${a.state}${a.confirmed === false ? " (unconfirmed)" : ""}` : ""}
+                                    {a.seconds != null ? ` · ${a.seconds}s` : ""}
+                                    {a.channel ? ` · ${a.channel}` : ""}
+                                    {a.plan ? ` · ${a.plan}` : ""}
+                                    {a.summary ? <span style={{ color: "#5b6673" }}> — {a.summary}</span> : null}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Per-source counts, because a cap that truncated silently would make
+                                a partial history look complete — which on this screen means telling
+                                someone their user never did a thing they did. */}
+                            {person.activitySources && (
+                              <div style={{ fontSize: 11, color: "#5b6673", marginTop: 8 }}>
+                                {Object.entries(person.activitySources)
+                                  .filter(([, v]) => v.count > 0 || v.error)
+                                  .map(([k, v]) => `${k}: ${v.error ? "failed" : v.count}${v.truncated ? "+" : ""}`)
+                                  .join("  ·  ")}
+                                {"  ·  a trailing + means more exists than was returned"}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
                       <div style={{ fontSize: 11, color: "#5b6673" }}>
-                        Matched on the app’s anonymous analytics id ({person.pseudoId}) — the phone
-                        number itself is never sent to PostHog.
+                        The section above is matched on the phone number in Apollo. The PostHog
+                        sections are matched on the app’s anonymous analytics id ({person.pseudoId})
+                        — the number itself is never sent to PostHog, which is also why the two can
+                        legitimately disagree about the same person.
                       </div>
                     </div>
                   )}

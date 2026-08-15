@@ -57,6 +57,46 @@ const STAGES = [
   { key: "opened",     label: "Opened the app",                       events: ["app_first_open"] },
 ];
 
+/**
+ * Apollo's side of the story.
+ *
+ * PostHog knows what the PHONE did — screens, taps, errors, the client events the app sends. It
+ * does not know what the BACKEND did, and on this product that is most of what matters: whether
+ * forwarding was ever actually confirmed with the carrier, whether Ring answered a call, whether
+ * they paid, whether they were nudged, whether they deleted. A user who never installed PostHog's
+ * SDK build, or whose events were dropped, reads as "did nothing" — which is exactly the person
+ * someone is about to ring.
+ *
+ * So this is additive, and deliberately non-fatal: if Apollo is unreachable the panel still shows
+ * the PostHog half with a named reason, rather than failing whole.
+ */
+async function apolloActivity(phone) {
+  const base = (process.env.APOLLO_API_BASE || "https://api.graine.ai").replace(/\/+$/, "");
+  const key = process.env.APOLLO_ADMIN_API_KEY || process.env.ADMIN_API_KEY || "";
+  if (!key) {
+    return { error: "APOLLO_ADMIN_API_KEY is not set on this deployment" };
+  }
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 12000);
+    // The path is its own literal, starting at /api/v1/, so contract.test.mjs can see it and
+    // check it against Apollo's actually-mounted routes. Interpolated into the base URL it was
+    // invisible to that scanner, and a rename on the Apollo side would have broken this panel
+    // silently — which is the failure mode this whole endpoint exists to remove.
+    const path = `/api/v1/calls/admin/users/${encodeURIComponent(phone)}/activity`;
+    const res = await fetch(
+      `${base}${path}?limit=500`,
+      { headers: { "X-Internal-API-Key": key }, cache: "no-store", signal: ctl.signal },
+    );
+    clearTimeout(t);
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j?.ok) return { error: j?.detail || `apollo returned ${res.status}` };
+    return j;
+  } catch (e) {
+    return { error: e?.name === "AbortError" ? "apollo timed out" : "apollo unreachable" };
+  }
+}
+
 export async function GET(req) {
   if (!isAuthed(req)) return NextResponse.json({ ok: false }, { status: 401 });
 
@@ -78,7 +118,7 @@ export async function GET(req) {
   }
 
   try {
-    const [timeline, summary, screens] = await Promise.all([
+    const [timeline, summary, screens, apollo] = await Promise.all([
       // What they did, newest first. Grouped by event so a person who tapped the same thing forty
       // times is one row saying forty — a raw firehose of $autocapture would bury the two events
       // that actually explain their stall.
@@ -100,6 +140,9 @@ export async function GET(req) {
              WHERE event = '$screen' AND timestamp >= now() - INTERVAL ${days} DAY
                AND person_id IN (SELECT id FROM persons WHERE pdi.distinct_id = '${pid}')
              GROUP BY screen ORDER BY n DESC LIMIT 30`),
+      // Apollo never throws here — apolloActivity resolves to {error} instead, so one unreachable
+      // backend cannot take the whole panel down with it.
+      apolloActivity(phone),
     ]);
 
     const fired = new Set(timeline.map((r) => String(r[0])));
@@ -128,6 +171,14 @@ export async function GET(req) {
         .map(([event, n, first_at, last_at]) => ({ event, n: Number(n), first_at, last_at })),
       timeline: timeline.map(([event, n, first_at, last_at]) => ({ event, n: Number(n), first_at, last_at })),
       screens: screens.map(([screen, n, last_at]) => ({ screen: screen || "(unknown)", n: Number(n), last_at })),
+      // THE SERVER-SIDE HALF. Signup, forwarding (and whether it was actually confirmed), every
+      // call, purchases, referrals, nudges, deletion — none of which PostHog can see. Passed
+      // through whole, including its per-source counts and `partial`, so the panel can say which
+      // source failed rather than rendering a gap as "this never happened".
+      activity: apollo?.error ? null : (apollo.events || []),
+      activitySources: apollo?.error ? null : (apollo.sources || null),
+      activityPartial: apollo?.error ? null : (apollo.partial || null),
+      activityError: apollo?.error || null,
     });
   } catch (e) {
     const msg = e?.message === "unconfigured"
