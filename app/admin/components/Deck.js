@@ -118,7 +118,21 @@ function Band({ nodes }) {
  * there" — a real finding a reader may act on. When the request behind a tile did not come back,
  * saying the same thing would be a fabrication. It says so instead, and names the reason.
  */
-function Stat({ label, value, unit = "", sub, kind, failed }) {
+/**
+ * A number, and — on demand — the arithmetic behind it.
+ *
+ * WHY THE FORMULA IS PART OF THE COMPONENT rather than a footnote or a separate guide page.
+ * Every disagreement this dashboard has had with itself was a denominator question: the same
+ * label computed over two different populations, or a per-stage bucket read where a cumulative
+ * was meant. Both were invisible because a rendered number carries no trace of how it was made.
+ * A reader who can see `82 ÷ 63 = 1.30` can tell in one glance whether the denominator is the one
+ * they had in mind — and, when two tiles disagree, which of them is answering their question.
+ *
+ * Off by default: a permanently-visible division under every tile is noise on the days nothing
+ * is in dispute. One toggle turns them all on at once, because checking a single number in
+ * isolation is exactly the habit that let the 46x gap in "calls answered" survive.
+ */
+function Stat({ label, value, unit = "", sub, kind, failed, formula, showFormula, dec = 0 }) {
   return (
     <div style={{ ...card, padding: "11px 13px", flex: "1 1 132px", minWidth: 124 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -133,11 +147,22 @@ function Stat({ label, value, unit = "", sub, kind, failed }) {
       </div>
       <div style={{ color: failed ? "#E7B75A" : "#fff", fontSize: failed ? 13 : 21, fontWeight: 700,
                     fontVariantNumeric: "tabular-nums", marginTop: failed ? 6 : 2 }}>
-        {failed ? "unavailable" : fmt(value, unit)}
+        {/* Counting up draws the eye to what MOVED between refreshes. CountUp honours
+            prefers-reduced-motion internally and renders the final value immediately. */}
+        {failed ? "unavailable"
+          : value == null ? "—"
+          : <CountUp value={Number(value)} decimals={dec} suffix={unit} />}
       </div>
       <div style={{ color: failed ? "#E7B75A" : FAINT, fontSize: 10, lineHeight: 1.3, marginTop: 1 }}>
         {failed || sub || ""}
       </div>
+      {showFormula && formula && !failed && (
+        <div style={{ marginTop: 6, paddingTop: 5, borderTop: "1px dashed rgba(255,255,255,.09)",
+                      color: "#7d8896", fontSize: 10, lineHeight: 1.45,
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+          {formula}
+        </div>
+      )}
     </div>
   );
 }
@@ -171,6 +196,15 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
   });
   const h = headline(nodes);
   const s = series?.series || {};
+
+  // Formulas are OFF by default and toggled for the whole deck at once — see Stat.
+  const [showF, setShowF] = React.useState(false);
+  /** `n(x)` — a number for a formula string, or "?" when the input is missing, so a formula can
+   *  never read as though it were computed from a zero it did not have. */
+  const n = (v) => (v == null || Number.isNaN(Number(v)) ? "?" : Number(v).toLocaleString("en-IN"));
+  /** `div(a, b, out, unit)` — "a ÷ b = out". Names the two populations that produced the ratio,
+   *  which is the thing every disagreement on this dashboard has turned out to be about. */
+  const div = (a, b, out, unit = "") => `${n(a)} ÷ ${n(b)} = ${out == null ? "?" : out}${unit}`;
   const m = metrics || {};
 
   // Activation, spelled out. The strategist prompt argues this one number is worth ~60,000 users
@@ -238,18 +272,60 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
       {/* ── OUTPUTS ─────────────────────────────────────────────────────────────────────────
           The score. Real, and almost entirely useless as instructions: nobody can go to work on
           "total users" tomorrow morning. */}
+      {/* One control for the whole deck. Checking a single number in isolation is exactly the
+          habit that let a 46x gap between two "calls answered" tiles survive unnoticed — so the
+          affordance reveals every formula at once, and comparing denominators becomes the default
+          way to read the page rather than an investigation someone has to decide to start. */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+        <button onClick={() => setShowF((v) => !v)}
+                aria-pressed={showF}
+                style={{ background: showF ? "rgba(92,217,138,.14)" : "transparent",
+                         border: "1px solid " + (showF ? "rgba(92,217,138,.45)" : "rgba(255,255,255,.14)"),
+                         color: showF ? "#5CD98A" : MUTED, borderRadius: 7, padding: "4px 10px",
+                         fontSize: 11, cursor: "pointer", transition: "all .18s ease" }}>
+          {showF ? "Hide formulas" : "Show formulas"}
+        </button>
+      </div>
+
       <GroupLabel tone="output" note="results — what happened. You cannot pull these directly.">
         OUTPUT METRICS
       </GroupLabel>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
         <Stat kind="output" failed={errors?.lifecycle} label="Signed in, all time" value={cum.signed_in}
-              sub={cum.installed ? `of ${cum.installed.toLocaleString("en-IN")} installs` : null} />
-        <Stat kind="output" failed={errors?.metrics} label="Calls answered" value={m.calls_answered_week} sub="this week" />
-        <Stat kind="output" failed={errors?.lifecycle} label="Stayed 5+ days" value={cum.retained} sub="the only durable number here" />
+              sub={cum.installed ? `of ${cum.installed.toLocaleString("en-IN")} installs` : null}
+              showFormula={showF}
+              formula={`everyone at stage signed_in or later = ${n(cum.signed_in)}\ncumulative, so it includes forwarding-on, activated and retained`} />
+        {/* FOUR WINDOWS, because "how many calls did Tring answer" was only ever answerable as a
+            rolling seven days — which is the one window nobody asks for. Today and this month are
+            CALENDAR windows in IST: a UTC day boundary puts 00:00-05:30 IST into yesterday, so
+            "today" read low every morning in a way that looked plausible. The rolling week is kept
+            alongside because answers-per-active-user divides by a rolling active count and the two
+            must span the same window — a Monday-morning calendar week of 3 is not a contradiction
+            of a rolling week of 80. */}
+        <Stat kind="output" failed={errors?.metrics} label="Calls · today" value={m.calls_answered_today}
+              sub="since midnight IST" showFormula={showF}
+              formula={`count(call_records) where created_at ≥ today 00:00 IST\nAND (app_screening OR app_outbound) AND NOT is_demo = ${n(m.calls_answered_today)}`} />
+        <Stat kind="output" failed={errors?.metrics} label="Calls · this week" value={m.calls_answered_this_week}
+              sub="since Monday IST" showFormula={showF}
+              formula={`calendar week, Monday 00:00 IST → now = ${n(m.calls_answered_this_week)}\nNOT the rolling 7 days below — different window, different number`} />
+        <Stat kind="output" failed={errors?.metrics} label="Calls · this month" value={m.calls_answered_this_month}
+              sub="since the 1st, IST" showFormula={showF}
+              formula={`calendar month, 1st 00:00 IST → now = ${n(m.calls_answered_this_month)}`} />
+        <Stat kind="output" failed={errors?.metrics} label="Calls · all time" value={m.calls_answered_total}
+              sub="every call Ring has answered" showFormula={showF}
+              formula={`count(call_records) where (app_screening OR app_outbound)\nAND NOT is_demo, no date bound = ${n(m.calls_answered_total)}`} />
+        <Stat kind="output" failed={errors?.metrics} label="Calls answered" value={m.calls_answered_week} sub="rolling 7 days"
+              showFormula={showF}
+              formula={`count(call_records) where created_at ≥ 7d ago\nAND (app_screening OR app_outbound) AND NOT is_demo\n= ${n(m.calls_answered_week)} — B2B campaign calls excluded`} />
+        <Stat kind="output" failed={errors?.lifecycle} label="Stayed 5+ days" value={cum.retained} sub="the only durable number here"
+              showFormula={showF}
+              formula={`people with an answered call on ≥5 distinct days = ${n(cum.retained)}\ndays are counted per OWNER, so a dual-SIM user is one person`} />
         <Stat kind="output" failed={errors?.revenue} label="Entitled now" value={revenue?.entitled_now}
               sub={revenue ? `${revenue.entitled_paid ?? 0} paid · ${revenue.entitled_granted ?? 0} referral` : "load Subscriptions"} />
-        <Stat kind="output" failed={errors?.metrics} label="D7 retention" value={m.d7?.answered_pct} unit="%"
-              sub={m.d7?.cohort ? `n=${m.d7.cohort} — read the cohort first` : null} />
+        <Stat kind="output" failed={errors?.metrics} label="D7 retention" value={m.d7?.answered_pct} unit="%" dec={1}
+              sub={m.d7?.cohort ? `n=${m.d7.cohort} — read the cohort first` : null}
+              showFormula={showF}
+              formula={div(m.d7?.answered, m.d7?.cohort, m.d7?.answered_pct, "%") + `\ncohort = people whose FIRST call was exactly 7 days ago`} />
       </div>
 
       {/* ── INPUTS ──────────────────────────────────────────────────────────────────────────
@@ -259,13 +335,23 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
         CONTROLLABLE INPUT METRICS
       </GroupLabel>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-        <Stat kind="input" failed={errors?.lifecycle} label="Activation" value={activation} unit="%" sub="installed → signed in" />
-        <Stat kind="input" failed={errors?.metrics} label="Time to first answer" value={m.time_to_first_answer_hours} unit="h"
-              sub="median, sign-in → proof it works" />
-        <Stat kind="input" failed={errors?.metrics} label="Answers / active user" value={m.answers_per_active_user_week} sub="depth, per week" />
-        <Stat kind="input" failed={errors?.referrals} label="Referring" value={referrals?.participation_pct} unit="%"
-              sub={referrals ? `k=${referrals.k_factor ?? "—"}` : "load The referral engine"} />
-        <Stat kind="input" failed={errors?.metrics} label="Active this week" value={m.active_devices_week} sub="devices that opened the app" />
+        <Stat kind="input" failed={errors?.lifecycle} label="Activation" value={activation} unit="%" dec={1} sub="installed → signed in"
+              showFormula={showF}
+              formula={div(cum.signed_in, cum.installed, activation, "%") + `\ndenominator = everyone Apollo has a record of, NOT PostHog installs`} />
+        <Stat kind="input" failed={errors?.metrics} label="Time to first answer" value={m.time_to_first_answer_hours} unit="h" dec={1}
+              sub="median, sign-in → proof it works"
+              showFormula={showF}
+              formula={`median(first answered call − signed in) = ${n(m.time_to_first_answer_hours)}h\nmedian, not mean — one person waiting a week would drag a mean`} />
+        <Stat kind="input" failed={errors?.metrics} label="Answers / active user" value={m.answers_per_active_user_week} dec={2} sub="depth, per week"
+              showFormula={showF}
+              formula={div(m.calls_answered_week, m.active_devices_week, m.answers_per_active_user_week) + `\ncalls this week ÷ devices that opened the app this week`} />
+        <Stat kind="input" failed={errors?.referrals} label="Referring" value={referrals?.participation_pct} unit="%" dec={1}
+              sub={referrals ? `k=${referrals.k_factor ?? "—"}` : "load The referral engine"}
+              showFormula={showF}
+              formula={div(referrals?.referrers, referrals?.eligible, referrals?.participation_pct, "%") + `\nk = redemptions ÷ referrers — invites that became users, per referrer`} />
+        <Stat kind="input" failed={errors?.metrics} label="Active this week" value={m.active_devices_week} sub="devices that opened the app"
+              showFormula={showF}
+              formula={`distinct owners in app_opens over the last 7 days = ${n(m.active_devices_week)}\nDEVICES that opened — not people who answered a call`} />
       </div>
 
       {/* The 6-12s, in the house format, for the inputs that have a history. Same shape as every

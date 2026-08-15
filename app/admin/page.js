@@ -11,6 +11,7 @@ import React, { useEffect, useState } from "react";
 import { RANGES, withRange, honours } from "./components/range";
 import { CountUp, GrowBar, Rise, Pulse, DrawPath } from "./components/motion";
 import Flywheel from "./components/Flywheel";
+import HowItWorks from "./components/HowItWorks";
 import { detect, describe, findConstraint } from "./components/signals";
 import Deck from "./components/Deck";
 import { cohortCurve } from "../lib/series";
@@ -506,6 +507,7 @@ export default function Admin() {
                   excludes the people who went on to be RETAINED — who have answered more calls
                   than anyone. It read 42 while the funnel three cards up said 48, from the same
                   payload, and the missing 6 were the best users on the product. */}
+              <HowItWorks />
               <Flywheel metrics={metrics} funnel={lifecycle?.funnel_cumulative || lifecycle?.stage_distribution || lifecycle?.funnel}
                         shares={0} />
             </div>
