@@ -3,11 +3,11 @@ import Nav from "./components/Nav";
 import Motion from "./components/Motion";
 import Hero from "./components/Hero";
 import Story from "./components/Story";
+import PhoneStory from "./components/PhoneStory";
 import VideoSection from "./components/VideoSection";
 import Pillars from "./components/Pillars";
 import Proof from "./components/Proof";
 import VoiceClone from "./components/VoiceClone";
-import Testimonials from "./components/Testimonials";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
 import Footer from "./components/Footer";
@@ -29,11 +29,11 @@ export default function Home() {
                 more chrome; the game still lives at /play for the app's WebView. */}
             <Hero />
             <Story />
+            <PhoneStory />
             <VideoSection />
             <Pillars />
             <Proof />
             <VoiceClone />
-            <Testimonials />
             <Faq />
             <FinalCta />
           </main>

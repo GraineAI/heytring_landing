@@ -1317,6 +1317,205 @@ p { margin: 0; }
 }
 
 /* ============================================================
+   PHONESTORY — the phone that answers a call while you watch.
+
+   Rebuilt. The component survived an earlier cut of the landing page but its
+   stylesheet did not, so dropping it back in rendered a stack of unstyled
+   divs. Everything below is new; the markup and the GSAP timeline are the
+   originals.
+
+   THE ONE RULE THAT MATTERS HERE: the four scenes are stacked in the same
+   grid cell, all four permanently present, cross-faded by the timeline via
+   autoAlpha. They cannot be display:none — GSAP tweens opacity and
+   visibility, and a scene that leaves the layout would collapse the phone's
+   height between beats, so the device would breathe in and out for nine
+   seconds. Stacking also fixes the height at the tallest scene, so the
+   column never reflows mid-animation.
+   ============================================================ */
+
+.ps { padding: 96px 0 104px; background: var(--bg-2); overflow: hidden; }
+.ps__in {
+  width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: clamp(32px, 6vw, 80px);
+  align-items: center;
+}
+.ps__in > div:first-child { max-width: 46ch; }
+.ps h2 {
+  margin-top: 18px;
+  font-size: clamp(30px, 3.9vw, 46px);
+  font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; color: var(--ink);
+}
+.ps__sub { margin-top: 14px; font-size: 17px; line-height: 1.6; color: var(--muted); }
+.ps__sub b { color: var(--ink); font-weight: 650; }
+
+.ps-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px; border-radius: 999px;
+  background: var(--coral-wash); color: var(--on-coral);
+  border: 1px solid var(--coral-tint);
+  font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.ps-feats {
+  margin-top: 22px; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px;
+}
+.ps-feats li { display: flex; align-items: center; gap: 9px; font-size: 15px; color: var(--muted); }
+.ps-feats .t {
+  width: 18px; height: 18px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--coral-tint); color: var(--on-coral); font-size: 11px; font-weight: 700;
+}
+
+/* ── the device ─────────────────────────────────────────────────────── */
+.ps__stage { display: flex; justify-content: center; }
+.ps-phone {
+  position: relative; width: min(300px, 78vw); aspect-ratio: 9 / 19;
+  background: var(--ink-deep); border-radius: 42px; padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 24px 60px rgba(11, 11, 12, 0.22), 0 2px 0 rgba(255, 255, 255, 0.06) inset;
+}
+.ps-notch {
+  position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+  width: 86px; height: 20px; border-radius: 999px; background: var(--ink-deep); z-index: 3;
+}
+.ps-screen {
+  position: relative; height: 100%; border-radius: 34px; overflow: hidden;
+  background: linear-gradient(180deg, #17171A 0%, #0E0E10 100%);
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+}
+.ps-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 30px 18px 8px; font-size: 11px;
+}
+.ps-top .k { color: rgba(255, 255, 255, 0.55); font-weight: 700; letter-spacing: 0.08em; }
+.ps-live { display: inline-flex; align-items: center; gap: 5px; color: var(--coral-hot); font-weight: 700; letter-spacing: 0.08em; }
+.ps-live .d, .ps-dk-head .d {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--coral-hot);
+  animation: ps-blink 1.2s steps(1, end) infinite;
+}
+@keyframes ps-blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.25; } }
+
+/* All four scenes share one cell. See the note at the top of this block. */
+.ps-scene {
+  grid-area: 1 / 1; grid-row: 2;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 16px 22px; text-align: center; color: #fff;
+}
+.ps-scene b { font-size: 16px; font-weight: 650; }
+.ps-scene small { font-size: 12.5px; color: rgba(255, 255, 255, 0.55); }
+
+/* 1 — incoming */
+.ps-s1 { justify-content: center; gap: 6px; }
+.ps-s1 .av {
+  width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 34px; background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 10px;
+}
+.ps-s1 .st { margin-top: 4px; font-size: 12.5px; color: var(--coral-hot); }
+.ps-btns { margin-top: auto; display: flex; gap: 34px; }
+.ps-btns .c { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.c--no  { background: #3A3A3E; font-size: 20px; }
+.c--yes { background: #2FBF6B; }
+/* The answer button is the only thing on this screen that should read as alive. */
+.c--yes { animation: ps-pulse 1.5s ease-out infinite; }
+@keyframes ps-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(47, 191, 107, 0.5); }
+  70%  { box-shadow: 0 0 0 16px rgba(47, 191, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 191, 107, 0); }
+}
+
+/* 2 — Ring picks up */
+.ps-s2 { justify-content: center; gap: 8px; }
+.ps-halo { position: relative; display: grid; place-items: center; width: 130px; height: 130px; margin-bottom: 12px; }
+.ps-halo .h {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(244, 83, 46, 0.45);
+  animation: ps-sonar 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+.ps-halo .h:nth-child(2) { animation-delay: 0.8s; }
+.ps-halo .h:nth-child(3) { animation-delay: 1.6s; }
+@keyframes ps-sonar {
+  0%   { transform: scale(0.55); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+.ps-eq { display: flex; align-items: flex-end; gap: 4px; height: 22px; margin-top: 10px; }
+.ps-eq span {
+  width: 4px; border-radius: 2px; background: var(--coral-hot);
+  animation: ps-eq 0.9s ease-in-out infinite;
+}
+.ps-eq span:nth-child(1) { height: 40%; animation-delay: 0s; }
+.ps-eq span:nth-child(2) { height: 85%; animation-delay: 0.15s; }
+.ps-eq span:nth-child(3) { height: 60%; animation-delay: 0.3s; }
+.ps-eq span:nth-child(4) { height: 95%; animation-delay: 0.45s; }
+@keyframes ps-eq { 0%, 100% { transform: scaleY(0.45); } 50% { transform: scaleY(1); } }
+
+/* 3 — the live call */
+.ps-s3 { padding: 10px 10px 12px; }
+.ps-dark {
+  width: 100%; height: 100%; border-radius: 22px; padding: 14px 13px;
+  background: #0A0A0C; border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex; flex-direction: column; text-align: left;
+}
+.ps-dk-head { display: flex; align-items: center; gap: 7px; font-size: 10.5px; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.62); }
+.ps-msgs { margin-top: 12px; display: flex; flex-direction: column; gap: 9px; }
+.ps-m { padding: 9px 11px; border-radius: 13px; max-width: 92%; }
+.ps-m small { font-size: 9px; letter-spacing: 0.1em; font-weight: 700; }
+.ps-m p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.42; color: #fff; }
+.ps-m--ring   { background: rgba(244, 83, 46, 0.16); border: 1px solid rgba(244, 83, 46, 0.3); align-self: flex-start; }
+.ps-m--ring small { color: var(--coral-hot); }
+.ps-m--caller { background: rgba(255, 255, 255, 0.07); align-self: flex-end; }
+.ps-m--caller small { color: rgba(255, 255, 255, 0.5); }
+/* What YOU said, so it reads as coming from the other side of the glass. */
+.ps-m--steer  { background: rgba(47, 191, 107, 0.15); border: 1px solid rgba(47, 191, 107, 0.32); align-self: flex-start; }
+.ps-m--steer small { color: #6BDD9B; }
+
+.ps-steer { margin-top: auto; }
+.ps-steer small { font-size: 8.5px; letter-spacing: 0.1em; font-weight: 700; color: rgba(255, 255, 255, 0.42); }
+.ps-chips { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ps-chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 10px; border-radius: 11px; font-size: 11.5px; color: #fff;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.ps-chip .send { color: var(--coral-hot); font-size: 10px; }
+.ps-chip--tap { border-color: rgba(244, 83, 46, 0.45); background: rgba(244, 83, 46, 0.12); }
+
+/* 4 — the wrap-up */
+.ps-s4 { justify-content: center; gap: 14px; }
+.ps-note {
+  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 14px 13px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.ps-note b { display: block; font-size: 13.5px; }
+.ps-note small { display: block; margin-top: 2px; font-size: 11.5px; }
+.ps-note .tick {
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; background: #2FBF6B; color: #fff;
+}
+.ps-note .pill {
+  margin-left: auto; flex: none; padding: 4px 9px; border-radius: 999px;
+  background: rgba(47, 191, 107, 0.18); color: #6BDD9B; font-size: 10.5px; font-weight: 700;
+}
+.ps-s4 .saved { font-size: 11.5px; color: rgba(255, 255, 255, 0.45); }
+
+@media (max-width: 860px) {
+  .ps { padding: 64px 0 72px; }
+  .ps__in { grid-template-columns: 1fr; gap: 38px; }
+  .ps__in > div:first-child { max-width: none; }
+  .ps-feats { grid-template-columns: 1fr; }
+}
+
+/* The timeline already bails on prefers-reduced-motion; these are the CSS-only
+   loops it never touches, and they must stop for the same people. */
+@media (prefers-reduced-motion: reduce) {
+  .ps-live .d, .ps-dk-head .d, .c--yes, .ps-halo .h, .ps-eq span { animation: none; }
+  .ps-halo .h { opacity: 0.35; transform: scale(1); }
+}
+
+/* ============================================================
    SOCIAL PROOF — the stats strip and the wall of quotes.
 
    Both sections remove themselves when there is nothing real to put in them

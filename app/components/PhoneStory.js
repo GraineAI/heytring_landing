@@ -24,13 +24,24 @@ export default function PhoneStory() {
   const root = useRef(null);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let ctx, cancelled = false;
+    // REDUCED MOTION GETS A SCENE, NOT A PILE.
+    // Bailing out here used to leave all four scenes at their CSS default — stacked in one grid
+    // cell, fully opaque, rendering the incoming call, the pickup, the transcript and the wrap-up
+    // note on top of one another. The people most likely to be hurt by motion were the only ones
+    // shown an unreadable phone. Pick the scene that carries the most of the story and show that.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const el = root.current;
+      if (el) {
+        el.querySelectorAll(".ps-scene").forEach((n) => { n.style.visibility = "hidden"; n.style.opacity = "0"; });
+        const keep = el.querySelector(".ps-s3");   // the live call — it shows the product working
+        if (keep) { keep.style.visibility = "visible"; keep.style.opacity = "1"; }
+      }
+      return;
+    }
+    let ctx, cancelled = false, io;
     (async () => {
       const gsap = (await import("gsap")).default;
-      const { ScrollTrigger } = await import("gsap/ScrollTrigger");
       if (cancelled) return;
-      gsap.registerPlugin(ScrollTrigger);
       ctx = gsap.context(() => {
         const tl = gsap.timeline({
           paused: true,
@@ -73,19 +84,34 @@ export default function PhoneStory() {
           .fromTo(".ps-s4 .saved", { autoAlpha: 0 }, { autoAlpha: 1 }, 7.5)
           .to({}, { duration: 1 });
 
-        ScrollTrigger.create({
-          trigger: root.current,
-          start: "top 70%",
-          once: true,
-          onEnter: () => tl.play(0),
-        });
+        // STARTED BY IntersectionObserver, NOT ScrollTrigger.
+        //
+        // This used to be a ScrollTrigger, and it never fired. The page scrolls through GSAP's
+        // ScrollSmoother, which transforms #smooth-content rather than moving the window, so a
+        // trigger is only positioned correctly once the smoother owns the scroller. This component
+        // creates its own in a separate dynamic import that races the smoother's setup, and lost:
+        // GSAP applied the timeline's `from` values — opacity 0, visibility hidden — and then the
+        // timeline sat at time 0 forever. Every scene invisible, a blank phone, no error anywhere.
+        //
+        // IntersectionObserver has no opinion about who owns the scroller. It is a browser
+        // primitive, it works the same under the smoother as without it, and "start when it comes
+        // into view" is exactly what was wanted. Fewer moving parts than the thing it replaces.
+        io = new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((e) => e.isIntersecting)) return;
+            tl.play(0);
+            io.disconnect();          // once — restarting the loop on every scroll-by is a flicker
+          },
+          { threshold: 0.25 },
+        );
+        if (root.current) io.observe(root.current);
       }, root);
     })();
-    return () => { cancelled = true; ctx && ctx.revert(); };
+    return () => { cancelled = true; io && io.disconnect(); ctx && ctx.revert(); };
   }, []);
 
   return (
-    <section className="ps" id="story" ref={root}>
+    <section className="ps" id="demo" ref={root}>
       <div className="ps__in">
         <div>
           <a className="ps-badge" href="#voice">
