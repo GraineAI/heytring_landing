@@ -545,7 +545,19 @@ async function build() {
       { key: "signed_in", label: "Signed in" },
       { key: "forwarding_enabled", label: "Forwarding enabled" },
       { key: "activated", label: "Activated — answered a call" },
-      { key: "retained", label: "Retained — 5+ call days" },
+      /**
+       * NOT THE SAME MEASURE AS THE SPINE'S "Came back (5+ days)", and it used to claim to be —
+       * two numbers under near-identical labels on one page, reading 15 and 5.
+       *
+       * This counts people whose APP FIRED a `retained` event. The spine counts, from Apollo's own
+       * call records, people with answered calls on five or more days. Apollo is authoritative
+       * there: it holds the calls, so the fact exists whether or not a client event ever fired,
+       * whereas this one exists only if the app was open, on a recent build, and got the event out.
+       *
+       * Both are worth showing — a gap between them measures how much this event under-fires — but
+       * they must not share a name, or the reader treats one as a correction of the other.
+       */
+      { key: "retained", label: "Fired the retained event", source: "client event · under-reports" },
     ].map((st, i) => ({ ...st, people: Number(jr[i]) || 0 }));
     // Auto-read effectiveness — of people who requested a code, how many had it fill itself from the
     // SMS. A low number (esp. on Android) is the data that justifies the SMS-Retriever native build.

@@ -984,7 +984,13 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
           return (
             <div key={s.key} style={{ marginBottom: 11 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 12.5, marginBottom: 3 }}>
-                <span style={{ color: pending ? MUTED : INK, fontWeight: pending ? 400 : 600 }}>{i + 1}. {s.label}</span>
+                <span style={{ color: pending ? MUTED : INK, fontWeight: pending ? 400 : 600 }}>
+                  {i + 1}. {s.label}
+                  {/* Where a stage is a client event rather than a backend fact, say so on the row.
+                      The alternative is two numbers under near-identical names on one page and a
+                      reader deciding, wrongly, that one corrects the other. */}
+                  {s.source && <span style={{ color: MUTED, fontWeight: 400 }}> · {s.source}</span>}
+                </span>
                 {pending ? (
                   <span style={{ color: MUTED, fontStyle: "italic" }}>ships next release</span>
                 ) : (

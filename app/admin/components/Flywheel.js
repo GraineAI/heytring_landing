@@ -21,10 +21,21 @@ export default function Flywheel({ metrics, funnel, shares }) {
     { k: "Users seeing value", v: funnel?.activated ?? null, sub: "≥1 answered call", unit: "" },
     { k: "Forwarding stays on", v: m.active_devices_week, sub: "active this week", unit: "" },
     { k: "Depth per user", v: m.answers_per_active_user_week, sub: "answers / active user", unit: "", dec: 2 },
-    { k: "They tell someone", v: shares ?? 0, sub: "shares sent", unit: "" },
+    // `shares` is people who referred, from Apollo — the system that grants the reward, so a
+    // referral exists there by definition. It arrived as a hardcoded 0 for a long time, which the
+    // stall detector below then reported as the loop seizing.
+    { k: "They tell someone", v: shares, sub: "people who referred", unit: "" },
   ];
-  // The weakest turn. A flywheel diagram with no weak point named is a picture, not a diagnosis.
-  const seized = nodes.findIndex((n) => n.v === 0 || n.v == null);
+  /**
+   * The weakest turn. A flywheel with no weak point named is a picture, not a diagnosis.
+   *
+   * NULL IS NOT ZERO, and this treated them the same — so any node whose source had not loaded (or
+   * was hardcoded pending wiring) was announced as the place the loop seizes. A missing measurement
+   * and a measured stop need opposite responses: one is a plumbing job, the other is the business.
+   * Only a real zero counts as a stall now; an unknown says so.
+   */
+  const seized = nodes.findIndex((n) => n.v === 0);
+  const unknown = nodes.filter((n) => n.v == null).map((n) => n.k);
 
   return (
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
@@ -37,8 +48,11 @@ export default function Flywheel({ metrics, funnel, shares }) {
                             background: stuck ? "rgba(255,123,114,.07)" : "rgba(255,255,255,.03)",
                             border: `1px solid ${stuck ? "rgba(255,123,114,.35)" : "rgba(255,255,255,.09)"}` }}>
                 <div style={{ color: MUTED, fontSize: 11 }}>{n.k}</div>
-                <div style={{ color: stuck ? "#FF7B72" : "#fff", fontSize: 21, fontWeight: 700, marginTop: 2 }}>
-                  <CountUp value={n.v} decimals={n.dec || 0} suffix={n.unit} />
+                <div style={{ color: stuck ? "#FF7B72" : n.v == null ? MUTED : "#fff", fontSize: 21, fontWeight: 700, marginTop: 2 }}>
+                  {/* An em dash where the number is unknown. Rendering null through CountUp drew a
+                      confident 0, which is the whole reason this node reported a stall it had no
+                      measurement for. */}
+                  {n.v == null ? "—" : <CountUp value={n.v} decimals={n.dec || 0} suffix={n.unit} />}
                 </div>
                 <div style={{ color: FAINT, fontSize: 10 }}>{n.sub}</div>
                 {stuck && <div style={{ color: "#FF7B72", fontSize: 10, marginTop: 4, fontWeight: 600 }}>
@@ -55,6 +69,13 @@ export default function Flywheel({ metrics, funnel, shares }) {
       <div style={{ alignSelf: "center", color: FAINT, fontSize: 11, maxWidth: 110, lineHeight: 1.35 }}>
         ↻ and back to more calls answered
       </div>
+      {unknown.length > 0 && (
+        // Named, not silently dashed: a turn we cannot measure is a gap in the instrument, and the
+        // reader should know the diagram is incomplete rather than assume that turn is fine.
+        <div style={{ flexBasis: "100%", color: "#E4926F", fontSize: 11, marginTop: 6 }}>
+          Not measured yet: {unknown.join(", ")} — the loop cannot be diagnosed at that turn.
+        </div>
+      )}
     </div>
   );
 }

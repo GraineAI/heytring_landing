@@ -146,5 +146,28 @@ ok(/participation_pct/.test(pm) && /ledger\?\.k_factor/.test(pm),
 ok(/installedIndia \?\? f\.installed/.test(pm),
    'the activation action item must use the India denominator, not the test-inflated global one');
 
+// ── NO PLACEHOLDER MAY BECOME A DIAGNOSIS ────────────────────────────────────────────────────
+// Flywheel was handed shares={0} as a hardcoded placeholder, and it flags the first zero node as
+// "the loop stalls here" — so the diagram diagnosed a stall it had never measured, on a page whose
+// spine three cards up read "Told someone: 6" from Apollo.
+const adminPage = read("app/admin/page.js");
+ok(!/shares=\{0\}/.test(adminPage),
+   'Flywheel must not be given a hardcoded shares={0} — it renders as a measured stall');
+ok(/shares=\{ref\?\.referrers/.test(adminPage),
+   "Flywheel must read the same Apollo source as the spine, or the two cards contradict each other");
+const fly = read("app/admin/components/Flywheel.js");
+ok(/const seized = nodes\.findIndex\(\(n\) => n\.v === 0\);/.test(fly),
+   'only a real zero may count as a stall — null is "not measured", and the two need opposite work');
+ok(/unknown/.test(fly),
+   'unmeasured turns must be named, so the reader knows the diagram is incomplete');
+
+// Two different measures must not share a name. The spine counts answered-call days from Apollo's
+// own records; the PostHog stage counts an event the app has to fire. Both are useful; one page
+// showing 5 and 15 under near-identical labels is not.
+const ph2 = read("app/api/admin/insights/route.js"); // touched in the same area; keep the read cheap
+ok(!/Retained — 5\+ call days/.test(read("app/api/admin/posthog/route.js")),
+   'the PostHog stage must not reuse the spine\'s retention wording — it is a client event, not the ' +
+   'backend fact, and it under-reports');
+
 console.log(`  ${pass}/${pass + fail} visitor-capture checks passed`);
 if (fail) process.exit(1);

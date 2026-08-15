@@ -509,8 +509,14 @@ export default function Admin() {
                   than anyone. It read 42 while the funnel three cards up said 48, from the same
                   payload, and the missing 6 were the best users on the product. */}
               <HowItWorks />
+              {/* shares was HARDCODED to 0, and Flywheel flags the first zero node as "the loop
+                  stalls here" — so the diagram has been diagnosing a stall that was a placeholder,
+                  on a page where the spine three cards up reads "Told someone: 6" from Apollo.
+                  Same source as the spine now, so the two cannot disagree: Apollo counts referrers
+                  because Apollo grants the reward, while the PostHog share events under-report it
+                  (referral_redeemed has fired once against Apollo's twenty-six). */}
               <Flywheel metrics={metrics} funnel={lifecycle?.funnel_cumulative || lifecycle?.stage_distribution || lifecycle?.funnel}
-                        shares={0} />
+                        shares={ref?.referrers ?? null} />
             </div>
           )}
 
