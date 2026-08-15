@@ -76,10 +76,32 @@ export async function GET(req) {
         const opens = rows?.[0]?.opens ?? null;
         if (opens != null) {
           body.loop_top = { ...(body.loop_top || {}), link_opens: opens, instrumented: true };
-          // Opens are the only step measured upstream of redemption, so this is the one
-          // conversion rate available today for the middle of the loop.
+          /**
+           * OPENS AND REDEMPTIONS ARE NOT THE SAME POPULATION, and dividing them was producing
+           * "2500%" on the live panel — 25 redemptions over 1 open.
+           *
+           * `opens` counts referral clicks logged BY THIS WEBSITE. A friend who gets the WhatsApp
+           * invite and installs straight from the Play Store, or who opens the link inside
+           * WhatsApp's in-app browser, redeems the code in the app and never produces a row here
+           * at all. So opens is a FLOOR on a differently-defined population, sitting between two
+           * numbers that both come from Apollo.
+           *
+           * A ratio above 100% is not a surprising result, it is proof the denominator does not
+           * contain the numerator. Emit the rate only when it is arithmetically possible, and say
+           * so explicitly when it is not — a missing number sends someone to look, a wrong one
+           * gets quoted in a deck.
+           */
           if (opens > 0 && typeof body.redemptions === "number") {
-            body.open_to_redeem_pct = Math.round((body.redemptions / opens) * 1000) / 10;
+            const pct = Math.round((body.redemptions / opens) * 1000) / 10;
+            if (pct <= 100) {
+              body.open_to_redeem_pct = pct;
+            } else {
+              body.open_to_redeem_pct = null;
+              body.open_to_redeem_note =
+                `${body.redemptions} redemptions against ${opens} link opens measured on this site — ` +
+                `most invites are installed straight from the store and never touch this log, so the ` +
+                `two are different populations and the ratio is meaningless.`;
+            }
           }
         }
       } catch (e) {

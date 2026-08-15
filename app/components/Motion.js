@@ -142,6 +142,38 @@ export default function Motion() {
           });
         });
 
+        // Language chips: stagger, not one block. They were inheriting the
+        // generic .reveal on their <ul>, so twelve chips faded in together and
+        // read as a single grey slab. Staggered, the eye follows the list and
+        // actually reads it — which is the whole point of showing a reader
+        // their own language.
+        gsap.utils.toArray(".langs__grid").forEach((grid) => {
+          gsap.from(grid.querySelectorAll(".langs__chip"), {
+            scrollTrigger: { trigger: grid, start: "top 86%", once: true },
+            autoAlpha: 0, y: 14, scale: 0.94,
+            duration: 0.5, stagger: 0.035, ease: "swish",
+          });
+        });
+
+        // Numbers count up rather than appear. A figure that lands already
+        // finished is read as decoration; one that moves is read as a
+        // measurement. `snap` keeps it on integers so it never flashes a
+        // fractional count, and the suffix is preserved so "2h 28m" and "12+"
+        // survive the tween.
+        gsap.utils.toArray("[data-count]").forEach((el) => {
+          const raw = el.getAttribute("data-count");
+          const target = parseFloat(raw);
+          if (!Number.isFinite(target)) return;
+          const suffix = raw.replace(/^[\d.]+/, "");
+          const obj = { v: 0 };
+          gsap.to(obj, {
+            scrollTrigger: { trigger: el, start: "top 90%", once: true },
+            v: target, duration: 1.1, ease: "power2.out",
+            snap: { v: 1 },
+            onUpdate: () => { el.textContent = Math.round(obj.v) + suffix; },
+          });
+        });
+
         // Section headings: SplitText masked lines rising out of their own
         // clip — the premium text move on gsap.com and its showcases.
         gsap.utils.toArray(".head h2, .ps h2, .voice h2, .final h2").forEach((h) => {

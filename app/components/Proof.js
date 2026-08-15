@@ -25,8 +25,18 @@ export default function Proof() {
         <div className="proof__grid">
           {figures.map((f) => (
             <div className="proof__item reveal" key={f.label}>
-              {/* tabular-nums so the row does not shift as these are updated */}
-              <div className="proof__value">{f.value}</div>
+              {/* tabular-nums so the row does not shift as these are updated.
+                  data-count opts this figure into the count-up in Motion.js,
+                  but ONLY when the value is one number plus a suffix ("140",
+                  "12+", "4.8★"). A compound figure like "2h 28m" would be
+                  parsed as 2 and animate to "2h", silently printing a wrong
+                  number — so those render static instead. */}
+              <div
+                className="proof__value"
+                {...(/^\d+(\.\d+)?\D*$/.test(String(f.value)) ? { "data-count": f.value } : {})}
+              >
+                {f.value}
+              </div>
               <div className="proof__label">{f.label}</div>
             </div>
           ))}
