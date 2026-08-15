@@ -157,17 +157,63 @@ export default function Admin() {
   // its temporal dead zone: "Cannot access 'X' before initialization", thrown from the effect
   // commit, which takes the whole page down. app/admin/tdz.test.mjs fails the build if this
   // ordering is ever undone.
+  /**
+   * THE WHOLE LIST, not the first page of it.
+   *
+   * This asked for limit=500 once and rendered whatever came back. Apollo caps a page at 1000 and
+   * reports `has_more`, which nothing here read — so past the cap the table simply stopped, with
+   * no marker. A call list that silently ends is worse than a short one: the people it omits look
+   * like people who do not exist, and this screen is where someone decides who to ring.
+   *
+   * So it walks pages until Apollo says there are none left. The AGGREGATES come from the first
+   * page and are not re-derived per page — Apollo computes the funnel over the whole unfiltered
+   * population rather than over the rows it returned, so summing pages would count everyone twice.
+   *
+   * A page that fails mid-walk keeps what was already loaded and says so, rather than throwing the
+   * lot away: a partial list that admits it beats an empty one, and matches how every other loader
+   * on this page treats a failure.
+   */
   const loadLifecycle = async (stage) => {
     setLcBusy(true); setLcErr("");
+    const PAGE = 500;
+    // Apollo's own universe cap is 20,000 people, so 40 pages cannot be reached by real data.
+    // It exists so a backend that wrongly kept saying has_more could not spin here forever.
+    const MAX_PAGES = 40;
     try {
-      const qs = new URLSearchParams({ view: "users", limit: "500" });
-      if (stage) qs.set("stage", stage);
-      const res = await fetch(`/api/admin/users?${qs}`, { cache: "no-store" });
-      const j = await res.json().catch(() => ({}));
-      // Surface WHY. "failed to load" sends someone into the network tab to rediscover an
-      // unset environment variable.
-      if (!res.ok || !j.ok) { setLcErr(j.error || `apollo returned ${res.status}`); setLifecycle(null); }
-      else setLifecycle(j);
+      let head = null, users = [], offset = 0, pages = 0, note = "";
+      for (;;) {
+        const qs = new URLSearchParams({ view: "users", limit: String(PAGE), offset: String(offset) });
+        if (stage) qs.set("stage", stage);
+        const res = await fetch(`/api/admin/users?${qs}`, { cache: "no-store" });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+          // Surface WHY. "failed to load" sends someone into the network tab to rediscover an
+          // unset environment variable.
+          const why = j.error || `apollo returned ${res.status}`;
+          if (!head) { setLcErr(why); setLifecycle(null); return; }
+          setLcErr(`showing ${users.length} of ${head.matched ?? "?"} — ${why}`);
+          break;
+        }
+        head = head || j;
+        const batch = j.users || [];
+        users = users.concat(batch);
+        pages += 1;
+        // Stop on the server's word, on an empty page (a has_more that never clears would
+        // otherwise loop), or on the guard.
+        if (!j.has_more || batch.length === 0) break;
+        if (pages >= MAX_PAGES) {
+          note = `stopped at ${users.length} rows after ${MAX_PAGES} pages`;
+          break;
+        }
+        offset += PAGE;
+      }
+      if (head) {
+        if (note) setLcErr(note);
+        // Apollo's own hard cap on the population it will assemble, passed through rather than
+        // hidden — at that point even a complete walk is not the complete list.
+        else if (head.truncated) setLcErr(`Apollo capped the population at ${head.universe_cap}`);
+        setLifecycle({ ...head, users });
+      }
     } catch (e) {
       setLcErr("could not reach the server");
     } finally { setLcBusy(false); }

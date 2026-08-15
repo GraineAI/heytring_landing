@@ -49,7 +49,11 @@ export async function GET(req) {
   const _v = searchParams.get("view");
   const view = _v === "retention" ? "retention" : _v === "metrics" ? "metrics" : "users";
   const qs = new URLSearchParams();
-  for (const k of ["stage", "platform", "days", "limit", "weeks", "india_only"]) {
+  // `offset` is what makes the full list reachable: Apollo caps a single page at 1000 rows and
+  // reports `has_more`, so the panel walks pages. Dropped from this allowlist, every page request
+  // returns page 1 — the caller loops forever on identical rows, and the bug looks like duplicate
+  // users rather than a missing parameter.
+  for (const k of ["stage", "platform", "days", "limit", "offset", "weeks", "india_only"]) {
     const v = searchParams.get(k);
     if (v) qs.set(k, v);
   }
