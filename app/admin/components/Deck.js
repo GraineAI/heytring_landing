@@ -273,14 +273,20 @@ export default function Deck({ stats, lifecycle, metrics, series, referrals, rev
       {series && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
                       gap: 10, marginTop: 12 }}>
+          {/* "Deletion EVENTS", not "deletions". This counts account_deletion_completed events,
+              while the churn card counts deleted_accounts tombstones — which are deduped per
+              person, so someone who deletes, re-signs-up and deletes again is 2 events and 1
+              person. Unlabelled they read as the same quantity disagreeing with itself (4 vs 1),
+              which is the same events-vs-people distinction the signup card already spells out. */}
           {[["Signups", "signups", false], ["Calls answered", "calls_answered", false],
-            ["App opens", "app_opens", false], ["Deletions", "deletions", true]]
+            ["App opens", "app_opens", false], ["Deletion events", "deletions", true]]
             .filter(([, k]) => s[k]?.weeks?.length)
             .map(([title, k, invert], i) => (
               <Rise key={k} delay={i * 60}>
                 <MetricChart title={title} kind="input" invert={invert}
                              weeks={s[k].weeks || []} months={s[k].months || []}
-                             note={invert ? "down is good" : undefined} />
+                             note={k === "deletions" ? "down is good · events, not people — the churn card counts people"
+                                                      : invert ? "down is good" : undefined} />
               </Rise>
             ))}
         </div>

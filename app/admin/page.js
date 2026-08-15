@@ -501,7 +501,12 @@ export default function Admin() {
               <div style={{ color: "#fff", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
                 The loop
               </div>
-              <Flywheel metrics={metrics} funnel={lifecycle?.stage_distribution || lifecycle?.funnel}
+              {/* CUMULATIVE, not the per-stage buckets. "Users seeing value · >=1 answered call" is
+                  a question about everyone the product has ever worked for, and the bucket count
+                  excludes the people who went on to be RETAINED — who have answered more calls
+                  than anyone. It read 42 while the funnel three cards up said 48, from the same
+                  payload, and the missing 6 were the best users on the product. */}
+              <Flywheel metrics={metrics} funnel={lifecycle?.funnel_cumulative || lifecycle?.stage_distribution || lifecycle?.funnel}
                         shares={0} />
             </div>
           )}
