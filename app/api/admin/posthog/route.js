@@ -664,7 +664,26 @@ async function build() {
                 // Kept for the global-vs-India comparison the panel draws. Read `activationIndia`.
                 activation: fInstalled ? Math.round((fSignedIn / fInstalled) * 1000) / 10 : 0,
                 installedIndia: fInstalledIn, openedIndia: fOpenedIn, signedInIndia: fSignedInIn,
-                activationIndia: fInstalledIn ? Math.round((fSignedInIn / fInstalledIn) * 1000) / 10 : null },
+                activationIndia: fInstalledIn ? Math.round((fSignedInIn / fInstalledIn) * 1000) / 10 : null,
+                /**
+                 * THE THIRD ACTIVATION NUMBER, computed here rather than left for the reader to
+                 * infer from another card.
+                 *
+                 * The panel reports activation against three denominators — people who started
+                 * signing up, India installs, and every install including test infrastructure —
+                 * and all three are correct answers to different questions. Until now only two of
+                 * them appeared here and the third had to be found in the lifecycle section, so the
+                 * three could not be put side by side and the spread read as a contradiction
+                 * rather than as the most informative thing on the page.
+                 *
+                 * Denominator is people who asked for a code: the narrowest, and therefore the
+                 * flattering one, because it excludes everyone who installed and never tried.
+                 */
+                activationOfStarters: (() => {
+                  const g = (k) => jSteps.find((x) => x.key === k)?.people || 0;
+                  const started = g("code_requested"), done = g("signed_in");
+                  return started ? Math.round((done / started) * 1000) / 10 : null;
+                })() },
       countries: (countries || []).map(([c, p]) => ({ country: c, people: Number(p) || 0 })),
 
       // ── the added panels ──────────────────────────────────────────────
