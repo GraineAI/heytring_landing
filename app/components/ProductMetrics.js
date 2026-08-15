@@ -1091,17 +1091,26 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
  * refresh and always matches what's on screen. Sorted by priority; each item names the metric that
  * triggered it and one concrete fix.
  */
-function ActionItems({ d }) {
+function ActionItems({ d, ledger }) {
   const items = [];
   const RANK = { critical: 0, high: 1, medium: 2, low: 3 };
   const lc = Object.fromEntries((d.lifecycle || []).map((l) => [l.key, l.people]));
   const f = d.funnel || {}; const a = d.active || {};
 
   // 1. Activation — the biggest lever on this app right now.
-  if (f.installed && f.activation != null && f.activation < 35) {
-    const lost = (f.installed || 0) - (f.signedIn || 0);
-    items.push({ p: "critical", t: `Fix the sign-in step — activation is only ${f.activation}%`,
-      why: `${lost} of ${f.installed} installers never signed in.`,
+  //
+  // INDIA, NOT GLOBAL. This read f.activation and f.installed, which include the CI, emulator and
+  // store-review traffic that installs, opens once and never signs in — so it announced "activation
+  // is only 24.1%, 309 of 407 installers never signed in" while the card directly above it explained
+  // that the honest figure is 49.2% and that the gap IS the test cohort. Two adjacent panels, same
+  // page, opposite stories, and the one telling the team what to do next was using the wrong one.
+  const instHonest = f.installedIndia ?? f.installed;
+  const signedHonest = f.signedInIndia ?? f.signedIn;
+  const actHonest = f.activationIndia ?? f.activation;
+  if (instHonest && actHonest != null && actHonest < 35) {
+    const lost = (instHonest || 0) - (signedHonest || 0);
+    items.push({ p: "critical", t: `Fix the sign-in step — activation is only ${actHonest}%`,
+      why: `${lost} of ${instHonest} India installers never signed in (test/CI traffic excluded).`,
       fix: "Instrument + redesign the OTP screen: pre-fill the country code, auto-read the SMS code, show progress, and let them explore before demanding a number. This is the single biggest download→user lever." });
   }
   // 2. Crashes — a live crash caps everything above it.
@@ -1111,12 +1120,29 @@ function ActionItems({ d }) {
       why: `"${(err.problem || err.label || "app error").slice(0, 60)}" is the top error.`,
       fix: "Ship a patch this week. Every crash on a beta user is a user you likely won't get back." });
   }
-  // 3. Referral engine idle — no organic loop = paid growth only.
-  const referred = (lc.referred || 0); const signed = f.signedIn || 0;
-  if (signed >= 10 && referred <= Math.max(2, signed * 0.1)) {
-    items.push({ p: "high", t: `Turn on word-of-mouth — only ${referred} referral${referred === 1 ? "" : "s"} from ${signed} users`,
-      why: "Your viral coefficient is ~0, so growth costs money for every user.",
-      fix: "Add a one-tap WhatsApp share after a successful screened call (\"Tring just handled a call for me\"), with a two-sided reward. This audience shares on WhatsApp — meet them there." });
+  // 3. Referral engine — measured against APOLLO, which grants the reward, not against the client
+  // event that fires once for every twenty-six it grants.
+  //
+  // This used to count referral_share_completed / referral_copy in PostHog and declare "your viral
+  // coefficient is ~0" beneath a card reading k = 0.49 with 26 redemptions. The advice that follows
+  // from ~0 ("add a post-call WhatsApp share with a two-sided reward") describes a feature that
+  // already exists and is working — which is what advice built on the under-firing source gets you.
+  const k = ledger?.k_factor ?? null;
+  const redemptions = ledger?.redemptions ?? null;
+  const referrersPct = ledger?.participation_pct ?? null;
+  if (k != null) {
+    // A loop that turns but not fast enough is a different problem from a loop that is not turning,
+    // and it takes different work: amplify what already converts rather than build a mechanic.
+    if (k < 0.6) {
+      items.push({ p: "high", t: `Referral works but is under-fed — k = ${k}`,
+        why: `${redemptions ?? "—"} redemptions so far, from ${referrersPct ?? "—"}% of activated users. The loop turns; too few people enter it.`,
+        fix: "Do not build a new share mechanic — one exists and converts. Put the ask where value just landed (after a screened call) and widen who sees it, then re-read k in a week." });
+    }
+  } else {
+    // Say WHICH source is missing rather than silently falling back to the wrong one.
+    items.push({ p: "medium", t: "Referral numbers unavailable",
+      why: "Apollo's referral ledger could not be read, and the PostHog referral events under-count it by roughly 26x — so no referral advice is shown rather than advice built on the wrong source.",
+      fix: "Check /api/admin/churn?view=referrals and APOLLO_ADMIN_API_KEY on this deployment." });
   }
   // 4. Retention — do people come back?
   const ret = d.retention || [];
@@ -1190,6 +1216,8 @@ function AIStrategist({ d, tick }) {
   const [ins, setIns] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  /** When the cached answer was generated — so a stale strategy is visibly stale. */
+  const [stamp, setStamp] = useState(null);
   const summary = () => {
     const a = d.active || {}, f = d.funnel || {};
     const lc = Object.fromEntries((d.lifecycle || []).map((l) => [l.key, l.people]));
@@ -1221,19 +1249,41 @@ function AIStrategist({ d, tick }) {
       top_error: (d.errors || [])[0] || null,
     };
   };
-  const run = async (force) => {
+  /**
+   * `mode`: "cached" reads without ever calling the model; "generate" spends a call.
+   *
+   * This used to run on mount AND on every 10-minute auto-refresh tick, so simply leaving the
+   * dashboard open bought a model call every ten minutes, forever, whether or not anyone was
+   * reading it. The in-memory cache was supposed to absorb that, but it lives in a serverless
+   * function's module scope — a cold start empties it, and the panel paid again.
+   *
+   * Generation is now a deliberate act. Opening the page shows the last answer; getting a new one
+   * costs a click.
+   */
+  const run = async (mode) => {
+    const generate = mode === "generate";
     setBusy(true); setErr("");
     const r = await fetch("/api/admin/insights", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ summary: summary(), force: !!force }),
+      body: JSON.stringify({ summary: summary(), force: generate, cachedOnly: !generate }),
     }).catch(() => null);
     setBusy(false);
     if (!r) return setErr("Network error");
     const j = await r.json().catch(() => ({}));
     if (!j.ok) return setErr(j.error || "Failed");
-    setIns(j.insights);
+    if (j.insights) { setIns(j.insights); setStamp(j.at || null); }
+    else if (generate) setErr("The model returned nothing — try again.");
+    else setStamp(null);   // nothing cached yet; the panel invites a first run
   };
-  useEffect(() => { if (d) run(false); /* re-runs on the 10-min tick */ }, [tick]); // eslint-disable-line
+  // CACHE READ ONLY, and only once the data is in. Deliberately NOT keyed on `tick`: that is the
+  // 10-minute refresh, and re-reading a cache every ten minutes is pointless where re-GENERATING
+  // every ten minutes was expensive.
+  const askedRef = useRef(false);
+  useEffect(() => {
+    if (!d || askedRef.current) return;
+    askedRef.current = true;
+    run("cached");
+  }, [d]); // eslint-disable-line
 
   const C = { critical: "#FF7B72", high: "#FFB454", medium: "#3B82F6" };
   const LBL = { critical: "DO NOW", high: "HIGH", medium: "MEDIUM" };
@@ -1243,12 +1293,21 @@ function AIStrategist({ d, tick }) {
         <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
           AI strategist <span style={{ color: MUTED, fontWeight: 500 }}>· Thiel · Bezos · Christensen · Grove · Collins · Goldratt · live</span>
         </div>
-        <button onClick={() => run(true)} disabled={busy} style={{ background: "transparent", color: "#9FE0BC", border: "1.5px solid rgba(159,224,188,.4)", borderRadius: 10, padding: "6px 14px", fontWeight: 700, fontSize: 12.5, cursor: busy ? "default" : "pointer" }}>
-          {busy ? "Thinking…" : "Regenerate"}
+        <button onClick={() => run("generate")} disabled={busy} style={{ background: "transparent", color: "#9FE0BC", border: "1.5px solid rgba(159,224,188,.4)", borderRadius: 10, padding: "6px 14px", fontWeight: 700, fontSize: 12.5, cursor: busy ? "default" : "pointer" }}>
+          {busy ? "Thinking…" : ins ? "Regenerate" : "Generate"}
         </button>
       </div>
       {err && <div style={{ fontSize: 13, color: "#FFB454", marginTop: 10 }}>{err}</div>}
-      {!err && !ins && <div style={{ fontSize: 13, color: MUTED, marginTop: 10 }}>{busy ? "Asking the model…" : "—"}</div>}
+      {!err && !ins && (
+        <div style={{ fontSize: 13, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>
+          {busy ? "Asking the model…" : "No strategy generated yet. This one costs a model call, so it runs only when you ask — tap Generate."}
+        </div>
+      )}
+      {ins && stamp && (
+        <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6 }}>
+          Generated {new Date(stamp).toLocaleString()} — from the numbers as they were then, not live.
+        </div>
+      )}
       {ins && (
         <>
           {ins.headline && <div style={{ fontSize: 14.5, color: INK, marginTop: 10, lineHeight: 1.5, fontWeight: 600 }}>{ins.headline}</div>}
@@ -1466,6 +1525,8 @@ function Skeleton() {
 
 export default function ProductMetrics() {
   const [d, setD] = useState(null);
+  /** Apollo's referral ledger — authoritative for redemptions and k, unlike the client events. */
+  const [refLedger, setRefLedger] = useState(null);
   const [err, setErr] = useState("");
   const [showTable, setShowTable] = useState(false);
   const [busyLoad, setBusyLoad] = useState(false);
@@ -1495,6 +1556,28 @@ export default function ProductMetrics() {
     if (!r.ok || !j.ok) { setBusyLoad(false); return fail(j.error || `Refresh failed (${r?.status})`); }
     if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null; }
     setD(j);
+    /**
+     * THE AUTHORITATIVE REFERRAL LEDGER, fetched alongside.
+     *
+     * The action items below used to compute word-of-mouth from PostHog's referral_share_completed
+     * / referral_copy events and announce "your viral coefficient is ~0" — on a page whose own
+     * referral card, three sections up, reads k = 0.49 with 26 redemptions. Both came from this
+     * component being handed PostHog and nothing else.
+     *
+     * Apollo is authoritative here and PostHog is not, for a reason that is structural rather than
+     * a preference: Apollo GRANTS the reward, so a redemption exists there by definition, whereas
+     * PostHog only learns of one if the app fired an event — and referral_redeemed has fired once
+     * against Apollo's 26. Advice built on the under-firing source told us to build a feature that
+     * already exists and is working.
+     *
+     * Failure is non-fatal: the panel still renders, and the referral item simply says which source
+     * it could not reach rather than substituting a number it should not trust.
+     */
+    try {
+      const rr = await fetch("/api/admin/churn?view=referrals").catch(() => null);
+      const rj = rr && rr.ok ? await rr.json().catch(() => null) : null;
+      setRefLedger(rj && rj.ok !== false ? rj : null);
+    } catch { setRefLedger(null); }
     setBusyLoad(false);
     setErr(""); setSoftErr("");
     setUpdatedAt(Date.now());
@@ -1559,7 +1642,7 @@ export default function ProductMetrics() {
       </div>
 
       <AIStrategist d={d} tick={updatedAt} />
-      <ActionItems d={d} />
+      <ActionItems d={d} ledger={refLedger} />
       {d.funnel && <Reconcile f={d.funnel} />}
       {d.funnel && <TrueUsers f={d.funnel} />}
       {d.journey && <Journey steps={d.journey} lifecycle={d.lifecycle} otpAutofillRate={d.otpAutofillRate}

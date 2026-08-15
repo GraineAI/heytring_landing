@@ -103,6 +103,21 @@ export function ensureSchema() {
         )`;
       await q`CREATE UNIQUE INDEX IF NOT EXISTS visits_visitor_path_day_uq ON visits (visitor_id, path, day)`;
       await q`CREATE INDEX IF NOT EXISTS visits_created_idx ON visits (created_at DESC)`;
+
+      // ── AI strategy cache ────────────────────────────────────────────────
+      // The insights panel calls a model. Its cache was a module-level Map in a
+      // serverless function, which a cold start empties — so the dashboard paid
+      // for a fresh generation far more often than the 10-minute TTL implies,
+      // and every open tab bought one every ten minutes whether or not anyone
+      // was reading it. A row survives cold starts and every instance shares it.
+      await q`
+        CREATE TABLE IF NOT EXISTS insights_cache (
+          key text PRIMARY KEY,
+          data jsonb NOT NULL,
+          model text,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )`;
+      await q`CREATE INDEX IF NOT EXISTS insights_cache_created_idx ON insights_cache (created_at DESC)`;
     })().catch((e) => { schemaReady = null; throw e; });
   }
   return schemaReady;

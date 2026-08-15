@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthed } from "../../../lib/adminAuth";
+import { sql, ensureSchema } from "../../../lib/db";
 
 /**
  * /api/admin/insights — OpenAI-written strategy over the live metrics, framed in Peter Thiel's
@@ -394,7 +395,44 @@ export async function POST(req) {
   const cacheKey = hash(JSON.stringify(coarse));
   const hit = _cache.get(cacheKey);
   if (!force && hit && Date.now() - hit.at < TTL_MS) {
-    return NextResponse.json({ ok: true, cached: true, model: MODEL, insights: hit.data });
+    return NextResponse.json({ ok: true, cached: true, model: MODEL, insights: hit.data, at: hit.at });
+  }
+
+  /**
+   * PERSISTENT CACHE, because the in-memory one above cannot do this job alone: it lives in a
+   * serverless function's module scope, so a cold start empties it and the next load pays for a
+   * fresh model run. A row survives cold starts and is shared by every instance.
+   *
+   * Read on ANY key, newest first, rather than only an exact match — the coarse key still changes
+   * when a bucketed number crosses a boundary, and showing last night's strategy is obviously right
+   * where silently spending another call is not. Strategy does not expire in ten minutes.
+   */
+  if (!force) {
+    try {
+      await ensureSchema();
+      const rows = await sql()`
+        SELECT data, created_at FROM insights_cache
+        WHERE key = ${cacheKey} OR created_at > now() - interval '24 hours'
+        ORDER BY (key = ${cacheKey}) DESC, created_at DESC LIMIT 1`;
+      if (rows?.[0]?.data) {
+        const at = new Date(rows[0].created_at).getTime();
+        _cache.set(cacheKey, { at, data: rows[0].data });
+        return NextResponse.json({ ok: true, cached: true, model: MODEL, insights: rows[0].data, at });
+      }
+    } catch (e) {
+      console.error("insights cache read failed:", e?.message);
+    }
+  }
+
+  /**
+   * CACHE-ONLY: the dashboard opening must never spend a model call.
+   *
+   * The panel used to generate on mount and again on every 10-minute auto-refresh, so a tab left
+   * open bought a call every ten minutes indefinitely. Now the page asks for what exists and the
+   * user asks for what does not.
+   */
+  if (body.cachedOnly) {
+    return NextResponse.json({ ok: true, cached: false, insights: null, at: null });
   }
 
   try {
@@ -427,8 +465,22 @@ export async function POST(req) {
     const raw = j.choices?.[0]?.message?.content || "{}";
     let insights;
     try { insights = JSON.parse(raw); } catch { insights = { headline: "Model returned unparseable output.", items: [] }; }
-    _cache.set(cacheKey, { at: Date.now(), data: insights });
-    return NextResponse.json({ ok: true, model: MODEL, insights });
+    const at = Date.now();
+    _cache.set(cacheKey, { at, data: insights });
+    // Persist too, so the answer survives this instance. Best-effort: a generation that succeeded
+    // must not be thrown away because the write failed — the caller already paid for it.
+    try {
+      await ensureSchema();
+      await sql()`
+        INSERT INTO insights_cache (key, data, model) VALUES (${cacheKey}, ${JSON.stringify(insights)}, ${MODEL})
+        ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, model = EXCLUDED.model, created_at = now()`;
+      // One row per key is enough history; keep a fortnight so a stale-but-real answer is always
+      // available and the table cannot grow without bound.
+      await sql()`DELETE FROM insights_cache WHERE created_at < now() - interval '14 days'`;
+    } catch (e) {
+      console.error("insights cache write failed:", e?.message);
+    }
+    return NextResponse.json({ ok: true, model: MODEL, insights, at });
   } catch (e) {
     console.error("openai insights failed:", e?.message);
     return NextResponse.json({ ok: false, error: "AI request failed (network or config)." }, { status: 200 });

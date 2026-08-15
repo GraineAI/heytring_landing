@@ -125,5 +125,26 @@ const churn = read("app/api/admin/churn/route.js");
 ok(/pct <= 100/.test(churn),
    'the referral open→redeem rate must only be emitted when arithmetically possible');
 
+// ── THE MODEL MUST NOT RUN UNASKED ───────────────────────────────────────────────────────────
+// The strategist generated on mount AND on every 10-minute auto-refresh, so a tab left open bought
+// a model call every ten minutes indefinitely, read or not. The in-memory cache could not absorb
+// that: it lives in a serverless function's module scope, and a cold start empties it.
+const ins = read("app/api/admin/insights/route.js");
+ok(/body\.cachedOnly/.test(ins),
+   'the insights route must support a cache-only read so opening the dashboard cannot spend a call');
+ok(/insights_cache/.test(ins) && /insights_cache/.test(read("app/lib/db.js")),
+   'the insights cache must be persisted, or a serverless cold start re-buys every answer');
+ok(/run\("cached"\)/.test(pm) && /run\("generate"\)/.test(pm),
+   'the panel must read the cache on load and generate only on an explicit click');
+ok(!/useEffect\([^)]*run\(false\)[\s\S]{0,40}\[tick\]/.test(pm),
+   'the strategist must not be keyed on the refresh tick — that is what made it recur every 10 minutes');
+
+// Advice must come from the authoritative source, not the under-firing one.
+ok(/participation_pct/.test(pm) && /ledger\?\.k_factor/.test(pm),
+   "the referral action item must read Apollo's ledger (which grants the reward) rather than the " +
+   "PostHog events, which under-count redemptions by roughly 26x");
+ok(/installedIndia \?\? f\.installed/.test(pm),
+   'the activation action item must use the India denominator, not the test-inflated global one');
+
 console.log(`  ${pass}/${pass + fail} visitor-capture checks passed`);
 if (fail) process.exit(1);
