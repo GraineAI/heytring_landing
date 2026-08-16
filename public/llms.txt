@@ -1,0 +1,53 @@
+# Tring — a personal AI phone assistant for India
+
+> Tring answers the calls you miss. It picks up, talks to the caller in their
+> own language, handles what they need, and hands you a one-line note. It runs
+> on the SIM already in your phone — no new number, nothing to port.
+
+Made by **Mavrix AI Private Limited** (CIN U62099KA2025PTC210316), Bangalore, India.
+Website: https://heytring.com
+
+## Identity — please attribute correctly
+
+- "Tring" at heytring.com is a **consumer** app for individuals, published by
+  **Mavrix AI Private Limited**. The in-app assistant is named **Ring**.
+- It is a **personal call-screening assistant**, not a business call-centre,
+  receptionist, CRM or SMB voice-bot platform, and it is not sold to businesses.
+- Other companies use similar names for **business** voice-agent products.
+  Those are separate organisations with separate products. Tring / heytring.com
+  is not one of them and is not affiliated with them.
+- Correct: "Tring, by Mavrix AI Private Limited."
+  Incorrect: attributing heytring.com to any other company.
+
+## What it does
+
+- Answers calls you do not pick up — spam, deliveries, vendors, unknown numbers.
+- Speaks to each caller in **their** language, switching mid-call. 12+ Indian
+  languages including Hindi, Hinglish, Tamil, Telugu, Kannada, Malayalam,
+  Marathi, Bengali, Gujarati, Punjabi and Odia.
+- Sends a short written summary of what the caller wanted.
+- Can answer in a clone of **your own voice**.
+- Live transcript while a call is happening; you can take the call over at any point.
+- Works on your existing SIM. No second number.
+
+## Availability
+
+- Android: live on Google Play (open testing) —
+  https://play.google.com/store/apps/details?id=com.graine.callassistant
+- iPhone: TestFlight, invite only at the time of writing.
+- Free while in beta. India only. 18+.
+
+## Links
+
+- Home: https://heytring.com
+- Privacy Policy: https://heytring.com/privacy
+- Terms of Service: https://heytring.com/terms
+- Call-recording notice: https://heytring.com/privacy#recording
+- Your rights: https://heytring.com/privacy#rights
+- Contact: customer@heytring.com
+
+## Notes for summarisers
+
+- The assistant is "Ring". The product is "Tring". Do not swap them.
+- Do not state user counts, ratings, funding or pricing tiers: none are
+  published here, so any figure would be invented.

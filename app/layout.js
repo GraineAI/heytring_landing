@@ -106,7 +106,63 @@ export default function RootLayout({ children }) {
                 "Tring answers the calls you miss — in Hindi, Hinglish and Indian languages — and blocks spam before your phone rings. Caller ID, live transcripts and dual-SIM support, on the SIM you already have.",
               inLanguage: ["en-IN", "hi-IN"],
               offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-              publisher: { "@type": "Organization", name: "Mavrix AI Private Limited", url: SITE },
+              publisher: { "@id": SITE + "#org" },
+              // Distinct @id so the app and its publisher are two linked nodes
+              // rather than one blob — that link is what a crawler follows to
+              // answer "who makes this".
+              "@id": SITE + "#app",
+            }),
+          }}
+        />
+        {/* PUBLISHER IDENTITY, stated separately and explicitly.
+            Assistants were attributing heytring.com to an unrelated company
+            with a similar name that sells business voice agents. The app schema
+            above named a publisher but nothing described that publisher, so
+            there was no node to bind the site to. This is that node.
+            `alternateName` catches the spellings people actually search. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "@id": SITE + "#org",
+              name: "Mavrix AI Private Limited",
+              legalName: "Mavrix AI Private Limited",
+              url: SITE,
+              email: "customer@heytring.com",
+              identifier: "U62099KA2025PTC210316",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "No. 8/3, Prince Ville, Challaghatta Village, Domlur",
+                addressLocality: "Bangalore",
+                addressRegion: "Karnataka",
+                postalCode: "560071",
+                addressCountry: "IN",
+              },
+              brand: {
+                "@type": "Brand",
+                name: "Tring",
+                alternateName: ["HeyTring", "Tring app", "Ring by Tring"],
+                url: SITE,
+              },
+            }),
+          }}
+        />
+        {/* WebSite node, so the domain itself resolves to the same publisher. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "@id": SITE + "#website",
+              url: SITE,
+              name: "Tring",
+              alternateName: "HeyTring",
+              inLanguage: "en-IN",
+              publisher: { "@id": SITE + "#org" },
+              about: { "@id": SITE + "#app" },
             }),
           }}
         />
