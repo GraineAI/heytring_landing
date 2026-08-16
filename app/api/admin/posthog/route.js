@@ -153,6 +153,122 @@ const Q = {
 
   // ── DROP-OFF, SPLIT BY PLATFORM. The whole-cohort funnel hides the case that
   // matters most: one store's build losing people the other's does not.
+  /**
+   * ── THE SIGN-IN FUNNEL, the one docs-signin-funnel.md asks for ──────────────────────────
+   *
+   * `260 installed → 47 signed in` proved people were lost; it could not say where, because
+   * between `Application Opened` and `$identify` the app emitted nothing. It now emits six
+   * events, so the five arrows are measurable for the first time.
+   *
+   * Split BY OS in the same row, because the two platforms lose people at different rates
+   * (Android converts 12% of openers, iOS 30%) and a single shared backend bug would hurt
+   * both equally. Whichever arrow collapses on Android alone is the Android bug.
+   */
+  signinFunnel: `SELECT
+      coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+      uniqIf(person_id, event='signin_phone_shown')  AS phone_shown,
+      uniqIf(person_id, event='signin_phone_submit') AS phone_submit,
+      uniqIf(person_id, event='signin_otp_shown')    AS otp_shown,
+      uniqIf(person_id, event='signin_otp_submit')   AS otp_submit,
+      uniqIf(person_id, event='signin_otp_failed')   AS otp_failed,
+      uniqIf(person_id, event='signin_success')      AS success
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 30 DAY
+      AND event IN ('signin_phone_shown','signin_phone_submit','signin_otp_shown','signin_otp_submit','signin_otp_failed','signin_success')
+    GROUP BY os ORDER BY phone_shown DESC LIMIT 6`,
+
+  /** WHY the code was rejected. 'unreachable' is our outage; 'wrong_code' is theirs. Telling
+   *  them apart decides whether the fix is infrastructure or copy. */
+  signinFailReasons: `SELECT
+      coalesce(nullIf(properties.reason,''),'(unset)') AS reason,
+      coalesce(nullIf(properties.$os,''),'(unknown)')  AS os,
+      uniq(person_id) AS people, count() AS n
+    FROM events
+    WHERE event = 'signin_otp_failed' AND timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY reason, os ORDER BY people DESC LIMIT 10`,
+
+  /** People who reached for help on the OTP screen. Rising = the escape hatch is carrying
+   *  load the send path should be carrying. */
+  signinHelp: `SELECT toDate(timestamp) AS day, uniq(person_id) AS people
+    FROM events WHERE event = 'otp_help_tapped' AND timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY day ORDER BY day`,
+
+  /**
+   * ── ONBOARDING, STEP BY STEP ────────────────────────────────────────────────────────────
+   * Ordered by step_index rather than by name, so inserting a step reorders the chart
+   * instead of breaking it. step_total comes along so a platform with a different flow
+   * length (iPhone 8, Android 7) is readable in the same table.
+   */
+  onboardingSteps: `SELECT
+      toInt(properties.step_index) AS idx,
+      any(properties.step_label)   AS label,
+      coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
+      uniq(person_id) AS people
+    FROM events
+    WHERE event = 'onboarding_step_viewed' AND timestamp >= now() - INTERVAL 30 DAY
+      AND properties.step_index IS NOT NULL
+    GROUP BY idx, os ORDER BY idx, people DESC LIMIT 40`,
+
+  /** Backwards through setup is the shape of a step people cannot complete. */
+  onboardingBack: `SELECT
+      any(properties.step_label) AS label, toInt(properties.step_index) AS idx,
+      uniq(person_id) AS people, count() AS n
+    FROM events
+    WHERE event = 'onboarding_step_back' AND timestamp >= now() - INTERVAL 30 DAY
+    GROUP BY idx ORDER BY people DESC LIMIT 10`,
+
+  /**
+   * ── LEAVING ─────────────────────────────────────────────────────────────────────────────
+   * The deletion funnel had a cancel step and a completion step and no ENTRY, so the
+   * completion rate had no denominator. Logout was a confirm dialog that reported nothing.
+   */
+  exitFunnel: `SELECT
+      uniqIf(person_id, event='account_deletion_initiated')    AS del_opened,
+      uniqIf(person_id, event='account_deletion_reason_given') AS del_reasoned,
+      uniqIf(person_id, event='account_deletion_cancelled')    AS del_cancelled,
+      uniqIf(person_id, event='account_deleted')               AS del_done,
+      uniqIf(person_id, event='logout_initiated')              AS out_opened,
+      uniqIf(person_id, event='logout_reason_given')           AS out_reasoned,
+      uniqIf(person_id, event='logout')                        AS out_done,
+      uniqIf(person_id, event='logout_gate_failed')            AS out_gate_failed
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY`,
+
+  /** WHY they left — the one question churn numbers cannot answer on their own. */
+  exitReasons: `SELECT
+      coalesce(nullIf(properties.reason,''),nullIf(properties.exit_reason,''),'(unset)') AS reason,
+      countIf(event='account_deleted') AS deleted,
+      countIf(event='logout')          AS logged_out,
+      countIf(event='account_deletion_cancelled') AS changed_mind,
+      uniq(person_id) AS people
+    FROM events
+    WHERE event IN ('account_deleted','logout','account_deletion_cancelled')
+      AND timestamp >= now() - INTERVAL 90 DAY
+    GROUP BY reason ORDER BY people DESC LIMIT 12`,
+
+  /**
+   * ── CHANNEL ─────────────────────────────────────────────────────────────────────────────
+   * Where people come from. A mobile install has no referrer, so the honest signals are the
+   * referral code (our own loop) and, for anyone who touched the site first, the UTM that
+   * PostHog captured on that person before they identified.
+   */
+  channels: `SELECT
+      multiIf(
+        properties.$initial_utm_source != '', concat('utm:', properties.$initial_utm_source),
+        properties.$initial_referring_domain NOT IN ('', '$direct'), properties.$initial_referring_domain,
+        '(direct / app store)') AS channel,
+      uniq(person_id) AS people
+    FROM events
+    WHERE timestamp >= now() - INTERVAL 90 DAY
+    GROUP BY channel ORDER BY people DESC LIMIT 10`,
+
+  /** The referral loop as a funnel: opened the page → shared → someone redeemed. */
+  referralLoop: `SELECT
+      uniqIf(person_id, event='account_deletion_initiated' AND 1=0) AS _unused,
+      uniqIf(person_id, event='$screen' AND properties.$screen_name='referral') AS opened,
+      uniqIf(person_id, event='share_call_tapped')     AS shared,
+      uniqIf(person_id, event='referral_code_applied') AS redeemed
+    FROM events WHERE timestamp >= now() - INTERVAL 90 DAY`,
+
   funnelByOs: `SELECT
       coalesce(nullIf(properties.$os,''),'(unknown)') AS os,
       uniqIf(person_id, event='Application Installed') AS installed,
@@ -722,6 +838,188 @@ async function build() {
         const base = rows.find((r) => r.day === 0)?.people || 0;
         return rows.map((r) => ({ ...r, pct: base ? Math.round((r.people / base) * 1000) / 10 : 0 }));
       })(),
+      /**
+       * THE SIGN-IN FUNNEL. Every rate is computed HERE, once, so the dashboard and anything
+       * else reading this endpoint cannot disagree about what "OTP conversion" means.
+       * `worstStep` names the collapsing arrow rather than leaving a reader to eyeball five
+       * percentages — that naming is the entire point of the doc this implements.
+       */
+      signinFunnel: (R.signinFunnel || []).map(([os, a, b, c, d, f, e2]) => {
+        const shown = Number(a) || 0, submit = Number(b) || 0, otpShown = Number(c) || 0;
+        const otpSubmit = Number(d) || 0, failed = Number(f) || 0, success = Number(e2) || 0;
+        const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : null);
+        const steps = [
+          { from: 'phone shown', to: 'number entered', rate: pct(submit, shown), lost: Math.max(0, shown - submit) },
+          { from: 'number entered', to: 'code screen', rate: pct(otpShown, submit), lost: Math.max(0, submit - otpShown) },
+          { from: 'code screen', to: 'code entered', rate: pct(otpSubmit, otpShown), lost: Math.max(0, otpShown - otpSubmit) },
+          { from: 'code entered', to: 'signed in', rate: pct(success, otpSubmit), lost: Math.max(0, otpSubmit - success) },
+        ];
+        // The weakest arrow that actually carried people. A 0% step with nobody in it is not
+        // the bug — it is a step this platform never reaches.
+        const worst = steps.filter(x => x.rate !== null && x.lost > 0)
+          .sort((x, y) => (x.rate ?? 100) - (y.rate ?? 100))[0] || null;
+        return {
+          os, shown, submit, otpShown, otpSubmit, failed, success, steps,
+          endToEnd: pct(success, shown),
+          worstStep: worst ? `${worst.from} → ${worst.to}` : null,
+          worstRate: worst?.rate ?? null,
+          worstLost: worst?.lost ?? 0,
+        };
+      }),
+      signinFailReasons: (R.signinFailReasons || []).map(([reason, os, people, n]) => ({
+        reason, os, people: Number(people) || 0, count: Number(n) || 0,
+      })),
+      signinHelp: (R.signinHelp || []).map(([day, people]) => ({ day: String(day).slice(0, 10), people: Number(people) || 0 })),
+
+      onboardingSteps: (() => {
+        const rows = (R.onboardingSteps || []).map(([idx, label, os, people]) => ({
+          idx: Number(idx) || 0, label: label || `Step ${idx}`, os, people: Number(people) || 0,
+        }));
+        // Per-OS drop-off against that platform's OWN first step: the flows are different
+        // lengths (iPhone 8, Android 7), so a shared denominator would compare two things.
+        const firstByOs = {};
+        rows.forEach(r => {
+          const cur = firstByOs[r.os];
+          if (!cur || r.idx < cur.idx) firstByOs[r.os] = r;
+        });
+        return rows.map(r => {
+          const base = firstByOs[r.os]?.people || 0;
+          return { ...r, pct: base ? Math.round((r.people / base) * 1000) / 10 : null };
+        });
+      })(),
+      onboardingBack: (R.onboardingBack || []).map(([label, idx, people, n]) => ({
+        label: label || `Step ${idx}`, idx: Number(idx) || 0, people: Number(people) || 0, count: Number(n) || 0,
+      })),
+
+      exitFunnel: (() => {
+        const [r] = R.exitFunnel || [];
+        const [dO, dR, dC, dD, oO, oR, oD, oGate] = (r || []).map((x) => Number(x) || 0);
+        return {
+          deletion: {
+            opened: dO, reasoned: dR, cancelled: dC, completed: dD,
+            // The denominator that did not exist before the entry event shipped.
+            completionRate: dO ? Math.round((dD / dO) * 1000) / 10 : null,
+            recoveredRate: dO ? Math.round((dC / dO) * 1000) / 10 : null,
+            // Opened but neither cancelled nor completed = stuck on the required reason.
+            stalled: Math.max(0, dO - dC - dD),
+          },
+          logout: {
+            opened: oO, reasoned: oR, completed: oD,
+            completionRate: oO ? Math.round((oD / oO) * 1000) / 10 : null,
+            stalled: Math.max(0, oO - oD),
+            // Signed out locally while the server still thinks Ring is on for that number.
+            gateFailed: oGate,
+          },
+        };
+      })(),
+      exitReasons: (R.exitReasons || []).map(([reason, deleted, loggedOut, changedMind, people]) => ({
+        reason, deleted: Number(deleted) || 0, loggedOut: Number(loggedOut) || 0,
+        changedMind: Number(changedMind) || 0, people: Number(people) || 0,
+      })),
+
+      channels: (() => {
+        const rows = (R.channels || []).map(([channel, people]) => ({ channel, people: Number(people) || 0 }));
+        const total = rows.reduce((a, b) => a + b.people, 0);
+        return rows.map(r => ({ ...r, pct: total ? Math.round((r.people / total) * 1000) / 10 : 0 }));
+      })(),
+      referralLoop: (() => {
+        const [r] = R.referralLoop || [];
+        const [, opened, shared, redeemed] = (r || []).map((x) => Number(x) || 0);
+        return {
+          opened, shared, redeemed,
+          shareRate: opened ? Math.round((shared / opened) * 1000) / 10 : null,
+          redeemRate: shared ? Math.round((redeemed / shared) * 1000) / 10 : null,
+        };
+      })(),
+
+      /**
+       * TODOS — the dashboard's own reading of itself.
+       *
+       * Not a static checklist. Every entry is DERIVED from a number on this page and carries
+       * that number with it, so it disappears when the thing is fixed rather than needing
+       * someone to remember to tick it off. Ordered worst-first.
+       *
+       * Deliberately conservative about small samples: a 0% step with four people in it is
+       * noise, and a dashboard that cries wolf on n=4 gets ignored when n=400.
+       */
+      todos: (() => {
+        const out = [];
+        const MIN = 20;   // below this, a rate is an anecdote
+
+        (R.signinFunnel || []).forEach(([os, a, b, c, d, f, e2]) => {
+          const shown = Number(a) || 0, submit = Number(b) || 0, otpShown = Number(c) || 0;
+          const otpSubmit = Number(d) || 0, success = Number(e2) || 0;
+          if (shown < MIN) return;
+          const arrows = [
+            ['number entered', submit, shown],
+            ['code screen reached', otpShown, submit],
+            ['code entered', otpSubmit, otpShown],
+            ['signed in', success, otpSubmit],
+          ];
+          arrows.forEach(([label, num, den]) => {
+            if (!den || den < MIN) return;
+            const rate = (num / den) * 100;
+            if (rate >= 60) return;
+            out.push({
+              severity: rate < 35 ? 'high' : 'medium',
+              area: 'sign-in',
+              title: `${os}: only ${Math.round(rate)}% reach “${label}”`,
+              detail: `${den - num} of ${den} people stop here. This is the arrow to fix on ${os}.`,
+              metric: `${num}/${den}`,
+            });
+          });
+        });
+
+        const unreachable = (R.signinFailReasons || [])
+          .filter(([reason]) => String(reason) === 'unreachable')
+          .reduce((a, r) => a + (Number(r[2]) || 0), 0);
+        if (unreachable >= 5) out.push({
+          severity: 'high', area: 'sign-in',
+          title: `${unreachable} people hit an unreachable server entering their code`,
+          detail: 'This is our outage, not a wrong code. Check OTP verify latency and error rates.',
+          metric: String(unreachable),
+        });
+
+        (R.onboardingBack || []).forEach(([label, idx, people]) => {
+          const n = Number(people) || 0;
+          if (n < 10) return;
+          out.push({
+            severity: 'medium', area: 'onboarding',
+            title: `${n} people went BACK from “${label || 'step ' + idx}”`,
+            detail: 'Backwards through setup is the shape of a step people cannot complete.',
+            metric: String(n),
+          });
+        });
+
+        const [ex] = R.exitFunnel || [];
+        if (ex) {
+          const [dO, , dC, dD, oO, , oD, oGate] = ex.map((x) => Number(x) || 0);
+          const stalled = Math.max(0, dO - dC - dD);
+          if (dO >= MIN && stalled / dO > 0.25) out.push({
+            severity: 'high', area: 'churn',
+            title: `${stalled} of ${dO} opened Delete and did neither`,
+            detail: 'Neither cancelled nor completed — the required-reason gate may be trapping people. Deletion must always stay reachable.',
+            metric: `${stalled}/${dO}`,
+          });
+          if (oGate > 0) out.push({
+            severity: 'high', area: 'data',
+            title: `${oGate} logouts left Ring switched ON server-side`,
+            detail: 'The device signed out but setActivation(false) never landed. Those numbers still look active to the backend.',
+            metric: String(oGate),
+          });
+          const oStalled = Math.max(0, oO - oD);
+          if (oO >= MIN && oStalled / oO > 0.3) out.push({
+            severity: 'medium', area: 'churn',
+            title: `${oStalled} of ${oO} opened Log out and did not finish`,
+            detail: 'On iPhone this is expected mid-flow (forwarding must be dialled off first). A high number on Android is a bug.',
+            metric: `${oStalled}/${oO}`,
+          });
+        }
+
+        const rank = { high: 0, medium: 1, low: 2 };
+        return out.sort((a, b) => rank[a.severity] - rank[b.severity]).slice(0, 12);
+      })(),
+
       funnelByOs: (R.funnelByOs || []).map(([os, i, o, s2]) => {
         const installed = Number(i) || 0, opened = Number(o) || 0, signedIn = Number(s2) || 0;
         return {

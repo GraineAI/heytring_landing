@@ -789,6 +789,185 @@ function Retention({ rows }) {
 }
 
 /** Install → open → sign-in, per platform, with the losses named. */
+/**
+ * SIGN-IN FUNNEL — the five arrows docs-signin-funnel.md asked for.
+ *
+ * One row per platform, because the whole argument in that doc is that Android and iOS lose
+ * people at different rates and a shared backend bug would hurt both equally. The collapsing
+ * arrow is NAMED rather than left for the reader to spot across five percentages.
+ */
+function SigninFunnel({ rows }) {
+  const STEPS = [
+    ["Phone screen", "shown"], ["Number entered", "submit"], ["Code screen", "otpShown"],
+    ["Code entered", "otpSubmit"], ["Signed in", "success"],
+  ];
+  return (
+    <div style={{ ...CARD, flex: "1 1 520px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Sign-in funnel</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Last 30 days · where sign-in actually breaks</div>
+      {rows.map((r) => (
+        <div key={r.os} style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{r.os}</div>
+            <div style={{ fontSize: 12, color: SUB }}>
+              {r.shown} reached the phone screen → {r.success} signed in
+              {r.endToEnd != null && <strong style={{ color: r.endToEnd < 30 ? "#FF7B6B" : "#5CD98A" }}> · {r.endToEnd}%</strong>}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+            {STEPS.map(([label, key]) => {
+              const v = r[key] || 0;
+              const w = r.shown ? Math.max(3, (v / r.shown) * 100) : 3;
+              return (
+                <div key={key} style={{ flex: 1 }}>
+                  <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
+                    <div style={{ width: `${w}%`, height: 8, background: "#FF3D00" }} />
+                  </div>
+                  <div style={{ fontSize: 10.5, color: MUTED, marginTop: 5 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: INK, fontWeight: 700 }}>{v}</div>
+                </div>
+              );
+            })}
+          </div>
+          {r.worstStep && (
+            <div style={{ fontSize: 12, color: "#FFB454", marginTop: 8 }}>
+              Weakest arrow: <strong>{r.worstStep}</strong> — {r.worstRate}% pass, {r.worstLost} lost.
+            </div>
+          )}
+        </div>
+      ))}
+      {!rows.length && <div style={{ fontSize: 12.5, color: MUTED, marginTop: 12 }}>No sign-in events yet — the app build carrying them may not have reached users.</div>}
+    </div>
+  );
+}
+
+/** Onboarding, ordered by the step index the app reports rather than by name. */
+function OnboardingFunnel({ rows, back }) {
+  const byOs = {};
+  rows.forEach((r) => { (byOs[r.os] = byOs[r.os] || []).push(r); });
+  return (
+    <div style={{ ...CARD, flex: "1 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Onboarding steps</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Share of each platform&apos;s own first step</div>
+      {Object.entries(byOs).map(([os, list]) => (
+        <div key={os} style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: INK, marginBottom: 6 }}>{os}</div>
+          {list.sort((a, b) => a.idx - b.idx).map((r) => (
+            <div key={r.idx} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+              <div style={{ width: 132, fontSize: 12, color: SUB }}>{r.idx}. {r.label}</div>
+              <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(2, r.pct || 0)}%`, height: 8, background: "#5CD98A" }} />
+              </div>
+              <div style={{ width: 74, textAlign: "right", fontSize: 12, color: INK }}>{r.people}{r.pct != null && <span style={{ color: MUTED }}> · {r.pct}%</span>}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {!!back?.length && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <div style={{ fontSize: 12, color: MUTED }}>Went backwards from</div>
+          {back.map((b) => (
+            <div key={b.idx} style={{ fontSize: 12.5, color: INK, marginTop: 4 }}>{b.label} — <strong>{b.people}</strong> people</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Leaving: deletion and logout, with the denominators that did not exist before. */
+function ExitFunnel({ data, reasons }) {
+  const Block = ({ title, f, extra }) => (
+    <div style={{ flex: "1 1 200px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{title}</div>
+      <div style={{ fontSize: 12, color: SUB, marginTop: 4 }}>
+        {f.opened} opened → {f.completed} completed
+        {f.completionRate != null && <strong> · {f.completionRate}%</strong>}
+      </div>
+      {f.stalled > 0 && <div style={{ fontSize: 12, color: "#FFB454", marginTop: 4 }}>{f.stalled} opened and did neither</div>}
+      {extra}
+    </div>
+  );
+  return (
+    <div style={{ ...CARD, flex: "1 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Leaving</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90 days</div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
+        <Block title="Delete account" f={data.deletion}
+          extra={data.deletion.recoveredRate != null && <div style={{ fontSize: 12, color: "#5CD98A", marginTop: 4 }}>{data.deletion.cancelled} changed their mind ({data.deletion.recoveredRate}%)</div>} />
+        <Block title="Log out" f={data.logout}
+          extra={data.logout.gateFailed > 0 && <div style={{ fontSize: 12, color: "#FF7B6B", marginTop: 4 }}>{data.logout.gateFailed} left Ring ON server-side</div>} />
+      </div>
+      {!!reasons?.length && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>Why they said they left</div>
+          {reasons.slice(0, 6).map((r) => (
+            <div key={r.reason} style={{ display: "flex", gap: 10, fontSize: 12.5, color: INK, marginTop: 3 }}>
+              <div style={{ flex: 1 }}>{r.reason}</div>
+              <div style={{ color: "#FF7B6B" }}>{r.deleted} deleted</div>
+              <div style={{ color: SUB }}>{r.loggedOut} out</div>
+              <div style={{ color: "#5CD98A" }}>{r.changedMind} stayed</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Where people come from, and whether the referral loop closes. */
+function Channels({ rows, loop }) {
+  return (
+    <div style={{ ...CARD, flex: "1 1 320px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Channels</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90 days · first touch</div>
+      {rows.map((r) => (
+        <div key={r.channel} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+          <div style={{ width: 140, fontSize: 12, color: SUB, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.channel}</div>
+          <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
+            <div style={{ width: `${Math.max(2, r.pct)}%`, height: 8, background: "#7BE3A9" }} />
+          </div>
+          <div style={{ width: 64, textAlign: "right", fontSize: 12, color: INK }}>{r.people}</div>
+        </div>
+      ))}
+      {!!loop && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)", fontSize: 12.5, color: SUB }}>
+          Referral loop: {loop.opened} opened → {loop.shared} shared
+          {loop.shareRate != null && ` (${loop.shareRate}%)`} → {loop.redeemed} redeemed
+          {loop.redeemRate != null && ` (${loop.redeemRate}%)`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * TODOS — what the dashboard concludes, derived from its own numbers.
+ * Each carries the metric that produced it, so it vanishes when the thing is fixed rather
+ * than needing to be ticked off by hand.
+ */
+function Todos({ rows }) {
+  const TONE = { high: "#FF7B6B", medium: "#FFB454", low: SUB };
+  return (
+    <div style={{ ...CARD, flex: "1 1 100%" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>What to fix next</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Derived from the numbers on this page — worst first</div>
+      {rows.map((t, i) => (
+        <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginTop: 12, paddingTop: i ? 12 : 0, borderTop: i ? "1px solid rgba(255,255,255,.06)" : "none" }}>
+          <div style={{ width: 8, height: 8, borderRadius: 4, background: TONE[t.severity], marginTop: 6, flex: "none" }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: INK }}>{t.title}</div>
+            <div style={{ fontSize: 12.5, color: SUB, marginTop: 2 }}>{t.detail}</div>
+          </div>
+          <div style={{ fontSize: 12, color: MUTED, fontVariantNumeric: "tabular-nums" }}>{t.area} · {t.metric}</div>
+        </div>
+      ))}
+      {!rows.length && <div style={{ fontSize: 12.5, color: "#5CD98A", marginTop: 12 }}>Nothing above the noise floor right now.</div>}
+    </div>
+  );
+}
+
+
 function DropOff({ rows, dailyNew }) {
   return (
     <div style={{ ...CARD, flex: "2 1 420px" }}>
@@ -1663,6 +1842,32 @@ export default function ProductMetrics() {
           {d.degraded.length} of these queries failed and are showing empty: {d.degraded.join(", ")}.
         </div>
       )}
+
+      {!!d.todos && <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 16 }}><Todos rows={d.todos} /></div>}
+
+      <h2 style={H2}>Sign-in &amp; onboarding</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {!!d.signinFunnel && <SigninFunnel rows={d.signinFunnel} />}
+        {!!d.onboardingSteps?.length && <OnboardingFunnel rows={d.onboardingSteps} back={d.onboardingBack} />}
+        {!!d.signinFailReasons?.length && (
+          <div style={{ ...CARD, flex: "1 1 280px" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Why the code failed</div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>&ldquo;unreachable&rdquo; is ours; &ldquo;wrong_code&rdquo; is theirs</div>
+            {d.signinFailReasons.map((r, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, fontSize: 12.5, color: INK, marginTop: 6 }}>
+                <div style={{ flex: 1 }}>{r.reason} <span style={{ color: MUTED }}>· {r.os}</span></div>
+                <div style={{ color: r.reason === "unreachable" ? "#FF7B6B" : SUB }}>{r.people}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <h2 style={H2}>Channels &amp; leaving</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {!!d.channels?.length && <Channels rows={d.channels} loop={d.referralLoop} />}
+        {!!d.exitFunnel && <ExitFunnel data={d.exitFunnel} reasons={d.exitReasons} />}
+      </div>
 
       <h2 style={H2}>Retention &amp; drop-off</h2>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
