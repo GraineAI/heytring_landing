@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n 'display: \"flex\", gap: 10, flexWrap\\\\|display: \"flex\", gap: 8, flexWrap\\\\|<div style={{ display: \"flex\"' app/admin/page.js)",
+      "Bash(awk 'NR>=418 && NR<=432' app/admin/page.js)",
+      "Bash(cd /Users/rishabhbhanot/Downloads/tring-landing *)"
+    ],
+    "additionalDirectories": [
+      "/Users/rishabhbhanot/Downloads/tring-landing/app/admin"
+    ]
+  }
+}

@@ -306,11 +306,11 @@ export default function Admin() {
     else setErr(r.status === 401 ? "Wrong password." : "Login failed (is ADMIN_PASSWORD set?)");
   };
 
-  if (authed === null) return <div style={S.page}><div style={S.wrap}>Loading…</div></div>;
+  if (authed === null) return <div className="adm" style={S.page}><div style={S.wrap}>Loading…</div></div>;
 
   if (!authed) {
     return (
-      <div style={{ ...S.page, display: "grid", placeItems: "center" }}>
+      <div className="adm" style={{ ...S.page, display: "grid", placeItems: "center" }}>
         <form onSubmit={login} style={{ ...S.card, width: "min(420px, 92vw)", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Tring admin</div>
           <input style={S.input} type="password" placeholder="Password" value={pw}
@@ -418,16 +418,27 @@ export default function Admin() {
   };
 
   return (
-    <div style={S.page}>
+    <div className="adm" style={S.page}>
+      {/* Mobile trims, as a stylesheet because every style on this page is
+          inline and inline wins — hence the !important, used only here.
+          The desktop padding costs 40px of a 390px screen, which is 10% of the
+          width of every card, table and chart underneath it. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .adm { padding: 20px 12px !important; }
+          .adm h1 { font-size: 22px !important; }
+          .adm h2 { font-size: 17px !important; }
+        }
+      `}</style>
       <div style={S.wrap}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: 0 }}>Tring, end to end</h1>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {/* THE RANGE. Only panels that genuinely accept a window receive one — several admin
                 endpoints declare no date parameter, and FastAPI discards an undeclared param
                 silently, so wiring the picker to everything would move the control and change
                 nothing. Those panels say "all time" instead of pretending. */}
-            <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: 4 }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: 4, flexWrap: "wrap" }}>
               {RANGES.map((r) => (
                 <button key={r.label}
                   onClick={() => {
@@ -1813,6 +1824,10 @@ export default function Admin() {
             }
           />
 
+          {/* Every other table on this page sits in a scroll container; this one
+              did not, so its 820px min-width pushed the whole document to 966px
+              on a 390px phone and the entire admin scrolled sideways. */}
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
             <thead><tr>
               <th style={S.th}>✓</th>
@@ -1853,6 +1868,7 @@ export default function Admin() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "28px 0 12px" }}>Store-link clicks</h2>
