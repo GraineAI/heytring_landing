@@ -935,6 +935,17 @@ function Channels({ rows, loop }) {
           Referral loop: {loop.opened} opened → {loop.shared} shared
           {loop.shareRate != null && ` (${loop.shareRate}%)`} → {loop.redeemed} redeemed
           {loop.redeemRate != null && ` (${loop.redeemRate}%)`}
+          {/* This line said "0 redeemed" on a page whose referral card reads 26. Both were
+              rendered as fact, three sections apart, and the reader had no way to tell which
+              to believe. They are not measuring the same thing: a redemption exists in Apollo
+              because Apollo GRANTS the reward, whereas it reaches PostHog only if the app
+              remembered to fire referral_redeemed — which it has done once against Apollo's
+              26. So this counts EVENT COVERAGE, not redemptions, and must say so. */}
+          <div style={{ marginTop: 6, fontSize: 11, color: "#8C7C73", lineHeight: 1.5 }}>
+            Client events only, and they under-fire badly — Apollo has recorded far more
+            redemptions than the app has reported. Read this as how much of the loop is
+            instrumented; the referral engine card is the authoritative count.
+          </div>
         </div>
       )}
     </div>
@@ -1246,6 +1257,14 @@ function Journey({ steps, lifecycle, otpAutofillRate, shareLoop, dailyNew }) {
               </div>
               );
             })}
+          </div>
+          {/* Same trap as the Channels line above: these four tiles are app events, and
+              "Redeemed" here has fired once while Apollo has granted 26. Kept because the
+              gap between tiles is the only view of where instrumentation is missing — but
+              it is not the referral scoreboard, and unlabelled it was being read as one. */}
+          <div style={{ marginTop: 6, fontSize: 11, color: "#8C7C73", lineHeight: 1.5 }}>
+            App events, not the ledger. Redemptions in particular under-fire — the referral
+            engine card counts what Apollo actually granted.
           </div>
           <div style={{ marginTop: 6, fontSize: 11.5, color: "#8C7C73" }}>
             {shareLoop.tapped > 0

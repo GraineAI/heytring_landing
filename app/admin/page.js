@@ -778,8 +778,8 @@ export default function Admin() {
                   ["pushes recovered", health.retry_queue?.sent,
                    health.retry_recovered_pct != null ? `${health.retry_recovered_pct}% of retries landed` : ""],
                   ["expired unsent", health.retry_queue?.expired, "phone was off past the shelf life"],
-                ].map(([label, val, sub]) => (
-                  <div key={label}>
+                ].map(([label, val, sub, tip]) => (
+                  <div key={label} title={tip || undefined}>
                     <div style={{ color: "#5b6673", fontSize: 10.5, textTransform: "uppercase",
                                   letterSpacing: .7 }}>{label}</div>
                     <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15,
@@ -1021,7 +1021,14 @@ export default function Admin() {
               </div>
               <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 12 }}>
                 {[
-                  ["k-factor", ref.k_factor, ref.k_factor > 0 ? `1 new user per ${Math.round(1 / ref.k_factor)}` : "no compounding"],
+                  // Below 1.0 the loop converges rather than compounds, and that single fact
+                  // decides whether referral is a growth channel or a retention perk. "1 new
+                  // user per 3" read like progress; it is the same number saying the loop dies.
+                  ["k-factor", ref.k_factor,
+                   !(ref.k_factor > 0) ? "no compounding"
+                     : ref.subcritical === false ? `above 1.0 — compounds`
+                     : `below 1.0 — converges`,
+                   ref.k_window_note],
                   ["cycle", ref.cycle_days != null ? `${ref.cycle_days}d` : "—",
                    ref.cycles_in_horizon ? `${ref.cycles_in_horizon} turns in ${ref.horizon_days}d` : "not measurable yet"],
                   ["referring", ref.participation_pct != null ? `${ref.participation_pct}%` : "—",
@@ -1051,12 +1058,18 @@ export default function Admin() {
                         ? `On today's k, referral alone reaches ${ref.projected_users.toLocaleString("en-IN")} in ${ref.horizon_days} days — not ${(ref.goal || 0).toLocaleString("en-IN")}.`
                         : "No honest projection yet — cycle time isn't measurable."}
                   </b>
-                  {ref.k_needed_for_goal != null && ref.k_factor > 0 && (
+                  {/* The ceiling, not a target. A subcritical loop has no "k needed on this
+                      clock" — it has a number it converges to regardless of how long you wait,
+                      and saying so is the difference between pushing the share prompt harder
+                      and going to find a channel that actually scales. */}
+                  {ref.ceiling_note ? (
+                    <span style={{ color: "#9aa4b2" }}> {ref.ceiling_note}</span>
+                  ) : ref.k_needed_for_goal != null && ref.k_factor > 0 ? (
                     <span style={{ color: "#9aa4b2" }}>
                       {" "}Reaching the goal on this clock needs k = {ref.k_needed_for_goal},
-                      about {Math.round(ref.k_needed_for_goal / ref.k_factor)}× today's.
+                      about {Math.round(ref.k_needed_for_goal / ref.k_factor)}× today&rsquo;s.
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
               {/* THE LOOP, end to end. k tells you the loop's yield; only the steps tell you
@@ -1125,6 +1138,14 @@ export default function Admin() {
                     the app and never appears in the middle step — so link opens is a floor, and a
                     step rate is shown only where one step genuinely contains the next.
                   </div>
+                  {/* The bars descend left to right and invite a funnel reading, but one shared
+                      code can be redeemed by many people, so the last step is not a subset of the
+                      first. Say it where the bars are, not in a footnote further down. */}
+                  {ref.loop_note && (
+                    <div style={{ color: "#E4926F", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                      {ref.loop_note}
+                    </div>
+                  )}
                   {ref.loop_top.shares == null || ref.loop_top.shares === 0 ? (
                     <div style={{ color: "#E7B75A", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
                       Link opens are counted here on the website; shares are not arriving from the
