@@ -16,6 +16,7 @@ import { detect, describe, findConstraint } from "./components/signals";
 import Deck from "./components/Deck";
 import { cohortCurve } from "../lib/series";
 import { APOLLO_STAGES } from "./components/spine";
+import DotMatrix, { STAGE_RAMP } from "../components/DotMatrix";
 import ProductMetrics from "../components/ProductMetrics";
 import UserResearch from "../components/UserResearch";
 import { humanEvent, byMeaning, KIND_COLOR } from "../lib/eventNames";
@@ -679,6 +680,31 @@ export default function Admin() {
             const top = cum[order[0]] || 0;
             return (
               <div style={{ marginTop: 16 }}>
+                {/* ONE DOT, ONE PERSON — drawn before the bars, because the bars cannot
+                    say this. Every stage below is rendered as a percentage of the one
+                    above it, and at this size a percentage flatters: "7% reached 5+
+                    active days" and "5 people did" are the same fact, but only the
+                    second is honest about how much one person moves it. The panel
+                    currently warns about that in prose, which is an admission that the
+                    form is fighting the reader. Five dots beside a hundred and fifty-nine
+                    need no warning.
+
+                    Colour is the ordinal ramp, not categorical hues: these stages are a
+                    progression, and giving them unrelated colours would read as six
+                    species rather than one journey. Brightest is furthest along, because
+                    on a near-black surface the conventional dark-equals-more would bury
+                    the rarest and most important group in the background. */}
+                <div style={{ marginBottom: 18 }}>
+                  <DotMatrix
+                    groups={order.map((k, i) => ({
+                      key: k,
+                      label: labels[k],
+                      n: lifecycle.funnel[k] || 0,      // people who STOPPED here, so each person is drawn once
+                      color: STAGE_RAMP[i],
+                    }))}
+                    caption={`Each dot is one person, placed at the furthest stage they reached. ${top.toLocaleString("en-IN")} people in total.`}
+                  />
+                </div>
                 {order.map((k, i) => {
                   const n = cum[k];
                   const prev = i === 0 ? n : cum[order[i - 1]];

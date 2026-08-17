@@ -12,6 +12,7 @@
  * against the #0B0B0C card surface.
  */
 import { useEffect, useRef, useState } from "react";
+import DotMatrix, { STATE_COLORS } from "./DotMatrix";
 import dynamic from "next/dynamic";
 import { rolling, denseSlots } from "../lib/series";
 import { sumSeries, readout } from "../lib/daily";
@@ -1885,6 +1886,30 @@ export default function ProductMetrics() {
               </div>
             ))}
           </div>
+          {/* ONE DOT, ONE PERSON. The four numbers above are the same data, but 8 retained
+              beside 193 new reads as a rounding error in a tile and as a near-empty page
+              here — which is the truth. Churned sits below the rule as hollow rings because
+              those people are NOT in MAU; drawing them inline would imply they were. */}
+          <div style={{ marginTop: 14 }}>
+            <DotMatrix
+              groups={[
+                { key: "new", label: "New", n: d.growth.new, color: STATE_COLORS.new },
+                { key: "ret", label: "Retained", n: d.growth.retained, color: STATE_COLORS.retained },
+                { key: "res", label: "Resurrected", n: d.growth.resurrected, color: STATE_COLORS.resurrected },
+              ]}
+              caption={`These ${Number(d.growth.activeNow || 0).toLocaleString("en-IN")} are this month's active people. Retained is the only group acquisition cannot buy.`}
+            />
+            {d.growth.churned > 0 && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+                <DotMatrix
+                  groups={[{ key: "churn", label: "Churned", n: d.growth.churned,
+                             color: "#e66767", hollow: true }]}
+                  caption="Active last month, silent this month — outside the population above, not part of it."
+                />
+              </div>
+            )}
+          </div>
+
           {/* Quick ratio. Above 1 the product grows; below it, no install number saves you. */}
           <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10,
                         background: !d.growth.comparable ? "rgba(255,180,84,.10)"
