@@ -133,6 +133,30 @@ function fixReferralProjection(body) {
   }
 
   /**
+   * A DECILE OF SIX PEOPLE IS ONE PERSON.
+   *
+   * The card reads "the top 10% of referrers bring 69.2% of all referred users", which sounds
+   * like a power law measured across a population. There are 6 referrers. Ten percent of 6 is
+   * 0.6, so Apollo is really reporting the top ONE — and "the top 10%" dressed that up as a
+   * distribution when it is a single person who could stop tomorrow.
+   *
+   * That distinction changes the decision. A genuine power law across dozens of referrers says
+   * find more of that type. One person carrying 69% says the channel has a single point of
+   * failure and the first job is to go and talk to them. Below ten referrers the decile is
+   * relabelled as the headcount it actually describes.
+   */
+  const referrers = Number(body.referrers);
+  if (Number.isFinite(referrers) && referrers > 0 && body.top_decile_share_pct != null) {
+    body.top_decile_n = Math.max(1, Math.ceil(referrers * 0.1));
+    if (referrers < 10) {
+      body.concentration_note =
+        `${body.top_decile_n} of ${referrers} referrers brings ${body.top_decile_share_pct}% of all ` +
+        `referred users. With only ${referrers} referrers a "top 10%" is not a distribution — it is ` +
+        `this many people, and the channel stops if they do.`;
+    }
+  }
+
+  /**
    * A FUNNEL THAT RUNS UPHILL IS NOT A FUNNEL. The loop card draws shares -> opens ->
    * redemptions as three descending bars, but redemptions (26) exceed shares (12): one share
    * of a code can be redeemed by many people, so the steps are not nested and the picture

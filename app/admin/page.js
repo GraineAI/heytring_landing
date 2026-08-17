@@ -1165,12 +1165,17 @@ export default function Admin() {
                   <code style={{ color: "#e6edf3" }}> referral_link_opened</code>.
                 </div>
               )}
-              {ref.top_decile_share_pct != null && (
+              {/* Below ten referrers a decile is a headcount, not a distribution — say which. */}
+              {ref.concentration_note ? (
+                <div style={{ color: "#E7B75A", fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+                  {ref.concentration_note}
+                </div>
+              ) : ref.top_decile_share_pct != null ? (
                 <div style={{ color: "#9aa4b2", fontSize: 11.5, marginTop: 8 }}>
                   The top 10% of referrers bring <b style={{ color: "#e6edf3" }}>{ref.top_decile_share_pct}%</b>
                   {" "}of all referred users.
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
