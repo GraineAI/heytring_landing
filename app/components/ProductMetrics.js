@@ -843,6 +843,101 @@ function SigninFunnel({ rows }) {
 }
 
 /** Onboarding, ordered by the step index the app reports rather than by name. */
+/**
+ * "DELETE THE PART OR PROCESS." Musk's five-step algorithm puts deletion SECOND —
+ * before simplifying, before optimising, and long before automating — because
+ * optimising a step that should not exist is the most expensive way to be busy.
+ * His check on whether you deleted enough is that you must later add back about
+ * 10%; if nothing gets added back, you did not cut deep enough.
+ *
+ * Nothing on this dashboard was asking that question. Every onboarding panel
+ * measured how well each step performs, which silently assumes every step should
+ * exist. This asks the other question: which step should not be here at all.
+ *
+ * Two findings are derived, and neither needs a judgement call:
+ *
+ * POST-VALUE STEPS. "Turn it on" is the moment forwarding is enabled and Tring can
+ * answer a call — this dashboard's own definition of ARMED. Any step sequenced
+ * AFTER it is being asked of someone whose product already works, which is the
+ * cheapest possible thing to cut: deleting it cannot break activation, because
+ * activation already happened.
+ *
+ * THE WORST STEP. The largest single drop, and the people it costs. On Android
+ * that is "Who's calling" at the very end — roughly half of everyone who armed the
+ * product walks away during a caller-ID setup they did not need in order to
+ * receive value. Optimising that screen is the trap; it is post-value, so the
+ * honest move is to delete it from onboarding and offer it in-app later.
+ */
+function DeletionAudit({ rows }) {
+  const byOs = {};
+  rows.forEach((r) => { (byOs[r.os] = byOs[r.os] || []).push(r); });
+
+  const findings = Object.entries(byOs).map(([os, list]) => {
+    const steps = [...list].sort((a, b) => a.idx - b.idx);
+    if (steps.length < 2) return null;
+    // The arming step, matched on label rather than a hardcoded index — the two
+    // platforms sequence it differently (6th on Android, 7th on iOS).
+    const armIdx = steps.findIndex((r) => /turn it on/i.test(r.label || ""));
+    const postValue = armIdx >= 0 ? steps.slice(armIdx + 1) : [];
+    // Biggest absolute loss between consecutive steps.
+    let worst = null;
+    for (let i = 1; i < steps.length; i++) {
+      const lost = (steps[i - 1].people || 0) - (steps[i].people || 0);
+      if (lost > 0 && (!worst || lost > worst.lost)) {
+        worst = { lost, step: steps[i], prev: steps[i - 1] };
+      }
+    }
+    return { os, total: steps.length, postValue, worst };
+  }).filter(Boolean);
+
+  if (!findings.length) return null;
+
+  return (
+    <div style={{ ...CARD, flex: "1 1 420px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Delete the part</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+        which step should not exist — not how well it performs
+      </div>
+      {findings.map((f) => (
+        <div key={f.os} style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>
+            {f.os} <span style={{ color: MUTED, fontWeight: 500 }}>· {f.total} steps</span>
+          </div>
+          {f.worst && (
+            <div style={{ fontSize: 12.5, color: SUB, marginTop: 6, lineHeight: 1.55 }}>
+              Worst step: <b style={{ color: INK }}>{f.worst.step.label}</b> — costs{" "}
+              <b style={{ color: "#FF7B6B" }}>{f.worst.lost}</b> of the{" "}
+              {f.worst.prev.people} who reached the one before it.
+            </div>
+          )}
+          {f.postValue.length > 0 ? (
+            <div style={{ fontSize: 12.5, color: SUB, marginTop: 6, lineHeight: 1.55,
+                          padding: "8px 10px", borderRadius: 8, background: "rgba(255,180,84,.10)" }}>
+              <b style={{ color: "#FFB454" }}>
+                {f.postValue.length} step{f.postValue.length > 1 ? "s" : ""} sit after the product
+                already works
+              </b>{" "}
+              ({f.postValue.map((r) => r.label).join(", ")}). Forwarding is on by then, so Tring can
+              already answer a call — deleting {f.postValue.length > 1 ? "these" : "this"} cannot
+              break activation, because activation has happened. Offer it in-app once they have seen
+              it work.
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>
+              Nothing sequenced after the product is armed — this flow has no free deletions left.
+            </div>
+          )}
+        </div>
+      ))}
+      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 12, lineHeight: 1.5 }}>
+        Musk&rsquo;s rule of thumb: if you never have to add back about 10% of what you deleted, you
+        did not cut deep enough. Deletion comes before optimisation — a step that should not exist
+        cannot be improved into one that should.
+      </div>
+    </div>
+  );
+}
+
 function OnboardingFunnel({ rows, back }) {
   const byOs = {};
   rows.forEach((r) => { (byOs[r.os] = byOs[r.os] || []).push(r); });
@@ -1957,6 +2052,7 @@ export default function ProductMetrics() {
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {!!d.signinFunnel && <SigninFunnel rows={d.signinFunnel} />}
         {!!d.onboardingSteps?.length && <OnboardingFunnel rows={d.onboardingSteps} back={d.onboardingBack} />}
+        {!!d.onboardingSteps?.length && <DeletionAudit rows={d.onboardingSteps} />}
         {!!d.signinFailReasons?.length && (
           <div style={{ ...CARD, flex: "1 1 280px" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Why the code failed</div>
