@@ -1836,6 +1836,17 @@ export default function ProductMetrics() {
             truth. The label now names what it actually divides. */}
         <Tile k="Stickiness" v={`${a.stickiness}%`} sub={a.stickinessBasis ? `avg DAU ${a.stickinessBasis.avgDau} ÷ MAU ${a.stickinessBasis.mau}` : "avg DAU ÷ MAU"} />
         <Tile k="Avg DAU" v={a.avgDau} sub="full days only" />
+        {/* THE PAIR, not the single ratio. DAU/MAU reads the same for a daily habit used
+            by few and a monthly utility used by many; splitting it says which one you have.
+            Tring should look like the middle case — nobody should open a call assistant
+            daily, they should let it answer calls — so judging it on DAU/MAU alone imports
+            a social-app yardstick and makes a healthy weekly rhythm look broken. */}
+        {a.dauOverWau != null && (
+          <Tile k="DAU/WAU" v={`${a.dauOverWau}%`} sub="how daily the habit is" />
+        )}
+        {a.wauOverMau != null && (
+          <Tile k="WAU/MAU" v={`${a.wauOverMau}%`} sub="how weekly the rhythm is" />
+        )}
         <Tile k="Sessions" v={(v?.sessions ?? 0).toLocaleString()} sub={`${v.sessionsPerPerson} per person`} />
         <Tile k="Events" v={(v?.events30d ?? 0).toLocaleString()} sub="30 days" />
       </div>
@@ -1844,6 +1855,59 @@ export default function ProductMetrics() {
         number under each is the raw global count (CI, emulators, store-review). That gap is why the old
         MAU read ~2× the real base.
       </div>
+
+      {/* GROWTH ACCOUNTING — the only arithmetic that explains a flat MAU.
+          MAU 201 could be 201 loyal people or 201 strangers replacing last month's 201,
+          and no amount of DAU/MAU tells those apart. This does. */}
+      {d.growth && (
+        <div style={{ ...CARD, marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>Growth accounting</span>
+            <span style={{ fontSize: 11.5, color: MUTED }}>{d.growth.windowNote}</span>
+          </div>
+          <div style={{ fontSize: 11.5, color: MUTED, marginTop: 4 }}>
+            MAU(t) = MAU(t−1) + new + resurrected − churned
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            {[
+              ["New", d.growth.new, "#3FBF7F", "never seen before"],
+              ["Retained", d.growth.retained, "#3FBF7F", "active both periods"],
+              ["Resurrected", d.growth.resurrected, "#FFB454", "came back"],
+              ["Churned", d.growth.churned, "#FF7B6B", "went silent"],
+            ].map(([label, n, c, sub]) => (
+              <div key={label} style={{ background: "rgba(255,255,255,.04)", borderRadius: 10,
+                                        padding: "8px 12px", flex: "1 1 130px" }}>
+                <div style={{ color: MUTED, fontSize: 12.5 }}>{label}</div>
+                <div style={{ color: c, fontSize: 20, fontWeight: 700, marginTop: 2 }}>
+                  {Number(n).toLocaleString()}
+                </div>
+                <div style={{ color: MUTED, fontSize: 11 }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* Quick ratio. Above 1 the product grows; below it, no install number saves you. */}
+          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10,
+                        background: !d.growth.comparable ? "rgba(255,180,84,.10)"
+                          : d.growth.quickRatio == null ? "rgba(255,255,255,.04)"
+                          : d.growth.retainedShare != null && d.growth.retainedShare < 20 ? "rgba(255,180,84,.10)"
+                          : d.growth.quickRatio >= 1.5 ? "rgba(63,191,127,.10)"
+                          : d.growth.quickRatio >= 1 ? "rgba(255,180,84,.10)" : "rgba(255,123,107,.10)" }}>
+            <span style={{ fontSize: 13.5, color: INK }}>
+              <b>Quick ratio {d.growth.quickRatio == null ? "—" : d.growth.quickRatio}</b>
+              {" "}({d.growth.new} new + {d.growth.resurrected} resurrected) ÷ {d.growth.churned} churned
+              {" — "}{d.growth.verdict}.
+            </span>
+            <div style={{ fontSize: 11.5, color: MUTED, marginTop: 4 }}>
+              Healthy consumer products sit above {d.growth.healthyAbove}. Net change this period:
+              {" "}{d.growth.netChange > 0 ? "+" : ""}{d.growth.netChange} people.
+              {d.growth.retainedShare != null && (
+                <> Retained share <b style={{ color: SUB }}>{d.growth.retainedShare}%</b> —
+                {" "}the half acquisition cannot buy.</>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <AIStrategist d={d} tick={updatedAt} />
       <ActionItems d={d} ledger={refLedger} />

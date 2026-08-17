@@ -382,6 +382,44 @@ const Q = {
 
   // ── DEPTH OF USE. How many days each person was active, bucketed. One-day
   // wonders vs habit is the whole story of a young app.
+  /**
+   * GROWTH ACCOUNTING — the identity every consumer-metrics framework is built on
+   * (Social Capital's version is the canonical one; a16z and Lenny's teach the same
+   * decomposition). It is the only arithmetic that explains a FLAT MAU, and this
+   * dashboard could not do it: MAU 201 could be 201 loyal people or 201 strangers
+   * replacing last month's 201, and DAU/MAU cannot tell those apart.
+   *
+   *     MAU(t) = MAU(t-1) + new + resurrected - churned
+   *
+   * Four states, measured this 30 days against the previous 30:
+   *   new         active now, and we had never seen them before
+   *   retained    active now, active last period too
+   *   resurrected active now, silent last period, but not new — they came BACK
+   *   churned     active last period, silent now
+   *
+   * QUICK RATIO = (new + resurrected) / churned. Above 1 the product grows; below 1
+   * it is leaking faster than it fills regardless of how good the install numbers look.
+   * Social Capital's rule of thumb for a healthy consumer product is 1.5+.
+   *
+   * first_ts is a min() over 180 days, which covers this project's entire history
+   * (first event 2026-07-01), so "new" really means new and not merely new-to-the-window.
+   */
+  growth: `SELECT
+      countIf(cur > 0 AND first_ts >= now() - INTERVAL 30 DAY)                AS new_users,
+      countIf(cur > 0 AND prev > 0 AND first_ts < now() - INTERVAL 30 DAY)    AS retained,
+      countIf(cur > 0 AND prev = 0 AND first_ts < now() - INTERVAL 30 DAY)    AS resurrected,
+      countIf(cur = 0 AND prev > 0)                                           AS churned
+    FROM (
+      SELECT person_id,
+             min(timestamp) AS first_ts,
+             countIf(timestamp >= now() - INTERVAL 30 DAY) AS cur,
+             countIf(timestamp >= now() - INTERVAL 60 DAY
+                     AND timestamp <  now() - INTERVAL 30 DAY) AS prev
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 180 DAY AND properties.$geoip_country_name = 'India'
+      GROUP BY person_id
+    )`,
+
   depth: `SELECT
       days_active,
       count() AS people
@@ -750,7 +788,95 @@ async function build() {
           : false,
         scope: "India",
         globalDau: gDau, globalWau: gWau, globalMau: gMau,
+
+        /**
+         * DAU/WAU AND WAU/MAU, not just DAU/MAU.
+         *
+         * One ratio cannot tell you what kind of product you have. DAU/MAU compresses
+         * "how many days a month" into a single number that reads the same for a daily
+         * habit used by few and a monthly utility used by many. The pair separates them:
+         *
+         *   DAU/WAU high, WAU/MAU high  -> a daily habit
+         *   DAU/WAU low,  WAU/MAU high  -> a weekly rhythm, which is what a call
+         *                                  assistant should look like
+         *   both low                    -> people arrive, try it, and drift
+         *
+         * That matters here specifically. Tring is not a feed — nobody should open it
+         * daily, they should let it answer calls. Judging it on DAU/MAU alone imports a
+         * social-app yardstick and makes a healthy weekly utility look broken. These are
+         * free: the counts are already in `totals`, only the division was missing.
+         */
+        dauOverWau: wau ? Math.round((dau / wau) * 1000) / 10 : null,
+        wauOverMau: mau ? Math.round((wau / mau) * 1000) / 10 : null,
       },
+
+      /**
+       * The growth identity, with the ratio that decides whether it compounds.
+       * Absent rather than zeroed when the query fails — four zeros here would read as
+       * "nobody churned", which is the most flattering possible misreading.
+       */
+      growth: (() => {
+        const row = (R.growth || [])[0];
+        if (!row) return null;
+        const [nu = 0, ret = 0, res = 0, ch = 0] = row.map((x) => Number(x) || 0);
+        const gained = nu + res;
+        // Undefined, not Infinity, when nothing churned — a young product with no churn
+        // yet has no quick ratio, and rendering Infinity as a win is how that gets missed.
+        const quickRatio = ch > 0 ? Math.round((gained / ch) * 100) / 100 : null;
+        const activeNow = nu + ret + res;
+
+        /**
+         * THE VALIDITY CONDITION, WITHOUT WHICH THIS NUMBER LIES.
+         *
+         * Live values today: 193 new, 8 retained, 0 resurrected, 33 churned — a quick
+         * ratio of 5.85, which would read as spectacular growth. It is not, for two
+         * independent reasons, and a metric shipped without its caveat is worse than no
+         * metric because it gets quoted.
+         *
+         * 1. THE COMPARISON PERIOD IS HALF EMPTY. History starts 2026-07-01, so the
+         *    "previous 30 days" window (30-60 days ago) contains only about 17 days of
+         *    real data. Churn is counted against a base that barely existed, so the
+         *    denominator is structurally too small and the ratio is flattered by
+         *    construction. It cannot be trusted until the product is 60 days old.
+         *
+         * 2. IT IS ALL NEW USERS. 8 of 201 monthly actives were also active last month —
+         *    4%. A quick ratio can look excellent while the bucket empties as fast as it
+         *    fills, because pouring faster raises the numerator. Retained share is the
+         *    number that cannot be faked by acquisition, so it is returned alongside and
+         *    the verdict defers to it.
+         */
+        const daysOfHistory = firstSeen
+          ? (Date.now() - new Date(firstSeen).getTime()) / 86400000 : null;
+        const prevWindowCoverage = daysOfHistory == null ? null
+          : Math.max(0, Math.min(30, daysOfHistory - 30)) / 30;
+        const comparable = prevWindowCoverage != null && prevWindowCoverage >= 0.95;
+        const retainedShare = activeNow ? Math.round((ret / activeNow) * 1000) / 10 : null;
+
+        return {
+          new: nu, retained: ret, resurrected: res, churned: ch,
+          activeNow,
+          netChange: gained - ch,
+          quickRatio,
+          healthyAbove: 1.5,                       // Social Capital's rule of thumb
+          retainedShare,
+          comparable,
+          coveragePct: prevWindowCoverage == null ? null : Math.round(prevWindowCoverage * 100),
+          // The verdict leads with retention, because that is the half acquisition cannot buy.
+          verdict:
+            !comparable
+              ? `not yet comparable — the previous 30-day window holds only about `
+                + `${Math.round((prevWindowCoverage || 0) * 30)} days of history, so churn is `
+                + `understated and the quick ratio is flattered by construction`
+              : quickRatio == null ? "no churn yet — quick ratio is not defined"
+              : retainedShare != null && retainedShare < 20
+                ? `${retainedShare}% of this month's actives were here last month — the ratio is `
+                  + `being held up by new users, not by the product holding on to anyone`
+              : quickRatio >= 1.5 ? "growing, with room to spare"
+              : quickRatio >= 1 ? "growing, but only just — every new user is replacing a lost one"
+              : "shrinking — losing people faster than they are being replaced",
+          windowNote: "last 30 days against the 30 before it, India only",
+        };
+      })(),
       volume: {
         events30d,
         sessions: sessionCount,
