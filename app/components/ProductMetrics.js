@@ -1026,7 +1026,7 @@ function ReferralK({ data, cohort }) {
   return (
     <div style={{ ...CARD, flex: "1 1 320px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Referral k</div>
-      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90-day redemptions ÷ people who could have referred</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90-day redemptions ÷ people who had already activated</div>
       {data.reliable ? (
         <div style={{ fontSize: 34, fontWeight: 800, color: "#7BE3A9", marginTop: 10, letterSpacing: -1 }}>{data.k}</div>
       ) : (
@@ -1043,15 +1043,20 @@ function ReferralK({ data, cohort }) {
       </div>
       {!!cohort?.length && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>Share of each join-month who referred anyone</div>
+          <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>
+            Share of each join-month who redeemed within their own first 30 days
+          </div>
           {cohort.slice(0, 6).map((c) => (
             <div key={c.cohort} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
               <div style={{ width: 62, fontSize: 12, color: SUB }}>{c.cohort}</div>
               <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
                 <div style={{ width: `${Math.max(2, c.pct || 0)}%`, height: 8, background: "#7BE3A9" }} />
               </div>
-              <div style={{ width: 78, textAlign: "right", fontSize: 12, color: INK }}>
+              <div style={{ width: 92, textAlign: "right", fontSize: 12, color: INK }}>
                 {c.referredSomeone}/{c.joined}{c.pct != null && <span style={{ color: MUTED }}> · {c.pct}%</span>}
+                {/* A month that has not finished its own 30 days always looks worse than one that
+                    has. Marked rather than hidden, so it is read but not compared. */}
+                {c.partial && <span style={{ color: "#FFB454" }}> ·part</span>}
               </div>
             </div>
           ))}
