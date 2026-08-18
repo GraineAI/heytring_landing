@@ -1012,6 +1012,56 @@ function ExitFunnel({ data, reasons }) {
 }
 
 /** Where people come from, and whether the referral loop closes. */
+/**
+ * k — and the two numbers it is made of, shown rather than hidden.
+ *
+ * The old card printed one figure (0.347) built from a 90-day numerator over an all-time
+ * denominator. Both are here now: the honest k, restricted to people who had already activated
+ * when the window opened, and the naive one, so the difference is visible instead of the figure
+ * silently changing meaning. Below 30 people in the base it refuses to headline a ratio at all —
+ * a coefficient computed from a dozen people is a story, not a measurement.
+ */
+function ReferralK({ data, cohort }) {
+  if (!data) return null;
+  return (
+    <div style={{ ...CARD, flex: "1 1 320px" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Referral k</div>
+      <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90-day redemptions ÷ people who could have referred</div>
+      {data.reliable ? (
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#7BE3A9", marginTop: 10, letterSpacing: -1 }}>{data.k}</div>
+      ) : (
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#FFB454", marginTop: 10 }}>
+          Not enough base yet ({data.baseWindow} eligible)
+        </div>
+      )}
+      <div style={{ fontSize: 12.5, color: SUB, marginTop: 8, lineHeight: 1.6 }}>
+        {data.redemptions} redemptions ÷ {data.baseWindow} activated before the window opened
+        <br />
+        <span style={{ color: MUTED }}>
+          Naive (÷ {data.baseAll} all-time): {data.kNaive ?? "—"} — understates yield, and drifts as the base grows
+        </span>
+      </div>
+      {!!cohort?.length && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+          <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>Share of each join-month who referred anyone</div>
+          {cohort.slice(0, 6).map((c) => (
+            <div key={c.cohort} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+              <div style={{ width: 62, fontSize: 12, color: SUB }}>{c.cohort}</div>
+              <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,.08)", overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(2, c.pct || 0)}%`, height: 8, background: "#7BE3A9" }} />
+              </div>
+              <div style={{ width: 78, textAlign: "right", fontSize: 12, color: INK }}>
+                {c.referredSomeone}/{c.joined}{c.pct != null && <span style={{ color: MUTED }}> · {c.pct}%</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function Channels({ rows, loop }) {
   return (
     <div style={{ ...CARD, flex: "1 1 320px" }}>
@@ -1029,7 +1079,8 @@ function Channels({ rows, loop }) {
       {!!loop && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)", fontSize: 12.5, color: SUB }}>
           Referral loop: {loop.opened} opened → {loop.shared} shared
-          {loop.shareRate != null && ` (${loop.shareRate}%)`} → {loop.redeemed} redeemed
+          {loop.shareRate != null && ` (${loop.shareRate}%)`} → {loop.sent} sent
+          {loop.sentRate != null && ` (${loop.sentRate}%)`} → {loop.redeemed} redeemed
           {loop.redeemRate != null && ` (${loop.redeemRate}%)`}
           {/* This line said "0 redeemed" on a page whose referral card reads 26. Both were
               rendered as fact, three sections apart, and the reader had no way to tell which
@@ -2070,6 +2121,7 @@ export default function ProductMetrics() {
       <h2 style={H2}>Channels &amp; leaving</h2>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {!!d.channels?.length && <Channels rows={d.channels} loop={d.referralLoop} />}
+        {!!d.referralK && <ReferralK data={d.referralK} cohort={d.referralCohort} />}
         {!!d.exitFunnel && <ExitFunnel data={d.exitFunnel} reasons={d.exitReasons} />}
       </div>
 
