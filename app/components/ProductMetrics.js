@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import DotMatrix, { STATE_COLORS } from "./DotMatrix";
+import { numeratorTrust } from "../lib/referralTrust";
 import dynamic from "next/dynamic";
 import { rolling, denseSlots } from "../lib/series";
 import { sumSeries, readout } from "../lib/daily";
@@ -1039,8 +1040,9 @@ function ReferralK({ data, cohort, ledger }) {
    */
   const granted = Number(ledger?.redemptions);
   const seen = Number(data.redemptionsSeen ?? 0);
-  const coverage = Number.isFinite(granted) && granted > 0 ? seen / granted : null;
-  const trusted = coverage == null || coverage >= 0.8;
+  // Imported rather than inline: the threshold is the whole point, and a threshold with no
+  // test is one that drifts back to failing open without anyone noticing.
+  const { trusted, factor } = numeratorTrust(seen, granted);
 
   return (
     <div style={{ ...CARD, flex: "1 1 320px" }}>
@@ -1062,7 +1064,7 @@ function ReferralK({ data, cohort, ledger }) {
           <>
             The app has reported <b style={{ color: INK }}>{seen}</b> redemption{seen === 1 ? "" : "s"};
             Apollo has granted <b style={{ color: INK }}>{granted}</b>, so any k from this event would
-            be about {Math.round(granted / Math.max(seen, 1))}× too small. None is shown.
+            be about {factor}× too small. None is shown.
             <br />
             <span style={{ color: MUTED }}>
               The denominator is sound — {data.baseAll} activated, {data.baseWindow} before the window
