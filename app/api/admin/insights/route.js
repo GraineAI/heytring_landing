@@ -22,7 +22,7 @@ export const fetchCache = "force-no-store";
 // more on output — too much for a panel that re-runs on a 10-minute cycle.
 // Set OPENAI_MODEL=gpt-5.6-sol to go back; IS_REASONING below matches both, so
 // the request shape needs no change either way.
-const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+const MODEL = process.env.OPENAI_MODEL || "gpt-5.4-nano";
 // GPT-5.x / o-series are REASONING models: they use max_completion_tokens (not max_tokens), accept
 // reasoning_effort, and reject a non-default temperature. Older chat models (gpt-4o-mini) want
 // temperature + tolerate max_completion_tokens. Detect and build the body accordingly.

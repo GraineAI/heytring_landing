@@ -1623,7 +1623,42 @@ function AIStrategist({ d, tick }) {
     return {
       real_users_india: { dau: a.dau, wau: a.wau, mau: a.mau, stickiness_pct: a.stickiness, avg_dau: a.avgDau },
       global_incl_test: { mau: a.globalMau },
-      funnel: { installed: f.installed, opened: f.opened, signed_in: f.signedIn, activation_pct: f.activation, india: f.india, total: f.total },
+      /**
+       * EVERY RATE NAMES ITS OWN DENOMINATOR.
+       *
+       * This sent one field called `activation_pct` — signed-in over ALL installs, test
+       * infrastructure included — while the product page showed a different activation against a
+       * different population. The strategist correctly reported that the two "cannot both describe
+       * the same activation definition" and then spent a paragraph on the discrepancy instead of
+       * on the business. A metric whose denominator is not in its name will be compared with one
+       * that has a different denominator, every time.
+       *
+       * There is also no single "activation": the product distinguishes ARMED (forwarding on,
+       * phone not yet rung) from ANSWERED (Ring has handled a real call). Both are sent, named, so
+       * the gap between them is read as people waiting rather than as a leak.
+       */
+      funnel: {
+        installed_all: f.installed, opened_all: f.opened, signed_in_all: f.signedIn,
+        installed_india: f.india, total_people: f.total,
+        signed_in_pct_of_all_installs: f.activation,
+        note_on_denominators:
+          'signed_in_pct_of_all_installs counts every install including CI, emulators and store '
+          + 'review, which install and open but never sign in. It is the size of that distortion, '
+          + 'not the product number. Use the journey stages below for the product view.',
+      },
+      journey_stages: (() => {
+        // journey is an ARRAY of {key,label,people} steps, not an object.
+        const j = Object.fromEntries((d.journey || []).map((x) => [x.key, x.people]));
+        return {
+          code_requested: j.code_requested, signed_in: j.signed_in,
+          forwarding_armed: j.forwarding_enabled,
+          answered_a_call: j.activated,
+          retained_5_plus_days: j.retained,
+          note: 'forwarding_armed means setup is done and the phone has not necessarily rung. '
+            + 'answered_a_call is the product working at least once. The difference is people '
+            + 'waiting for a call, not a drop-off.',
+        };
+      })(),
       sessions: d.volume,
       // Milestones, not the whole curve. Sending 27 rows made the prompt large
       // (slower and dearer per call) and made the server's 10-minute cache key
