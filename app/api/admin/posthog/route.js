@@ -1132,12 +1132,27 @@ async function build() {
         // Column order follows the SELECT: base_all_time, base_in_window, redemptions.
         const [baseAll, baseWindow, redemptions] = (r || []).map((x) => Number(x) || 0);
         return {
-          redemptions, baseWindow, baseAll,
-          // The honest one: numerator and denominator drawn from the same population.
+          /**
+           * NAMED FOR WHAT IT ACTUALLY MEASURES, which is not redemptions.
+           *
+           * PostHog only learns of a redemption if the app emitted `referral_redeemed`, and it
+           * has emitted ONE against the 26 Apollo has granted. Apollo GRANTS the reward, so a
+           * redemption exists there by definition; this is a client event that can simply fail
+           * to fire. Measured live against this project: 1.
+           *
+           * Calling it `redemptions` is what let a ratio built on it look reasonable. Both
+           * ratios below are ~26x too small, and kNaive renders as 0.012 beside a referral
+           * engine card reading 0.347 — the same quantity, the same label, two orders of
+           * magnitude apart, both presented as fact. The card now refuses to print either
+           * unless the numerator can be shown to agree with Apollo's ledger.
+           */
+          redemptionsSeen: redemptions,
+          baseWindow, baseAll,
+          // Kept, but only rendered once the numerator is trusted. The DENOMINATOR here is
+          // sound — derived from the event stream, so it works retroactively.
           k: baseWindow ? Math.round((redemptions / baseWindow) * 1000) / 1000 : null,
-          // What the old card showed, kept so the two can be compared rather than swapped silently.
           kNaive: baseAll ? Math.round((redemptions / baseAll) * 1000) / 1000 : null,
-          // Below this the ratio is an anecdote; the card should say so rather than print 0.347.
+          // Below this the ratio is an anecdote; the card says so rather than printing a number.
           reliable: baseWindow >= 30,
         };
       })(),

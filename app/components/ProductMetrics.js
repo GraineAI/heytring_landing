@@ -1021,13 +1021,36 @@ function ExitFunnel({ data, reasons }) {
  * silently changing meaning. Below 30 people in the base it refuses to headline a ratio at all —
  * a coefficient computed from a dozen people is a story, not a measurement.
  */
-function ReferralK({ data, cohort }) {
+function ReferralK({ data, cohort, ledger }) {
   if (!data) return null;
+
+  /**
+   * THE NUMERATOR HAS TO EARN THE RIGHT TO BE DIVIDED.
+   *
+   * The denominator is now sound: derived from the event stream, 86 activated people, matched
+   * to the window. The numerator is not. PostHog has seen ONE `referral_redeemed` against the
+   * 26 Apollo has granted, because Apollo grants the reward while the client event merely
+   * reports it — and a client event can fail to fire. Every ratio built on it is ~26x too
+   * small, and the naive one renders as 0.012 beside a referral engine card reading 0.347.
+   *
+   * So Apollo's ledger is the referee. When its count is available and the app has reported
+   * materially fewer, no k is printed at all and the card names the gap instead. A suppressed
+   * number sends someone to fix the instrumentation; a wrong one gets quoted in a deck.
+   */
+  const granted = Number(ledger?.redemptions);
+  const seen = Number(data.redemptionsSeen ?? 0);
+  const coverage = Number.isFinite(granted) && granted > 0 ? seen / granted : null;
+  const trusted = coverage == null || coverage >= 0.8;
+
   return (
     <div style={{ ...CARD, flex: "1 1 320px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Referral k</div>
       <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>90-day redemptions ÷ people who had already activated</div>
-      {data.reliable ? (
+      {!trusted ? (
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#FF7B6B", marginTop: 10 }}>
+          Numerator under-instrumented
+        </div>
+      ) : data.reliable ? (
         <div style={{ fontSize: 34, fontWeight: 800, color: "#7BE3A9", marginTop: 10, letterSpacing: -1 }}>{data.k}</div>
       ) : (
         <div style={{ fontSize: 15, fontWeight: 700, color: "#FFB454", marginTop: 10 }}>
@@ -1035,12 +1058,30 @@ function ReferralK({ data, cohort }) {
         </div>
       )}
       <div style={{ fontSize: 12.5, color: SUB, marginTop: 8, lineHeight: 1.6 }}>
-        {data.redemptions} redemptions ÷ {data.baseWindow} activated before the window opened
-        <br />
-        <span style={{ color: MUTED }}>
-          Naive (÷ {data.baseAll} all-time): {data.kNaive ?? "—"} — understates yield, and drifts as the base grows
-        </span>
+        {!trusted ? (
+          <>
+            The app has reported <b style={{ color: INK }}>{seen}</b> redemption{seen === 1 ? "" : "s"};
+            Apollo has granted <b style={{ color: INK }}>{granted}</b>, so any k from this event would
+            be about {Math.round(granted / Math.max(seen, 1))}× too small. None is shown.
+            <br />
+            <span style={{ color: MUTED }}>
+              The denominator is sound — {data.baseAll} activated, {data.baseWindow} before the window
+              opened. Fix <code style={{ color: SUB }}>referral_redeemed</code> in the app and this card
+              starts working. Until then the referral engine card, which reads Apollo directly, is the
+              count to use.
+            </span>
+          </>
+        ) : (
+          <>
+            {seen} redemptions ÷ {data.baseWindow} activated before the window opened
+            <br />
+            <span style={{ color: MUTED }}>
+              Naive (÷ {data.baseAll} all-time): {data.kNaive ?? "—"} — understates yield, and drifts as the base grows
+            </span>
+          </>
+        )}
       </div>
+
       {!!cohort?.length && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>
@@ -2126,7 +2167,7 @@ export default function ProductMetrics() {
       <h2 style={H2}>Channels &amp; leaving</h2>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {!!d.channels?.length && <Channels rows={d.channels} loop={d.referralLoop} />}
-        {!!d.referralK && <ReferralK data={d.referralK} cohort={d.referralCohort} />}
+        {!!d.referralK && <ReferralK data={d.referralK} cohort={d.referralCohort} ledger={refLedger} />}
         {!!d.exitFunnel && <ExitFunnel data={d.exitFunnel} reasons={d.exitReasons} />}
       </div>
 
