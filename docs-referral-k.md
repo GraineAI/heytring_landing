@@ -26,25 +26,27 @@ whenever either window moves, and nobody reading the card can see why. The landi
 states this caveat on the tile rather than silently correcting it, because both halves are
 only measurable here in Apollo.
 
-## What settles it first — one query
+## What the event means — CONFIRMED
 
-**Before any of this is built, confirm what the event actually means.** "Got a referral code"
-is ambiguous and the two readings lead to opposite conclusions:
+`Got a referral code` fires when **someone types in a referral code**. It is the referee's
+redemption, not a code being issued to a referrer. That was the open question and it is now
+closed, which has two consequences.
 
-- **"I redeemed someone else's code"** (a referee) — this is the redemption event, and it is
-  exactly what k needs.
-- **"I was issued my own code to share"** — fires for every user at signup and is useless as
-  a numerator.
+**The numerator is already right, and probably already this.** Apollo reports 26 redemptions
+over 90 days, and 27 people currently hold a referral entitlement. Those reconcile with each
+other and with the count of people who would have typed a code. There is no separate
+redemption record to go looking for, and nothing to change about how redemptions are counted.
 
-The test is a count. Roughly 26–27 people should have it if it is the first; roughly 164 —
-everyone — if it is the second.
+**So the remaining bug is entirely in the denominator.** k is 26 redemptions counted over 90
+days divided by 75 activated users counted all-time. The numerator is a window; the
+denominator is a snapshot taken at the end of it.
 
-```sql
-SELECT count(DISTINCT user_id) FROM activity WHERE kind = 'referral';
-```
-
-If that returns ~164, stop: the event is the wrong one, and the redemption record lives
-somewhere else. Everything below assumes it returns ~26.
+Note which way that biases the result. The 75 includes people who activated *during* the
+window, or last week, and therefore had far less than 90 days in which to refer anyone. They
+inflate the denominator without having had a fair chance to contribute to the numerator, so
+**today's 0.347 understates the real per-user yield.** It is conservative rather than
+flattering — but it is still not a coefficient, because the size of that bias changes every
+time the base grows, and no reader can see it moving.
 
 ## What to return
 
