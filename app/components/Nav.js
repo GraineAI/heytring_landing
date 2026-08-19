@@ -1,8 +1,13 @@
+"use client";
+
 import Logo from "./Logo";
 import Wordmark from "./Wordmark";
+import useStoreLink from "./useStoreLink";
 
-/** Floating glass nav pill (dark). The CTA opens the beta-invite modal. */
+/** Floating glass nav pill (dark). The CTA is a direct store link — the beta-invite modal
+ *  it used to open is gone, because both platforms are publicly installable now. */
 export default function Nav() {
+  const store = useStoreLink("nav");
   return (
     <nav className="nav">
       <div className="wrap nav__in">
@@ -22,9 +27,10 @@ export default function Nav() {
           {/* the game is the site's most interactive moment — it gets its own
               pill and stays visible on mobile, where the link row collapses */}
 
-          <button className="btn btn--coral" data-beta="android" data-beta-placement="nav">
-            Get the beta
-          </button>
+          {/* A real link now, not a form. Points at whichever store fits the device. */}
+          <a className="btn btn--coral" href={store.href}>
+            {store.label}
+          </a>
         </div>
       </div>
     </nav>

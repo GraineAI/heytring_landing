@@ -505,9 +505,9 @@ export default function RingGame({ embedded = false }) {
                     {shared && <span className="sq__copied">{shared}</span>}
 
                     {!embedded && (
-                      <button className="sq__cta" data-beta="android" data-beta-placement="game">
+                      <a className="sq__cta" href="/go/play?p=game">
                         Let Ring take the controls — get the beta
-                      </button>
+                      </a>
                     )}
                   </>
                 )}

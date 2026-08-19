@@ -541,9 +541,9 @@ export default function RingGame3D({ embedded = false }) {
                     {shared && <span className="g3__copied">{shared}</span>}
 
                     {!embedded && (
-                      <button className="g3__cta" data-beta="android" data-beta-placement="game">
+                      <a className="g3__cta" href="/go/play?p=game">
                         Let Ring take the controls — get the beta
-                      </button>
+                      </a>
                     )}
                   </>
                 )}

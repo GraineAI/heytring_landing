@@ -13,7 +13,6 @@ import VoiceClone from "./components/VoiceClone";
 import Faq from "./components/Faq";
 import FinalCta from "./components/FinalCta";
 import Footer from "./components/Footer";
-import BetaModal from "./components/BetaModal";
 
 export default function Home() {
   return (
@@ -45,8 +44,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* closed-beta invite form, opened by any [data-beta] element */}
-      <BetaModal />
+      {/* The beta-invite modal is unmounted, not deleted. Both platforms are publicly
+          installable now — Play open testing and a public TestFlight join link — so every
+          CTA links straight to a store and nothing is left to open a form. components/
+          BetaModal.js is kept because putting it back is one import and one line, and
+          because the waitlist table it wrote to is still read by the admin dashboard. */}
     </>
   );
 }

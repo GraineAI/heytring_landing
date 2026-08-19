@@ -7,9 +7,10 @@
 // bypass it. It only costs conversion on a funnel that already loses 85% at
 // sign-in.
 //
-// iOS is still TestFlight, which IS invite-gated, so iPhone keeps the modal.
-// The two platforms genuinely differ right now, and the CTA should say so
-// rather than pretend they are the same.
+// iOS is TestFlight too, but via a PUBLIC join link — no tester list, no invite, no email.
+// So the platforms no longer differ in what a visitor has to do, and both CTAs are now
+// direct links. The invite modal is unmounted: a form in front of a download anyone can
+// reach by opening the link buys nothing and costs a step.
 // apollo, for the /share/<token> page. Server-side only — this page is server-rendered, so the
 // token is exchanged for content without the browser ever holding a recording URL it could keep
 // after the link is revoked. Override per environment with NEXT_PUBLIC_API_BASE.
