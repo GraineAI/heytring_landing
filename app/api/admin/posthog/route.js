@@ -629,31 +629,76 @@ let INFLIGHT = null;       // de-dupes concurrent misses into one query fan-out
 const FRESH_MS = 90_000;   // younger than this: no refetch at all
 const STALE_MS = 600_000;  // older than this: make them wait for real data
 
+/**
+ * ONE SHARED REBUILD, AND IT ALWAYS RESOLVES TO THE PAYLOAD.
+ *
+ * This is the fix for "Refresh failed (200)" — a 200 with no `ok` field, which the client
+ * reports verbatim because there is no error string in a body that has nothing in it.
+ *
+ * The background-refresh path used to store a DIFFERENT promise in INFLIGHT from the one the
+ * cold path awaited:
+ *
+ *     INFLIGHT = build().then((p) => { CACHE = {...} })   // resolves to undefined
+ *
+ * `.then()` returns whatever its callback returns, and that callback returned nothing. So any
+ * request that arrived mid-rebuild and reused INFLIGHT awaited `undefined`, spread it into the
+ * response — `{...undefined}` is `{}` — and returned HTTP 200 carrying `{"cache":"miss"}` and
+ * no data at all. It then wrote `payload: undefined` into CACHE, so every request for the next
+ * FRESH_MS served `{"cache":"hit"}` and failed the same way. One lost race poisoned 90 seconds.
+ *
+ * `?fresh=1` skips both cache checks and goes straight to that path, which is why the REFRESH
+ * BUTTON was the most reliable way to trigger it, and why this surfaced during a campaign: with
+ * one visitor the overlap is nearly impossible, with real traffic it is constant.
+ *
+ * INFLIGHT now always holds the raw build() promise. Cache-writing hangs off a side chain, so
+ * every awaiter — foreground or background — gets the payload itself.
+ */
+function rebuild() {
+  if (!INFLIGHT) {
+    const p = build();
+    INFLIGHT = p;
+    // Side chain, deliberately not reassigned to INFLIGHT. It also keeps the rejection
+    // handled, so a failed background rebuild never becomes an unhandled rejection.
+    p.then((payload) => {
+      // Never cache a falsy payload — that is the poisoning half of the bug above.
+      if (payload && payload.ok) CACHE = { at: Date.now(), payload };
+    }).catch(() => {}).finally(() => { INFLIGHT = null; });
+  }
+  return INFLIGHT;
+}
+
 export async function GET(req) {
   if (!isAuthed(req)) return NextResponse.json({ ok: false }, { status: 401 });
 
   const wantsFresh = new URL(req.url).searchParams.get("fresh") === "1";
   const age = CACHE ? Date.now() - CACHE.at : Infinity;
 
-  if (!wantsFresh && CACHE && age < FRESH_MS) {
+  if (!wantsFresh && CACHE?.payload?.ok && age < FRESH_MS) {
     return NextResponse.json({ ...CACHE.payload, cache: "hit", ageMs: age });
   }
-  if (!wantsFresh && CACHE && age < STALE_MS) {
-    // Hand back what we have now and rebuild in the background. Errors are
-    // swallowed on purpose: a failed background refresh must not replace a
-    // perfectly good cached payload with a 500.
-    if (!INFLIGHT) {
-      INFLIGHT = build().then((p) => { CACHE = { at: Date.now(), payload: p }; })
-        .catch(() => {}).finally(() => { INFLIGHT = null; });
-    }
+  if (!wantsFresh && CACHE?.payload?.ok && age < STALE_MS) {
+    // Hand back what we have and rebuild behind it. The rejection is handled inside
+    // rebuild(), so a failed background refresh cannot replace good cached data with a 500.
+    rebuild();
     return NextResponse.json({ ...CACHE.payload, cache: "stale", ageMs: age });
   }
 
   try {
-    // Concurrent cold misses share one fan-out rather than each firing 24 queries.
-    INFLIGHT = INFLIGHT || build().finally(() => { INFLIGHT = null; });
-    const payload = await INFLIGHT;
-    CACHE = { at: Date.now(), payload };
+    // Concurrent cold misses share one fan-out rather than each firing 24+ queries.
+    const payload = await rebuild();
+    /**
+     * LAST GATE. Everything above should guarantee a real payload, but this endpoint has now
+     * shipped a 200 with an empty body once, and that failure is invisible from the outside:
+     * the status says success and the client is left inventing an error message. If there is
+     * no `ok`, say so with a status that means it.
+     */
+    if (!payload || !payload.ok) {
+      console.error("admin posthog: build resolved without ok", typeof payload);
+      return NextResponse.json(
+        { ok: false, error: "PostHog returned no usable data — try Refresh again in a moment." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ ...payload, cache: "miss", ageMs: 0 });
   } catch (e) {
     const msg = e?.message === "unconfigured"
