@@ -128,7 +128,20 @@ export default function Admin() {
     // completely independent endpoint. Stay signed in, surface the DB problem inline.
     setAuthed(true);
     if (!r.ok) {
-      setErr("Waitlist data unavailable (is DATABASE_URL set / reachable?)");
+      // Print what the server actually said. The old text guessed at
+      // DATABASE_URL on every failure, which reads as a diagnosis and is only
+      // right some of the time — a missing column and an unreachable host
+      // produced the identical sentence.
+      const body = await r.json().catch(() => null);
+      const why =
+        body?.error === "schema"
+          ? `This database is missing part of the schema — ${body.message}. It is reachable; it is the wrong shape.`
+          : body?.error === "quota"
+            ? `The database provider is refusing queries — ${body.message}`
+            : body?.message
+              ? `Waitlist data unavailable — ${body.message}`
+              : "Waitlist data unavailable (is DATABASE_URL set / reachable?)";
+      setErr(why);
       setData({ waitlist: [], clicks: [] });
       return;
     }

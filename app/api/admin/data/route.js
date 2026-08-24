@@ -97,7 +97,28 @@ export async function GET(req) {
     const stats = Object.fromEntries(Object.entries(a).map(([k, v]) => [k, Number(v) || 0]));
     return NextResponse.json({ ok: true, waitlist, clicks, stats });
   } catch (e) {
-    console.error("admin data failed:", e?.message);
-    return NextResponse.json({ ok: false, error: "db" }, { status: 500 });
+    /*
+     * SAY WHAT BROKE. This used to return `{ error: "db" }` and put the real
+     * message in a server log nobody reads, so the page fell back to guessing
+     * — "is DATABASE_URL set / reachable?" — which sent us hunting a
+     * connection problem when the connection was fine and a column was
+     * missing. A wrong hypothesis printed confidently costs more than no
+     * hypothesis.
+     *
+     * `code` is Postgres's SQLSTATE: 42703 undefined_column and 42P01
+     * undefined_table both mean the schema this code expects was never
+     * applied to the database it is talking to, which is an entirely
+     * different fix from an unreachable host.
+     */
+    const code = e?.code || null;
+    const message = e?.message || String(e);
+    console.error("admin data failed:", { code, message });
+    const kind =
+      code === "42703" || code === "42P01"
+        ? "schema"        // connected fine; this database is missing columns/tables
+        : /quota|402|exceeded/i.test(message)
+          ? "quota"       // the provider is refusing queries, not the network
+          : "db";
+    return NextResponse.json({ ok: false, error: kind, code, message }, { status: 500 });
   }
 }
