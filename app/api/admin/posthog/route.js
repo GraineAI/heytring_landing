@@ -151,6 +151,26 @@ const Q = {
     )
     GROUP BY day HAVING day >= 0 AND day <= 30 ORDER BY day`,
 
+  // ── WHO WAS EVEN ELIGIBLE TO COME BACK. The missing denominator.
+  //
+  // Retention was divided by day-0, i.e. EVERY person seen in the window. Somebody first seen
+  // yesterday sits in that denominator and cannot possibly have a day-7 — so D7 was understated,
+  // and understated WORSE the faster we grow, because growth means more people too new to have
+  // had the chance. On a beta signing users up daily that is not a rounding error, and the
+  // dashboard turns the number into advice ("give people a reason to return — D7 ~x%"), so a
+  // wrong number was generating wrong instructions.
+  //
+  // One person per row with the age of their first day. eligible(N) = how many are at least N
+  // days old, summed on the way through — cheap, and it needs no join against the curve above.
+  retentionCohort: `SELECT dateDiff('day', d0, today()) AS age, uniq(person_id) AS people
+    FROM (
+      SELECT person_id, min(toDate(timestamp)) AS d0
+      FROM events
+      WHERE timestamp >= now() - INTERVAL 60 DAY AND properties.$geoip_country_name = 'India'
+      GROUP BY person_id
+    )
+    GROUP BY age ORDER BY age`,
+
   // ── DROP-OFF, SPLIT BY PLATFORM. The whole-cohort funnel hides the case that
   // matters most: one store's build losing people the other's does not.
   /**
@@ -1072,11 +1092,25 @@ async function build() {
       countries: (countries || []).map(([c, p]) => ({ country: c, people: Number(p) || 0 })),
 
       // ── the added panels ──────────────────────────────────────────────
-      // Day 0 is the cohort itself, so every later day is a share of it.
+      // EACH DAY AGAINST THE PEOPLE WHO COULD HAVE REACHED IT — not against the whole cohort.
+      // `eligible` for day N is everyone whose first day is at least N days ago; anyone younger
+      // has not had the chance yet and belongs in neither half of the fraction. Day 0 still
+      // divides by the full cohort, which is correct and keeps the curve starting at 100%.
       retention: (() => {
         const rows = (R.retention || []).map(([d, p]) => ({ day: Number(d), people: Number(p) || 0 }));
-        const base = rows.find((r) => r.day === 0)?.people || 0;
-        return rows.map((r) => ({ ...r, pct: base ? Math.round((r.people / base) * 1000) / 10 : 0 }));
+        const ages = (R.retentionCohort || []).map(([a, p]) => ({ age: Number(a), people: Number(p) || 0 }));
+        const cohort = ages.reduce((n, a) => n + a.people, 0);
+        const eligibleFor = (day) => ages.reduce((n, a) => (a.age >= day ? n + a.people : n), 0);
+        return rows.map((r) => {
+          // Fall back to the whole cohort when the age query degraded, so a failed side query
+          // shows the old (pessimistic) number rather than dividing by zero and reporting 0%.
+          const denom = ages.length ? eligibleFor(r.day) : cohort;
+          return {
+            ...r,
+            eligible: denom,
+            pct: denom ? Math.round((r.people / denom) * 1000) / 10 : 0,
+          };
+        });
       })(),
       /**
        * THE SIGN-IN FUNNEL. Every rate is computed HERE, once, so the dashboard and anything

@@ -744,7 +744,7 @@ function Retention({ rows }) {
     <div style={{ ...CARD, flex: "2 1 420px" }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Retention</div>
       <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
-        India · share of {d0.toLocaleString()} people who came back N days after we first saw them
+        India · of the people OLD ENOUGH to reach each day, the share who came back
       </div>
       <div style={{ display: "flex", gap: 18, margin: "14px 0 12px", flexWrap: "wrap" }}>
         {pick.map((d) => (
@@ -752,6 +752,12 @@ function Retention({ rows }) {
             <div style={{ fontSize: 11, color: MUTED }}>D{d}</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: by[d]?.pct >= 20 ? "#3FBF7F" : by[d]?.pct ? "#FFB454" : MUTED }}>
               {by[d] ? `${by[d].pct}%` : "—"}
+            </div>
+            {/* THE DENOMINATOR, ON THE CARD. This percentage used to divide by the whole cohort,
+                including people too new to have reached day N, and nothing on screen said so.
+                Showing what it is a share OF is what makes the number checkable. */}
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
+              {by[d]?.eligible != null ? `of ${by[d].eligible.toLocaleString()}` : ""}
             </div>
           </div>
         ))}
