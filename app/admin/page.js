@@ -83,6 +83,11 @@ export default function Admin() {
   const [lifecycle, setLifecycle] = useState(null);
   const [lcErr, setLcErr] = useState("");
   const [lcStage, setLcStage] = useState("");
+  // "Logged in" is not a stage. `stage` is the FURTHEST rung a person reached, so stage=signed_in
+  // returns only those who signed in and went no further — everyone who then enabled forwarding
+  // or had a call answered is filed under a later stage. Asking "who has logged in" needs its own
+  // filter, and the answer that looked right returned a fraction of them.
+  const [lcSignedIn, setLcSignedIn] = useState(false);
   const [lcBusy, setLcBusy] = useState(false);
   const [cohorts, setCohorts] = useState(null);
   const [cohErr, setCohErr] = useState("");
@@ -189,7 +194,7 @@ export default function Admin() {
    * lot away: a partial list that admits it beats an empty one, and matches how every other loader
    * on this page treats a failure.
    */
-  const loadLifecycle = async (stage) => {
+  const loadLifecycle = async (stage, signedIn) => {
     setLcBusy(true); setLcErr("");
     const PAGE = 500;
     // Apollo's own universe cap is 20,000 people, so 40 pages cannot be reached by real data.
@@ -200,6 +205,9 @@ export default function Admin() {
       for (;;) {
         const qs = new URLSearchParams({ view: "users", limit: String(PAGE), offset: String(offset) });
         if (stage) qs.set("stage", stage);
+        // Default to the state, so the paging loop and the refresh-after-note path keep the
+        // filter the user is looking at instead of quietly widening it on the second page.
+        if (signedIn ?? lcSignedIn) qs.set("signed_in", "true");
         const res = await fetch(`/api/admin/users?${qs}`, { cache: "no-store" });
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j.ok) {
@@ -1440,17 +1448,26 @@ export default function Admin() {
             {["", "code_requested", "signed_in", "forwarding_enabled", "activated", "retained"].map((st) => (
               <button key={st || "all"}
                 style={lcStage === st ? S.btn : S.ghost}
-                onClick={() => { setLcStage(st); loadLifecycle(st); }}>
+                onClick={() => { setLcStage(st); loadLifecycle(st, lcSignedIn); }}>
                 {st === "" ? "All" : st.replace("_", " ")}
               </button>
             ))}
+            {/* EVERYONE WHO HAS LOGGED IN, at whatever rung they since reached — the question the
+                stage buttons above cannot answer, because "signed in" there means "and stopped
+                there". Combines with a stage rather than replacing it. */}
+            <button
+              style={lcSignedIn ? S.btn : S.ghost}
+              title="Everyone who has logged in, whatever stage they reached since"
+              onClick={() => { const n = !lcSignedIn; setLcSignedIn(n); loadLifecycle(lcStage, n); }}>
+              Logged in
+            </button>
             {/* Exports the SAME filter that is on screen. A button that silently exported
                 everything while the table showed one stage would hand someone a call list that
                 does not match the thing they were looking at when they asked for it. */}
-            <a href={`/api/admin/export?table=app_users${lcStage ? `&stage=${lcStage}` : ""}`}
+            <a href={`/api/admin/export?table=app_users${lcStage ? `&stage=${lcStage}` : ""}${lcSignedIn ? "&signed_in=true" : ""}`}
                style={{ textDecoration: "none" }}>
               <button style={S.ghost} title="Every matching row, paged in full — not just this page">
-                Export CSV{lcStage ? ` · ${lcStage.replace("_", " ")}` : ""}
+                Export CSV{lcStage ? ` · ${lcStage.replace("_", " ")}` : ""}{lcSignedIn ? " · logged in" : ""}
               </button>
             </a>
           </div>

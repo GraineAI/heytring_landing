@@ -53,7 +53,11 @@ export async function GET(req) {
   // reports `has_more`, so the panel walks pages. Dropped from this allowlist, every page request
   // returns page 1 — the caller loops forever on identical rows, and the bug looks like duplicate
   // users rather than a missing parameter.
-  for (const k of ["stage", "platform", "days", "limit", "offset", "weeks", "india_only"]) {
+  // `signed_in` is in the allowlist for the same reason `offset` is: a parameter dropped here is
+  // not an error anywhere, it is silently ignored, and the panel then shows a filtered view that
+  // quietly is not filtered.
+  for (const k of ["stage", "platform", "days", "limit", "offset", "weeks", "india_only",
+                   "signed_in"]) {
     const v = searchParams.get(k);
     if (v) qs.set(k, v);
   }

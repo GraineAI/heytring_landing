@@ -31,7 +31,10 @@ async function exportAppUsers(searchParams) {
   let offset = 0, truncated = false, matched = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const qs = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
-    for (const k of ["days", "stage", "platform"]) {
+    // signed_in included, so the CSV matches the table that was on screen when it was asked for.
+    // A button that exports something wider than the view hands someone a call list that does not
+    // match what they were looking at.
+    for (const k of ["days", "stage", "platform", "signed_in"]) {
       const v = searchParams.get(k);
       if (v) qs.set(k, v);
     }
