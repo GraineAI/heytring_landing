@@ -607,8 +607,16 @@ export default function Admin() {
             <>
               <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
                 {[
-                  ["Active today", metrics.active_devices_day, "devices that opened the app"],
-                  ["Active this week", metrics.active_devices_week, ""],
+                  // WORKED FOR FIRST, OPENED SECOND — the order matters because the two answer
+                  // different questions and only one of them describes this product. Tring answers
+                  // calls in the background: someone whose assistant handled three calls yesterday
+                  // and never opened the app is the most active user there is, and every
+                  // "active devices" figure counted them as absent. Leading with app-opens made
+                  // engagement look poor for a product nobody needs to engage with.
+                  ["Worked for, today", metrics.served_users_day, "accounts Tring answered a call for"],
+                  ["Worked for, this week", metrics.served_users_week, "accounts — the real active number"],
+                  ["Opened app today", metrics.active_devices_day, "devices that launched the app"],
+                  ["Opened app this week", metrics.active_devices_week, ""],
                   ["Sessions / device", metrics.sessions_per_active_device_week, "per week"],
                   ["Answers / user", metrics.answers_per_active_user_week, "per week — depth"],
                   ["Time to first answer", metrics.time_to_first_answer_hours != null
