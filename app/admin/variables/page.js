@@ -374,12 +374,18 @@ export default function VariablesPage() {
                           onClick={() => copy(res.rendered)}>Copy prompt</button>
                 </div>
 
-                {res.warnings?.map((w, i) => (
-                  <div key={i} style={{ marginTop: 8, fontSize: 12.5,
-                                        color: w.startsWith("SUBSTITUTION") ? "#FF7B72" : "#E7B75A" }}>
-                    {w.startsWith("SUBSTITUTION") ? "✗" : "⚠"} {w}
-                  </div>
-                ))}
+                {/* Two of these are red, and they are the two that are always a bug: a
+                    substitution that raises, and a setting the user made that the template has
+                    nowhere to put. The rest are amber — usually a design choice, sometimes not. */}
+                {res.warnings?.map((w, i) => {
+                  const bad = w.startsWith("SUBSTITUTION") || w.startsWith("USER SETTINGS");
+                  return (
+                    <div key={i} style={{ marginTop: 8, fontSize: 12.5, fontWeight: bad ? 600 : 400,
+                                          color: bad ? "#FF7B72" : "#E7B75A" }}>
+                      {bad ? "✗" : "⚠"} {w}
+                    </div>
+                  );
+                })}
 
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
                   {(res.slots || []).map((k) => {
