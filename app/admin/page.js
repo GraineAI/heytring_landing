@@ -489,6 +489,11 @@ export default function Admin() {
             <a href="/admin/churn" style={{ textDecoration: "none" }}>
               <button style={S.ghost}>Churn &amp; lifecycle →</button>
             </a>
+            {/* Not a metric — a lookup. It belongs beside the panels because every "why did it
+                say that" question that arrives from support ends up on this page. */}
+            <a href="/admin/variables" style={{ textDecoration: "none" }}>
+              <button style={S.ghost}>Call variables →</button>
+            </a>
             <a href="/admin/intel" style={{ textDecoration: "none", position: "relative" }}>
               <button style={alerts > 0
                 ? { ...S.ghost, borderColor: "rgba(244,83,46,.6)", color: "#F4532E" }
