@@ -69,15 +69,32 @@ export async function GET(req) {
   try {
     // X-Internal-API-Key is the header Apollo's admin gate reads. Authorization: Bearer is for
     // Stytch sessions, which this panel does not have.
-    const res = await fetch(url, {
-      headers: { "X-Internal-API-Key": key, "Content-Type": "application/json" },
-      cache: "no-store",
-    });
+    //
+    // X-Payment-Secret is Apollo's SECOND accepted staff credential (staff_secret_matches takes
+    // either), sent only when one is configured here. It exists because a deployment that holds
+    // one secret and not the other is the normal state, and a panel that can only present one of
+    // the two fails with an error that looks like a bug in the endpoint.
+    const headers = { "X-Internal-API-Key": key, "Content-Type": "application/json" };
+    if (process.env.PAYMENT_SECRET) headers["X-Payment-Secret"] = process.env.PAYMENT_SECRET;
+
+    const res = await fetch(url, { headers, cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.error("apollo variables proxy failed:", res.status);
+      // A 401 here is ALWAYS the key, never the route — and the obvious fix is the wrong one often
+      // enough to be worth spelling out. Apollo resolves INTERNAL_CREDIT_API_KEY FIRST and falls
+      // back to ADMIN_API_KEY, so on a deployment where both are set to different values,
+      // ADMIN_API_KEY is inert and copying it here authenticates nothing.
+      const hint = (res.status === 401 || res.status === 403)
+        ? "Apollo rejected the admin key. It resolves INTERNAL_CREDIT_API_KEY first and only " +
+          "falls back to ADMIN_API_KEY — if both are set on Apollo, the value this panel needs " +
+          "in APOLLO_ADMIN_API_KEY is INTERNAL_CREDIT_API_KEY's. Check with: curl -s -o /dev/null " +
+          "-w '%{http_code}' -H \"X-Internal-API-Key: $KEY\" " +
+          `${APOLLO}/api/v1/calls/admin/users?limit=1  (200 = right key). The users panel fails ` +
+          "the same way with the same key, so this is not specific to this page."
+        : null;
       return NextResponse.json(
-        { ok: false, error: `apollo returned ${res.status}`, detail: body?.detail || null },
+        { ok: false, error: `apollo returned ${res.status}`, detail: body?.detail || null, hint },
         { status: res.status === 401 || res.status === 403 ? 502 : res.status },
       );
     }

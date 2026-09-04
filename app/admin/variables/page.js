@@ -130,7 +130,7 @@ export default function VariablesPage() {
       const r = await fetch(`/api/admin/variables?${qs}`, { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (r.status === 401) throw new Error("Not signed in — open /admin and enter the admin password first.");
-      if (!r.ok || !j.ok) throw new Error(j.error || j.detail || `apollo: ${r.status}`);
+      if (!r.ok || !j.ok) throw new Error([j.error, j.hint || j.detail].filter(Boolean).join(" — ") || `apollo: ${r.status}`);
       setPrompt(j);
     } catch (e) { setPerr(String(e.message || e)); }
     setPbusy(false);
@@ -148,7 +148,7 @@ export default function VariablesPage() {
       // A bare 401 from the proxy means the admin cookie is missing, not that Apollo refused —
       // saying "401" sends whoever sees it to the wrong service.
       if (r.status === 401) throw new Error("Not signed in — open /admin and enter the admin password first.");
-      if (!r.ok || !j.ok) throw new Error(j.error || j.detail || `apollo: ${r.status}`);
+      if (!r.ok || !j.ok) throw new Error([j.error, j.hint || j.detail].filter(Boolean).join(" — ") || `apollo: ${r.status}`);
       setData(j);
     } catch (e) { setErr(String(e.message || e)); }
     setBusy(false);
@@ -164,7 +164,7 @@ export default function VariablesPage() {
       const r = await fetch(`/api/admin/variables?${qs}`, { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (r.status === 401) throw new Error("Not signed in — open /admin and enter the admin password first.");
-      if (!r.ok || !j.ok) throw new Error(j.error || j.detail || `apollo: ${r.status}`);
+      if (!r.ok || !j.ok) throw new Error([j.error, j.hint || j.detail].filter(Boolean).join(" — ") || `apollo: ${r.status}`);
       setLines(j);
     } catch (e) { setLerr(String(e.message || e)); }
     setLbusy(false);
