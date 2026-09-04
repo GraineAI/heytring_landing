@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 
+import GraineAgentControls from "./GraineAgentControls";
+
 /**
  * The Graine voice agent, embedded as Tring's support widget.
  *
@@ -101,6 +103,12 @@ export default function SupportChat() {
           })();
         `}
       </Script>
+
+      {/* What the agent may DO on this page — scroll to a section, open an FAQ
+          answer, start the download. The widget is an iframe and cannot touch
+          this document; these are named handlers we wrote, and the agent can
+          invoke those and nothing else. See GraineAgentControls.js. */}
+      <GraineAgentControls />
     </>
   );
 }
