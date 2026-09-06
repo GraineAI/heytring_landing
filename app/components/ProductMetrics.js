@@ -1573,7 +1573,18 @@ function ActionItems({ d, ledger }) {
       fix: "Disable analytics in dev/CI builds, or point them at a separate PostHog project, so nobody has to mentally subtract robots again." });
   }
   // 7. Geo concentration — double down where you're winning.
-  const st = (d.states || []).filter((s) => s.people > 0).slice(0, 2);
+  // A row must have a NAME as well as people. Geo data carries an unmapped
+  // region — state null — for anyone whose location could not be resolved, and
+  // that row often has plenty of people, so it sorts straight to the top. It
+  // passed a people-only filter and then `st[0].state.replace(...)` threw
+  // "Cannot read properties of null (reading 'replace')", which React turns
+  // into a blank page and a client-side exception for the whole admin.
+  //
+  // Filtered rather than guarded at the call site: a recommendation that reads
+  // "Double down on null & Kerala" is not worth rendering either.
+  const st = (d.states || [])
+    .filter((s) => s.people > 0 && typeof s.state === "string" && s.state.trim())
+    .slice(0, 2);
   if (st.length === 2 && st[0].people >= 20) {
     items.push({ p: "low", t: `Double down on ${st[0].state.replace("National Capital Territory of ", "")} & ${st[1].state}`,
       why: "These are your strongest organic clusters — proof the product spreads there.",
